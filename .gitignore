@@ -1,0 +1,21 @@
+# Dependencies and builds
+node_modules/
+.next/
+dist/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.log
+*.tsbuildinfo
+.coverage
+coverage/
+
+# Local data and environment
+apps/api/data/
+.env
+.env.local
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.vscode/
