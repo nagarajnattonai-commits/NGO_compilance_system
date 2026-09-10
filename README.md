@@ -69,6 +69,8 @@ cd ..\web
 npm.cmd run build
 ```
 
+Every push and pull request to `main` also runs these API tests, frontend checks and Docker Compose validation through `.github/workflows/ci.yml`.
+
 ## Architecture
 
 ### Reference-based admin theme

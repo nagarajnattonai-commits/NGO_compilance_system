@@ -52,4 +52,6 @@ This map follows the priority groups in the approved requirement analysis. “Im
 
 ## Production-only dependencies
 
-PostgreSQL migrations, Redis workers and scheduler, private S3-compatible storage, malware scanning, managed OIDC/SSO, transactional email, official WhatsApp, cloud calendar/storage providers, digital signatures, OCR/AI providers, observability, encrypted backups, infrastructure as code and security-edge controls require deployment choices and credentials. The application keeps these behind explicit domain or provider boundaries so they can be connected without changing the compliance model.
+Automated continuous integration is implemented for API tests, frontend type/build validation and Docker Compose configuration on every push and pull request to `main`.
+
+PostgreSQL migrations, Redis workers and scheduler, private S3-compatible storage, malware scanning, managed OIDC/SSO, transactional email, official WhatsApp, cloud calendar/storage providers, digital signatures, OCR/AI providers, observability, encrypted backups, deployment automation, infrastructure as code and security-edge controls require deployment choices and credentials. The application keeps these behind explicit domain or provider boundaries so they can be connected without changing the compliance model.
