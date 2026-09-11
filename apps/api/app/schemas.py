@@ -267,7 +267,13 @@ class ComplianceCommentOut(ORMModel):
 
 class PortfolioRecordCreate(BaseModel):
     organization_id: str
-    record_type: Literal["GRANT", "DONOR", "CSR_PROJECT", "VOLUNTEER"]
+    record_type: Literal[
+        "GRANT", "DONOR", "CSR_PROJECT", "VOLUNTEER",
+        "MEMBERSHIP", "VOLUNTEER_ACTIVITY", "EVENT", "CAMPAIGN", "DONATION",
+        "INQUIRY", "MESSAGE", "CERTIFICATE", "NEWS", "SPONSOR", "TESTIMONIAL",
+        "MANAGEMENT_MEMBER", "GALLERY_ITEM", "DOCUMENT_TEMPLATE", "TRAINING_VIDEO",
+        "CONTENT_PAGE",
+    ]
     title: str = Field(min_length=2, max_length=220)
     status: str = Field(default="ACTIVE", min_length=2, max_length=30)
     owner_name: str = Field(default="Unassigned", min_length=2, max_length=120)

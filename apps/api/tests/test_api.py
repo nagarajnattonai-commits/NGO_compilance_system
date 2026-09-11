@@ -291,6 +291,27 @@ def test_expansion_records_support_grants_donors_csr_and_volunteers():
         assert any(row["id"] == record_id for row in rows)
 
 
+def test_admin_operations_records_support_workflow_and_audited_delete():
+    with authenticated_client() as client:
+        created = client.post("/api/v1/portfolio-records", json={
+            "organization_id": "org-udaan", "record_type": "DONATION", "title": "Annual appeal donation",
+            "status": "PENDING", "owner_name": "Ravi Kumar", "value_label": "INR 25,000 / TXN-1042",
+            "due_at": "2026-09-11", "notes": "80G receipt requested",
+        })
+        assert created.status_code == 201
+        record_id = created.json()["id"]
+        updated = client.patch(f"/api/v1/portfolio-records/{record_id}", json={"status": "VERIFIED"})
+        assert updated.status_code == 200
+        assert updated.json()["status"] == "VERIFIED"
+        assert any(row["id"] == record_id for row in client.get("/api/v1/portfolio-records", params={"record_type": "DONATION"}).json())
+
+        removed = client.delete(f"/api/v1/portfolio-records/{record_id}")
+        assert removed.status_code == 204
+        assert all(row["id"] != record_id for row in client.get("/api/v1/portfolio-records").json())
+        events = client.get("/api/v1/audit-events").json()
+        assert any(event["entity_id"] == record_id and event["action"] == "DONATION_DELETED" for event in events)
+
+
 def test_daily_automation_is_idempotent_and_rolls_forward_completed_work():
     with authenticated_client() as client:
         created = client.post("/api/v1/compliances", json={

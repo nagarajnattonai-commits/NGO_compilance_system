@@ -125,6 +125,25 @@ def seed_extended_data(db: Session) -> None:
             PortfolioRecord(id="volunteer-audit", tenant_id=TENANT_ID, organization_id="org-udaan", record_type="VOLUNTEER", title="Financial controls volunteer cohort", status="ACTIVE", owner_name="Neha Kulkarni", value_label="12 volunteers", due_at=date(2026, 10, 10), notes="Access is limited to non-sensitive training records."),
         ])
 
+    # Keep the operations centre useful for existing demo databases as new modules are introduced.
+    operation_seed_records = [
+        PortfolioRecord(id="ops-membership", tenant_id=TENANT_ID, organization_id="org-udaan", record_type="MEMBERSHIP", title="Priya Sharma annual membership", status="PENDING", owner_name="Priya Sharma", value_label="INR 1,500 / UPI-4821", due_at=date(2027, 9, 10), notes="Payment proof received; identity verification pending."),
+        PortfolioRecord(id="ops-volunteer-activity", tenant_id=TENANT_ID, organization_id="org-udaan", record_type="VOLUNTEER_ACTIVITY", title="Community audit readiness workshop", status="LOGGED", owner_name="Neha Kulkarni", value_label="18 hours / Workshop", due_at=date(2026, 9, 8), notes="Three volunteers trained programme coordinators."),
+        PortfolioRecord(id="ops-management", tenant_id=TENANT_ID, organization_id="org-aarohan", record_type="MANAGEMENT_MEMBER", title="Dr Meera Rao", status="ACTIVE", owner_name="Governance office", value_label="Trustee / Programmes", due_at=date(2028, 3, 31), notes="Public management profile approved."),
+        PortfolioRecord(id="ops-donation", tenant_id=TENANT_ID, organization_id="org-jal", record_type="DONATION", title="Monsoon water security appeal", status="VERIFIED", owner_name="Arvind Menon", value_label="INR 75,000 / TXN-8806", due_at=date(2026, 9, 10), notes="80G receipt requested and PAN verified."),
+        PortfolioRecord(id="ops-campaign", tenant_id=TENANT_ID, organization_id="org-jal", record_type="CAMPAIGN", title="100 village water kits", status="ACTIVE", owner_name="Fundraising team", value_label="INR 6.4L / INR 10L", due_at=date(2026, 12, 31), notes="Campaign is accepting public contributions."),
+        PortfolioRecord(id="ops-sponsor", tenant_id=TENANT_ID, organization_id="org-aarohan", record_type="SPONSOR", title="Sampurna Technologies", status="ACTIVE", owner_name="Partnerships team", value_label="sampurna.example / Priority 1", notes="Logo and website placement approved."),
+        PortfolioRecord(id="ops-event", tenant_id=TENANT_ID, organization_id="org-udaan", record_type="EVENT", title="Annual community impact forum", status="PUBLISHED", owner_name="Events desk", value_label="Bengaluru / 180 seats", due_at=date(2026, 11, 22), notes="Public registration is open."),
+        PortfolioRecord(id="ops-inquiry", tenant_id=TENANT_ID, organization_id="org-jal", record_type="INQUIRY", title="Corporate volunteering partnership", status="IN_PROGRESS", owner_name="Riya Mehta", value_label="Partnership / High", due_at=date(2026, 9, 15), notes="Schedule a programme and safeguarding call."),
+        PortfolioRecord(id="ops-certificate", tenant_id=TENANT_ID, organization_id="org-udaan", record_type="CERTIFICATE", title="Volunteer excellence — Asha Nair", status="ISSUED", owner_name="Programme office", value_label="Asha Nair / SETU-VC-104", due_at=date(2026, 9, 5), notes="Certificate issued for 120 verified service hours."),
+        PortfolioRecord(id="ops-news", tenant_id=TENANT_ID, organization_id="org-aarohan", record_type="NEWS", title="Digital learning labs reach 2,000 learners", status="DRAFT", owner_name="Communications", value_label="digital-learning-impact", due_at=date(2026, 9, 18), notes="Awaiting final beneficiary consent review."),
+        PortfolioRecord(id="ops-testimonial", tenant_id=TENANT_ID, organization_id="org-jal", record_type="TESTIMONIAL", title="Kavya — community coordinator", status="PUBLISHED", owner_name="Communications", value_label="Coordinator / 5 stars", notes="Approved for the public impact page."),
+        PortfolioRecord(id="ops-content", tenant_id=TENANT_ID, organization_id="org-udaan", record_type="CONTENT_PAGE", title="About and mission page", status="PUBLISHED", owner_name="Site administrator", value_label="About / Mission", due_at=date(2026, 12, 1), notes="Quarterly content review scheduled."),
+    ]
+    for operation_record in operation_seed_records:
+        if not db.get(PortfolioRecord, operation_record.id):
+            db.add(operation_record)
+
     if not db.scalar(select(IntegrationConnection.id).where(IntegrationConnection.tenant_id == TENANT_ID).limit(1)):
         db.add_all([
             IntegrationConnection(id="int-email", tenant_id=TENANT_ID, provider="Transactional email", category="Notifications", status="AVAILABLE", description="Reminder, approval, invitation and security messages."),

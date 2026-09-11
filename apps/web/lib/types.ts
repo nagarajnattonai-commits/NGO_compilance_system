@@ -122,7 +122,12 @@ export type DocumentVersion = {
 export type PortfolioRecord = {
   id: string;
   organization_id: string;
-  record_type: "GRANT" | "DONOR" | "CSR_PROJECT" | "VOLUNTEER";
+  record_type:
+    | "GRANT" | "DONOR" | "CSR_PROJECT" | "VOLUNTEER"
+    | "MEMBERSHIP" | "VOLUNTEER_ACTIVITY" | "EVENT" | "CAMPAIGN" | "DONATION"
+    | "INQUIRY" | "MESSAGE" | "CERTIFICATE" | "NEWS" | "SPONSOR" | "TESTIMONIAL"
+    | "MANAGEMENT_MEMBER" | "GALLERY_ITEM" | "DOCUMENT_TEMPLATE" | "TRAINING_VIDEO"
+    | "CONTENT_PAGE";
   title: string;
   status: string;
   owner_name: string;

@@ -50,6 +50,24 @@ This map follows the priority groups in the approved requirement analysis. “Im
 | Multi-language UI | Planned |
 | White-label SaaS | Planned |
 
+## Dotskills Trust admin comparison
+
+The Dotskills Trust demonstration portal was reviewed on 11 September 2026 using the account supplied by the product owner. Setu now provides an admin-only **NGO operations centre** that maps the reference portal's operational modules into Setu's tenant- and organization-scoped record model.
+
+| Reference capability | Setu coverage |
+| --- | --- |
+| Membership applications, fees, verification, blocking and validity | Implemented as membership operational records with review states |
+| Volunteers, approval/renewal and volunteer activity hours | Implemented as volunteer and activity records with approval states |
+| Projects, funds, donations, 80G review and crowdfunding | Implemented as project, donation and campaign records; CSV reporting already available |
+| Events, member messages and inquiries | Implemented as searchable operational records with module-specific statuses |
+| Visitor certificates and document templates | Implemented as issuance/template workflows; generated PDFs and transactional email require production providers |
+| News, gallery, testimonials, training and website content | Implemented as draft/publish/archive content workflows |
+| Management body and sponsors | Implemented as active/inactive directory workflows |
+| Dashboard, compliance, documents, reports, settings and access control | Setu's existing implementations are retained and are more deeply tenant-scoped and audit-oriented |
+| Record deletion | Implemented for administrators and audit logged |
+
+The operations centre uses a consistent secure record contract rather than duplicating the reference portal's separate PHP forms. Specialized media uploads, visual certificate canvas editing, online payment capture, receipt PDF rendering and outbound email delivery remain provider-backed production work; their workflows and statuses are represented without claiming that an external service is connected.
+
 ## Production-only dependencies
 
 Automated continuous integration is implemented for API tests, frontend type/build validation and Docker Compose configuration on every push and pull request to `main`.

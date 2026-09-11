@@ -698,6 +698,17 @@ def update_portfolio_record(record_id: str, payload: PortfolioRecordUpdate, db: 
     return item
 
 
+@app.delete("/api/v1/portfolio-records/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_portfolio_record(record_id: str, db: DB, tenant_id: Tenant, _: AdminUser):
+    item = db.scalar(select(PortfolioRecord).where(PortfolioRecord.id == record_id, PortfolioRecord.tenant_id == tenant_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Portfolio record not found")
+    audit(db, tenant_id, f"{item.record_type}_DELETED", "PortfolioRecord", item.id, f"Deleted {item.title}")
+    db.delete(item)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.get("/api/v1/integrations", response_model=list[IntegrationOut])
 def integrations(db: DB, tenant_id: Tenant):
     return db.scalars(select(IntegrationConnection).where(

@@ -347,6 +347,13 @@ html[data-theme="dark"] .user-summary b,
 html[data-theme="dark"] .module-metrics button strong,
 html[data-theme="dark"] .impact-list article h3 { color: #e5efe9; }
 html[data-theme="dark"] .impact-list article { border-color: #294036; }
+html[data-theme="dark"] :is(.operation-groups button, .operation-module-grid button) { border-color: #294036; background: #101d17; color: #aabbb2; }
+html[data-theme="dark"] :is(.operation-groups button:hover, .operation-groups button.active, .operation-module-grid button:hover, .operation-module-grid button.active) { border-color: #387d5c; background: #14291f; }
+html[data-theme="dark"] .operation-groups button.active { color: #83dbaa; }
+html[data-theme="dark"] :is(.operation-groups svg, .operation-module-grid i) { color: #68d99c; background: #173528; }
+html[data-theme="dark"] :is(.operation-groups strong, .operation-module-grid b) { color: #b9c9c0; background: #263a30; }
+html[data-theme="dark"] .operation-module-grid strong { color: #e5efe9; }
+html[data-theme="dark"] .operations-table select { border-color: #355044; color: #9fe0bb; background: #13271d; }
 html[data-theme="dark"] .assistant-prompts { border-color: #294036; background: #0d1813; }
 html[data-theme="dark"] .readonly-banner { color: #f0d99b; background: #332b16; }
 

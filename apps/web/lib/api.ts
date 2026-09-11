@@ -63,6 +63,7 @@ export const createTask = (payload: TaskCreateInput) => apiRequest<ComplianceTas
 export const markNotificationRead = (id: string) => apiRequest<void>(`/notifications/${id}/read`, "PATCH");
 export const createPortfolioRecord = (payload: Omit<PortfolioRecord, "id" | "created_at" | "updated_at">) => apiRequest<PortfolioRecord>("/portfolio-records", "POST", payload);
 export const patchPortfolioRecord = (id: string, payload: Partial<Pick<PortfolioRecord, "title" | "status" | "owner_name" | "value_label" | "due_at" | "notes">>) => apiRequest<PortfolioRecord>(`/portfolio-records/${id}`, "PATCH", payload);
+export const deletePortfolioRecord = (id: string) => apiRequest<void>(`/portfolio-records/${id}`, "DELETE");
 export const patchIntegration = (id: string, status: IntegrationConnection["status"]) => apiRequest<IntegrationConnection>(`/integrations/${id}`, "PATCH", { status });
 export const runAutomation = () => apiRequest<{ run_date: string; overdue_compliances: number; overdue_tasks: number; upcoming: number; expiring_documents: number; recurring_created: number }>("/automation/run", "POST");
 export const askAssistant = (question: string, organization_id?: string) => apiRequest<AssistantAnswer>("/assistant/query", "POST", { question, organization_id });
