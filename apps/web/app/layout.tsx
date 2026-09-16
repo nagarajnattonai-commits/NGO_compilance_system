@@ -30,7 +30,7 @@ export default async function RootLayout({
       suppressHydrationWarning
       data-scroll-behavior="smooth"
     >
-      <body>
+      <body suppressHydrationWarning>
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
         <Script id="setu-theme" strategy="beforeInteractive">
           {themeBootScript}
