@@ -1972,6 +1972,7 @@ function DocumentsView({
   showToast: (message: string) => void;
   updateDocument: (document: ComplianceDocument) => void;
 }) {
+  const t = useTranslations("Documents");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
   const [selectedDoc, setSelectedDoc] = useState<ComplianceDocument | null>(
@@ -1989,12 +1990,12 @@ function DocumentsView({
     <>
       <div className="page">
         <PageHeading
-          title="Evidence library"
-          text="Secure, versioned documents linked to organizations and obligations."
+          title={t("title")}
+          text={t("description")}
           action={
             <button className="button primary" onClick={() => openUpload()}>
               <Upload size={17} />
-              Upload document
+              {t("upload")}
             </button>
           }
         />
@@ -2002,20 +2003,19 @@ function DocumentsView({
           <div>
             <FolderOpen />
             <span>
-              <strong>{items.length}</strong> documents
+              {t("documentCount", { count: items.length })}
             </span>
           </div>
           <div>
             <ShieldCheck />
             <span>
-              <strong>Versioned</strong> evidence history
+              <strong>{t("version")}</strong> {t("versionedHistory")}
             </span>
           </div>
           <div>
             <AlertTriangle />
             <span>
-              <strong>{items.filter((i) => i.expiry_at).length}</strong> expiry
-              dates tracked
+              {t("expiryTracked", { count: items.filter((i) => i.expiry_at).length })}
             </span>
           </div>
         </div>
@@ -2026,17 +2026,18 @@ function DocumentsView({
               id="document-search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search documents..."
+              aria-label={t("search")}
+              placeholder={t("search")}
             />
           </div>
           <label className="filter-select">
             <FolderOpen size={16} />
             <select
-              aria-label="Filter by document category"
+              aria-label={t("category")}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="ALL">All categories</option>
+              <option value="ALL">{t("allCategories")}</option>
               {categories.map((item) => (
                 <option value={item} key={item}>
                   {item}
@@ -2049,11 +2050,11 @@ function DocumentsView({
         <section className="table-card">
           <div className="data-table document-table">
             <div className="table-head">
-              <span>Document</span>
-              <span>Organization</span>
-              <span>Category</span>
-              <span>Expiry</span>
-              <span>Uploaded by</span>
+              <span>{t("document")}</span>
+              <span>{t("organization")}</span>
+              <span>{t("category")}</span>
+              <span>{t("expiry")}</span>
+              <span>{t("uploadedBy")}</span>
               <span />
             </div>
             {visible.map((doc) => (
@@ -2076,7 +2077,7 @@ function DocumentsView({
                         ?.name
                     }
                   </strong>
-                  <small>Authorized access</small>
+                  <small>{t("authorizedAccess")}</small>
                 </span>
                 <span>
                   <span className="category-pill">{doc.category}</span>
@@ -2084,7 +2085,7 @@ function DocumentsView({
                 <span>
                   <strong>{niceDate(doc.expiry_at)}</strong>
                   <small>
-                    {doc.expiry_at ? "Reminder active" : "No expiry"}
+                    {doc.expiry_at ? t("reminderActive") : t("noExpiry")}
                   </small>
                 </span>
                 <span className="owner-cell">
@@ -2106,8 +2107,8 @@ function DocumentsView({
           {visible.length === 0 && (
             <EmptyState
               icon={<FolderOpen />}
-              title="No documents found"
-              text="Change the search or category filter, or upload new evidence."
+              title={t("emptyTitle")}
+              text={t("emptyText")}
             />
           )}
         </section>
@@ -2143,6 +2144,7 @@ function ReportsView({
   organizations: Organization[];
   showToast: (message: string) => void;
 }) {
+  const t = useTranslations("Reports");
   const categories = [...new Set(compliances.map((c) => c.category))];
   function exportReport() {
     const header = [
@@ -2182,12 +2184,12 @@ function ReportsView({
   return (
     <div className="page">
       <PageHeading
-        title="Reports & insights"
-        text="A management view of compliance health, workload and portfolio risk."
+        title={t("title")}
+        text={t("description")}
         action={
           <button className="button primary" onClick={exportReport}>
             <Download size={17} />
-            Export report
+            {t("exportCsv")}
           </button>
         }
       />
@@ -2240,7 +2242,7 @@ function ReportsView({
                   <div>
                     <b style={{ width: `${value}%` }} />
                   </div>
-                  <strong>{value}%</strong>
+                  <strong>{formatPercentage(value / 100)}</strong>
                 </div>
               );
             })}
@@ -2265,7 +2267,7 @@ function ReportsView({
                     <strong>{org.name}</strong>
                     <small>{rows.length} obligations</small>
                   </div>
-                  <b>{score}%</b>
+                  <b>{formatPercentage(score / 100)}</b>
                   <div className="mini-bar">
                     <i style={{ width: `${score}%` }} />
                   </div>
