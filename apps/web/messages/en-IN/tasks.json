@@ -1,0 +1,15 @@
+{
+  "Tasks": {
+    "title": "Tasks and ownership",
+    "description": "Turn compliance obligations into assigned, time-bound work.",
+    "task": "Task",
+    "assignee": "Assignee",
+    "dueDate": "Due date",
+    "linkedCompliance": "Linked compliance",
+    "add": "Add task",
+    "open": "Open tasks",
+    "completed": "Completed tasks",
+    "emptyTitle": "No tasks yet",
+    "emptyText": "Create a task and assign clear responsibility."
+  }
+}

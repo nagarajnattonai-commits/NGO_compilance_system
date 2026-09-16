@@ -1,0 +1,20 @@
+{
+  "Compliance": {
+    "title": "Compliance register",
+    "description": "Track every obligation from planning through filing and completion.",
+    "searchPlaceholder": "Search by title, code or owner...",
+    "code": "Code",
+    "obligation": "Obligation",
+    "organization": "Organization",
+    "owner": "Owner",
+    "deadline": "Deadline",
+    "internalTarget": "Internal target",
+    "status": "Status",
+    "priority": "Priority",
+    "period": "Period",
+    "legalReference": "Legal reference",
+    "add": "Add compliance",
+    "emptyTitle": "No matching compliances",
+    "emptyText": "Adjust the search or add a new compliance obligation."
+  }
+}

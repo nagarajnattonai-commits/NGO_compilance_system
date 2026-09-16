@@ -2,16 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Theme = "light" | "dark";
 
-export default function ThemeToggle({ variant = "compact", className = "" }: { variant?: "compact" | "icon"; className?: string }) {
+export default function ThemeToggle({
+  variant = "compact",
+  className = "",
+}: {
+  variant?: "compact" | "icon";
+  className?: string;
+}) {
+  const t = useTranslations("Common.theme");
   const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
-    const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const current =
+      document.documentElement.dataset.theme === "dark" ? "dark" : "light";
     setTheme(current);
-    const syncTheme = () => setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    const syncTheme = () =>
+      setTheme(
+        document.documentElement.dataset.theme === "dark" ? "dark" : "light",
+      );
     window.addEventListener("storage", syncTheme);
     window.addEventListener("setu-theme-change", syncTheme);
     return () => {
@@ -21,7 +33,9 @@ export default function ThemeToggle({ variant = "compact", className = "" }: { v
   }, []);
 
   function toggleTheme() {
-    const current = theme ?? (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    const current =
+      theme ??
+      (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
     const next: Theme = current === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     localStorage.setItem("setu-theme", next);
@@ -34,9 +48,9 @@ export default function ThemeToggle({ variant = "compact", className = "" }: { v
     <button
       type="button"
       className={`theme-toggle theme-toggle-${variant} ${className}`.trim()}
-      aria-label={`Switch to ${dark ? "light" : "dark"} mode`}
+      aria-label={dark ? t("switchLight") : t("switchDark")}
       aria-pressed={dark}
-      title={`Switch to ${dark ? "light" : "dark"} mode`}
+      title={dark ? t("switchLight") : t("switchDark")}
       onClick={toggleTheme}
     >
       <span className="theme-toggle-track" aria-hidden="true">
@@ -44,7 +58,14 @@ export default function ThemeToggle({ variant = "compact", className = "" }: { v
         <Moon size={13} />
         <i />
       </span>
-      {variant === "compact" && <span className="theme-toggle-copy"><small>DAY / NIGHT</small><strong>{theme ? (dark ? "Dark" : "Light") : "Theme"}</strong></span>}
+      {variant === "compact" && (
+        <span className="theme-toggle-copy">
+          <small>{t("dayNight")}</small>
+          <strong>
+            {theme ? (dark ? t("dark") : t("light")) : t("label")}
+          </strong>
+        </span>
+      )}
     </button>
   );
 }

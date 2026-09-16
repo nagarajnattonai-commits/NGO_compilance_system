@@ -1,0 +1,18 @@
+{
+  "Dashboard": {
+    "adminTitle": "Admin Dashboard",
+    "teamTitle": "Team Dashboard",
+    "welcome": "Welcome back! Here is your NGO compliance overview.",
+    "totalCompliances": "Total compliances",
+    "openTasks": "Open tasks",
+    "evidenceRecords": "Evidence records",
+    "complianceHealth": "Compliance health",
+    "priorityDeadlines": "Priority deadlines",
+    "recentActivity": "Recent activity",
+    "attentionRequired": "Attention required",
+    "addCompliance": "Add compliance",
+    "addEvidence": "Add evidence",
+    "completed": "{count, plural, =0 {No compliances completed} =1 {One compliance completed} other {# compliances completed}}",
+    "organizations": "Across {count, plural, =1 {one organization} other {# organizations}}"
+  }
+}

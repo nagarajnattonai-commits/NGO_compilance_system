@@ -88,6 +88,10 @@ The API requires tenant context on every domain query. The local demo falls back
 
 The implementation coverage map is maintained in `docs/feature-coverage.md`. It separates working product behavior from provider or infrastructure readiness so optional features are not represented as production integrations before credentials, contracts and regulatory validation exist.
 
+### Localization
+
+The UI uses `next-intl` with module-split dictionaries for `en-IN`, `hi-IN`, `kn-IN` and `mr-IN`. English is the safe fallback. Authenticated users can store locale, timezone and 12/24-hour preferences independently; administrators can configure enabled/default languages and order at `/settings/localization`, and can manage tenant-scoped translation overrides at `/settings/localization/translations`. Internal status, role, priority and workflow values remain language-neutral.
+
 ## Production roadmap
 
 Before deployment, replace the local identity fallback and SQLite with managed OIDC and PostgreSQL, add Redis-backed scheduled workers, connect S3-compatible document storage, configure an email provider, and migrate the validated compliance catalogue into versioned rules. These are intentionally isolated behind the current API boundaries.

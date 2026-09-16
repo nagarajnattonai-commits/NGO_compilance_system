@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useLocale } from "next-intl";
 
 type Locale = "en" | "hi" | "mr" | "kn";
 
@@ -9,7 +10,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "hero.kicker": "Built for NGOs and compliance professionals",
     "hero.line1": "Every obligation.",
     "hero.line2": "One clear path to completion.",
-    "hero.description": "Setu brings compliance schedules, team responsibilities, evidence, donor relationships and impact programmes into one secure operating workspace—so nothing important lives only in a spreadsheet or inbox.",
+    "hero.description":
+      "Setu brings compliance schedules, team responsibilities, evidence, donor relationships and impact programmes into one secure operating workspace—so nothing important lives only in a spreadsheet or inbox.",
     "hero.create": "Create your workspace",
     "hero.explore": "Explore the platform",
     "hero.tenant": "Tenant-isolated records",
@@ -24,7 +26,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "platform.eyebrow": "The platform",
     "platform.title": "A connected operating system for compliance work",
     "certificates.eyebrow": "Certificates and registrations",
-    "certificates.title": "Know what is valid, what is expiring and where the proof lives",
+    "certificates.title":
+      "Know what is valid, what is expiring and where the proof lives",
     "workflow.eyebrow": "From requirement to record",
     "workflow.title": "A workflow your whole team can follow",
     "dnd.eyebrow": "D&D management",
@@ -42,15 +45,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "faq.eyebrow": "Common questions",
     "faq.title": "What organizations ask before they begin",
     "support.eyebrow": "Support the mission",
-    "support.title": "Help more NGOs move from missed follow-ups to accountable operations.",
+    "support.title":
+      "Help more NGOs move from missed follow-ups to accountable operations.",
     "contact.eyebrow": "Contact and onboarding",
-    "contact.title": "Give every compliance responsibility a clear owner, deadline and evidence trail.",
+    "contact.title":
+      "Give every compliance responsibility a clear owner, deadline and evidence trail.",
   },
   hi: {
     "hero.kicker": "एनजीओ और अनुपालन पेशेवरों के लिए निर्मित",
     "hero.line1": "हर जिम्मेदारी।",
     "hero.line2": "पूर्णता का एक स्पष्ट मार्ग।",
-    "hero.description": "सेतु अनुपालन समय-सारणी, टीम की जिम्मेदारियाँ, प्रमाण, दाता संबंध और प्रभाव कार्यक्रमों को एक सुरक्षित कार्यस्थल में लाता है—ताकि कोई भी महत्वपूर्ण जानकारी केवल स्प्रेडशीट या इनबॉक्स में न रहे।",
+    "hero.description":
+      "सेतु अनुपालन समय-सारणी, टीम की जिम्मेदारियाँ, प्रमाण, दाता संबंध और प्रभाव कार्यक्रमों को एक सुरक्षित कार्यस्थल में लाता है—ताकि कोई भी महत्वपूर्ण जानकारी केवल स्प्रेडशीट या इनबॉक्स में न रहे।",
     "hero.create": "अपना कार्यस्थल बनाएँ",
     "hero.explore": "प्लेटफ़ॉर्म देखें",
     "hero.tenant": "अलग और सुरक्षित रिकॉर्ड",
@@ -65,7 +71,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "platform.eyebrow": "प्लेटफ़ॉर्म",
     "platform.title": "अनुपालन कार्य के लिए एक जुड़ी हुई संचालन प्रणाली",
     "certificates.eyebrow": "प्रमाणपत्र और पंजीकरण",
-    "certificates.title": "जानें क्या वैध है, क्या समाप्त होने वाला है और प्रमाण कहाँ है",
+    "certificates.title":
+      "जानें क्या वैध है, क्या समाप्त होने वाला है और प्रमाण कहाँ है",
     "workflow.eyebrow": "आवश्यकता से रिकॉर्ड तक",
     "workflow.title": "एक कार्यप्रवाह जिसे आपकी पूरी टीम अपना सके",
     "dnd.eyebrow": "दाता और दान प्रबंधन",
@@ -83,15 +90,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "faq.eyebrow": "सामान्य प्रश्न",
     "faq.title": "शुरू करने से पहले संस्थाएँ क्या पूछती हैं",
     "support.eyebrow": "मिशन का सहयोग करें",
-    "support.title": "अधिक एनजीओ को छूटी हुई फॉलो-अप से जवाबदेह संचालन की ओर बढ़ने में मदद करें।",
+    "support.title":
+      "अधिक एनजीओ को छूटी हुई फॉलो-अप से जवाबदेह संचालन की ओर बढ़ने में मदद करें।",
     "contact.eyebrow": "संपर्क और ऑनबोर्डिंग",
-    "contact.title": "हर अनुपालन जिम्मेदारी को स्पष्ट स्वामी, समय-सीमा और प्रमाण-श्रृंखला दें।",
+    "contact.title":
+      "हर अनुपालन जिम्मेदारी को स्पष्ट स्वामी, समय-सीमा और प्रमाण-श्रृंखला दें।",
   },
   mr: {
     "hero.kicker": "एनजीओ आणि अनुपालन व्यावसायिकांसाठी तयार",
     "hero.line1": "प्रत्येक जबाबदारी.",
     "hero.line2": "पूर्णत्वाचा एक स्पष्ट मार्ग.",
-    "hero.description": "सेतू अनुपालन वेळापत्रक, संघाच्या जबाबदाऱ्या, पुरावे, देणगीदार संबंध आणि प्रभाव कार्यक्रम एका सुरक्षित कार्यक्षेत्रात आणते—म्हणून कोणतीही महत्त्वाची माहिती फक्त स्प्रेडशीट किंवा इनबॉक्समध्ये राहत नाही.",
+    "hero.description":
+      "सेतू अनुपालन वेळापत्रक, संघाच्या जबाबदाऱ्या, पुरावे, देणगीदार संबंध आणि प्रभाव कार्यक्रम एका सुरक्षित कार्यक्षेत्रात आणते—म्हणून कोणतीही महत्त्वाची माहिती फक्त स्प्रेडशीट किंवा इनबॉक्समध्ये राहत नाही.",
     "hero.create": "तुमचे कार्यक्षेत्र तयार करा",
     "hero.explore": "प्लॅटफॉर्म पहा",
     "hero.tenant": "स्वतंत्र आणि सुरक्षित नोंदी",
@@ -106,7 +116,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "platform.eyebrow": "प्लॅटफॉर्म",
     "platform.title": "अनुपालन कामासाठी जोडलेली कार्यप्रणाली",
     "certificates.eyebrow": "प्रमाणपत्रे आणि नोंदणी",
-    "certificates.title": "काय वैध आहे, काय कालबाह्य होत आहे आणि पुरावा कुठे आहे हे जाणून घ्या",
+    "certificates.title":
+      "काय वैध आहे, काय कालबाह्य होत आहे आणि पुरावा कुठे आहे हे जाणून घ्या",
     "workflow.eyebrow": "आवश्यकतेपासून नोंदीपर्यंत",
     "workflow.title": "तुमचा संपूर्ण संघ वापरू शकेल असा कार्यप्रवाह",
     "dnd.eyebrow": "देणगीदार आणि देणगी व्यवस्थापन",
@@ -124,15 +135,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "faq.eyebrow": "सामान्य प्रश्न",
     "faq.title": "सुरुवातीपूर्वी संस्था काय विचारतात",
     "support.eyebrow": "ध्येयाला साथ द्या",
-    "support.title": "अधिक एनजीओंना चुकलेल्या पाठपुराव्यापासून जबाबदार संचालनाकडे जाण्यास मदत करा.",
+    "support.title":
+      "अधिक एनजीओंना चुकलेल्या पाठपुराव्यापासून जबाबदार संचालनाकडे जाण्यास मदत करा.",
     "contact.eyebrow": "संपर्क आणि ऑनबोर्डिंग",
-    "contact.title": "प्रत्येक अनुपालन जबाबदारीला स्पष्ट मालक, मुदत आणि पुराव्याची साखळी द्या.",
+    "contact.title":
+      "प्रत्येक अनुपालन जबाबदारीला स्पष्ट मालक, मुदत आणि पुराव्याची साखळी द्या.",
   },
   kn: {
     "hero.kicker": "ಎನ್‌ಜಿಒಗಳು ಮತ್ತು ಅನುಸರಣೆ ವೃತ್ತಿಪರರಿಗಾಗಿ ನಿರ್ಮಿಸಲಾಗಿದೆ",
     "hero.line1": "ಪ್ರತಿಯೊಂದು ಹೊಣೆಗಾರಿಕೆ.",
     "hero.line2": "ಪೂರ್ಣಗೊಳಿಸಲು ಒಂದು ಸ್ಪಷ್ಟ ಮಾರ್ಗ.",
-    "hero.description": "ಸೇತು ಅನುಸರಣೆ ವೇಳಾಪಟ್ಟಿಗಳು, ತಂಡದ ಜವಾಬ್ದಾರಿಗಳು, ಸಾಕ್ಷ್ಯಗಳು, ದಾನಿಗಳ ಸಂಬಂಧಗಳು ಮತ್ತು ಪರಿಣಾಮ ಕಾರ್ಯಕ್ರಮಗಳನ್ನು ಒಂದೇ ಸುರಕ್ಷಿತ ಕಾರ್ಯಕ್ಷೇತ್ರಕ್ಕೆ ತರುತ್ತದೆ—ಆದ್ದರಿಂದ ಯಾವುದೇ ಪ್ರಮುಖ ಮಾಹಿತಿ ಕೇವಲ ಸ್ಪ್ರೆಡ್‌ಶೀಟ್ ಅಥವಾ ಇನ್‌ಬಾಕ್ಸ್‌ನಲ್ಲಿ ಉಳಿಯುವುದಿಲ್ಲ.",
+    "hero.description":
+      "ಸೇತು ಅನುಸರಣೆ ವೇಳಾಪಟ್ಟಿಗಳು, ತಂಡದ ಜವಾಬ್ದಾರಿಗಳು, ಸಾಕ್ಷ್ಯಗಳು, ದಾನಿಗಳ ಸಂಬಂಧಗಳು ಮತ್ತು ಪರಿಣಾಮ ಕಾರ್ಯಕ್ರಮಗಳನ್ನು ಒಂದೇ ಸುರಕ್ಷಿತ ಕಾರ್ಯಕ್ಷೇತ್ರಕ್ಕೆ ತರುತ್ತದೆ—ಆದ್ದರಿಂದ ಯಾವುದೇ ಪ್ರಮುಖ ಮಾಹಿತಿ ಕೇವಲ ಸ್ಪ್ರೆಡ್‌ಶೀಟ್ ಅಥವಾ ಇನ್‌ಬಾಕ್ಸ್‌ನಲ್ಲಿ ಉಳಿಯುವುದಿಲ್ಲ.",
     "hero.create": "ನಿಮ್ಮ ಕಾರ್ಯಕ್ಷೇತ್ರವನ್ನು ರಚಿಸಿ",
     "hero.explore": "ವೇದಿಕೆಯನ್ನು ಅನ್ವೇಷಿಸಿ",
     "hero.tenant": "ಪ್ರತ್ಯೇಕ ಮತ್ತು ಸುರಕ್ಷಿತ ದಾಖಲೆಗಳು",
@@ -147,7 +161,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "platform.eyebrow": "ವೇದಿಕೆ",
     "platform.title": "ಅನುಸರಣೆ ಕೆಲಸಕ್ಕಾಗಿ ಸಂಪರ್ಕಿತ ಕಾರ್ಯಾಚರಣಾ ವ್ಯವಸ್ಥೆ",
     "certificates.eyebrow": "ಪ್ರಮಾಣಪತ್ರಗಳು ಮತ್ತು ನೋಂದಣಿಗಳು",
-    "certificates.title": "ಯಾವುದು ಮಾನ್ಯ, ಯಾವುದು ಮುಕ್ತಾಯವಾಗುತ್ತಿದೆ ಮತ್ತು ಸಾಕ್ಷ್ಯ ಎಲ್ಲಿದೆ ಎಂದು ತಿಳಿಯಿರಿ",
+    "certificates.title":
+      "ಯಾವುದು ಮಾನ್ಯ, ಯಾವುದು ಮುಕ್ತಾಯವಾಗುತ್ತಿದೆ ಮತ್ತು ಸಾಕ್ಷ್ಯ ಎಲ್ಲಿದೆ ಎಂದು ತಿಳಿಯಿರಿ",
     "workflow.eyebrow": "ಅವಶ್ಯಕತೆಯಿಂದ ದಾಖಲೆಯವರೆಗೆ",
     "workflow.title": "ನಿಮ್ಮ ಸಂಪೂರ್ಣ ತಂಡ ಅನುಸರಿಸಬಹುದಾದ ಕಾರ್ಯವಿಧಾನ",
     "dnd.eyebrow": "ದಾನಿ ಮತ್ತು ದೇಣಿಗೆ ನಿರ್ವಹಣೆ",
@@ -157,17 +172,21 @@ const translations: Record<Locale, Record<string, string>> = {
     "solutions.eyebrow": "ಸೇತು ಯಾರಿಗಾಗಿ",
     "solutions.title": "ಒಂದು ವೇದಿಕೆ, ಜವಾಬ್ದಾರಿಯ ವಿಭಿನ್ನ ನೋಟಗಳು",
     "admin.eyebrow": "ಆಡಳಿತ ನಿಯಂತ್ರಣ ಕೇಂದ್ರ",
-    "admin.title": "ಕಾರ್ಯಾಚರಣೆಯ ನಿಯಂತ್ರಣ ಕಳೆದುಕೊಳ್ಳದೆ ಕಾರ್ಯಕ್ಷೇತ್ರವನ್ನು ಸಂರಚಿಸಿ",
+    "admin.title":
+      "ಕಾರ್ಯಾಚರಣೆಯ ನಿಯಂತ್ರಣ ಕಳೆದುಕೊಳ್ಳದೆ ಕಾರ್ಯಕ್ಷೇತ್ರವನ್ನು ಸಂರಚಿಸಿ",
     "security.eyebrow": "ವಿನ್ಯಾಸದಿಂದಲೇ ಸುರಕ್ಷತೆ",
     "security.title": "ನಿಮ್ಮ ಸಂಸ್ಥೆಯ ಗಡಿಯನ್ನು ಸರ್ವರ್‌ನಲ್ಲಿ ಜಾರಿಗೊಳಿಸಲಾಗಿದೆ",
     "plans.eyebrow": "ಜವಾಬ್ದಾರಿಯೊಂದಿಗೆ ಬೆಳೆಯುವ ಯೋಜನೆಗಳು",
-    "plans.title": "ಕೇಂದ್ರೀಕೃತವಾಗಿ ಪ್ರಾರಂಭಿಸಿ. ಅಗತ್ಯವಿದ್ದಂತೆ ಸಾಮರ್ಥ್ಯ ಹೆಚ್ಚಿಸಿ.",
+    "plans.title":
+      "ಕೇಂದ್ರೀಕೃತವಾಗಿ ಪ್ರಾರಂಭಿಸಿ. ಅಗತ್ಯವಿದ್ದಂತೆ ಸಾಮರ್ಥ್ಯ ಹೆಚ್ಚಿಸಿ.",
     "faq.eyebrow": "ಸಾಮಾನ್ಯ ಪ್ರಶ್ನೆಗಳು",
     "faq.title": "ಪ್ರಾರಂಭಿಸುವ ಮೊದಲು ಸಂಸ್ಥೆಗಳು ಕೇಳುವ ಪ್ರಶ್ನೆಗಳು",
     "support.eyebrow": "ಧ್ಯೇಯವನ್ನು ಬೆಂಬಲಿಸಿ",
-    "support.title": "ಹೆಚ್ಚಿನ ಎನ್‌ಜಿಒಗಳು ತಪ್ಪಿದ ಅನುಸರಣೆಗಳಿಂದ ಜವಾಬ್ದಾರಿಯುತ ಕಾರ್ಯಾಚರಣೆಗೆ ಸಾಗಲು ಸಹಾಯ ಮಾಡಿ.",
+    "support.title":
+      "ಹೆಚ್ಚಿನ ಎನ್‌ಜಿಒಗಳು ತಪ್ಪಿದ ಅನುಸರಣೆಗಳಿಂದ ಜವಾಬ್ದಾರಿಯುತ ಕಾರ್ಯಾಚರಣೆಗೆ ಸಾಗಲು ಸಹಾಯ ಮಾಡಿ.",
     "contact.eyebrow": "ಸಂಪರ್ಕ ಮತ್ತು ಪ್ರಾರಂಭಿಕ ವ್ಯವಸ್ಥೆ",
-    "contact.title": "ಪ್ರತಿಯೊಂದು ಅನುಸರಣೆ ಜವಾಬ್ದಾರಿಗೆ ಸ್ಪಷ್ಟ ಮಾಲೀಕ, ಗಡುವು ಮತ್ತು ಸಾಕ್ಷ್ಯದ ಹಾದಿಯನ್ನು ನೀಡಿ.",
+    "contact.title":
+      "ಪ್ರತಿಯೊಂದು ಅನುಸರಣೆ ಜವಾಬ್ದಾರಿಗೆ ಸ್ಪಷ್ಟ ಮಾಲೀಕ, ಗಡುವು ಮತ್ತು ಸಾಕ್ಷ್ಯದ ಹಾದಿಯನ್ನು ನೀಡಿ.",
   },
 };
 
@@ -198,28 +217,29 @@ const translationTargets: Record<string, string> = {
 };
 
 export default function MarketingLanguage() {
+  const requestLocale = useLocale();
   useEffect(() => {
     const applyLanguage = (locale: Locale) => {
       const dictionary = translations[locale] ?? translations.en;
-      document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
-        const key = element.dataset.i18n;
-        if (key && dictionary[key]) element.textContent = dictionary[key];
-      });
+      document
+        .querySelectorAll<HTMLElement>("[data-i18n]")
+        .forEach((element) => {
+          const key = element.dataset.i18n;
+          if (key && dictionary[key]) element.textContent = dictionary[key];
+        });
       Object.entries(translationTargets).forEach(([selector, key]) => {
         const element = document.querySelector<HTMLElement>(selector);
         if (element && dictionary[key]) element.textContent = dictionary[key];
       });
     };
 
-    const savedLocale = localStorage.getItem("setu-language");
-    applyLanguage(savedLocale === "hi" || savedLocale === "mr" || savedLocale === "kn" ? savedLocale : "en");
-    const handleLanguageChange = (event: Event) => {
-      const locale = (event as CustomEvent<{ locale?: Locale }>).detail?.locale;
-      if (locale) applyLanguage(locale);
-    };
-    window.addEventListener("setu-language-change", handleLanguageChange);
-    return () => window.removeEventListener("setu-language-change", handleLanguageChange);
-  }, []);
+    const language = requestLocale.split("-")[0];
+    applyLanguage(
+      language === "hi" || language === "mr" || language === "kn"
+        ? language
+        : "en",
+    );
+  }, [requestLocale]);
 
   return null;
 }

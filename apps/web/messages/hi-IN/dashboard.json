@@ -1,0 +1,18 @@
+{
+  "Dashboard": {
+    "adminTitle": "प्रशासन डैशबोर्ड",
+    "teamTitle": "टीम डैशबोर्ड",
+    "welcome": "वापसी पर स्वागत है! यह आपका एनजीओ अनुपालन सारांश है।",
+    "totalCompliances": "कुल अनुपालन",
+    "openTasks": "खुले कार्य",
+    "evidenceRecords": "साक्ष्य रिकॉर्ड",
+    "complianceHealth": "अनुपालन स्थिति",
+    "priorityDeadlines": "प्राथमिक समय-सीमाएँ",
+    "recentActivity": "हाल की गतिविधि",
+    "attentionRequired": "ध्यान आवश्यक",
+    "addCompliance": "अनुपालन जोड़ें",
+    "addEvidence": "साक्ष्य जोड़ें",
+    "completed": "{count, plural, =0 {कोई अनुपालन पूर्ण नहीं} =1 {एक अनुपालन पूर्ण} other {# अनुपालन पूर्ण}}",
+    "organizations": "{count, plural, =1 {एक संगठन में} other {# संगठनों में}}"
+  }
+}

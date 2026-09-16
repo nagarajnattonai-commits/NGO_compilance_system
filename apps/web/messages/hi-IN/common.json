@@ -1,0 +1,79 @@
+{
+  "Common": {
+    "brand": "सेतु एनजीओ",
+    "tagline": "अनुपालन प्रशासन पैनल",
+    "theme": {
+      "label": "थीम",
+      "dayNight": "दिन / रात",
+      "light": "हल्का",
+      "dark": "गहरा",
+      "switchLight": "हल्के मोड में जाएँ",
+      "switchDark": "गहरे मोड में जाएँ"
+    },
+    "nav": {
+      "dashboard": "डैशबोर्ड",
+      "compliance": "अनुपालन",
+      "tasks": "कार्य",
+      "calendar": "कैलेंडर",
+      "documents": "दस्तावेज़",
+      "reports": "रिपोर्ट",
+      "impact": "प्रभाव मॉड्यूल",
+      "operations": "एनजीओ संचालन",
+      "assistant": "सहायक",
+      "integrations": "एकीकरण",
+      "administration": "प्रशासन",
+      "localization": "भाषा प्रबंधन"
+    },
+    "actions": {
+      "add": "जोड़ें",
+      "save": "सहेजें",
+      "saving": "सहेजा जा रहा है...",
+      "cancel": "रद्द करें",
+      "close": "बंद करें",
+      "delete": "हटाएँ",
+      "edit": "संपादित करें",
+      "search": "खोजें",
+      "filter": "फ़िल्टर",
+      "download": "डाउनलोड",
+      "upload": "अपलोड",
+      "viewAll": "सभी देखें",
+      "tryAgain": "फिर प्रयास करें",
+      "signOut": "साइन आउट"
+    },
+    "status": {
+      "NOT_STARTED": "शुरू नहीं",
+      "IN_PROGRESS": "प्रगति पर",
+      "UNDER_REVIEW": "समीक्षा में",
+      "PLANNED": "नियोजित",
+      "CHANGES_REQUESTED": "बदलाव अपेक्षित",
+      "READY_TO_FILE": "दाखिल करने योग्य",
+      "FILED": "दाखिल",
+      "COMPLETED": "पूर्ण",
+      "NOT_APPLICABLE": "लागू नहीं",
+      "ON_HOLD": "स्थगित",
+      "OVERDUE": "अतिदेय",
+      "ACTIVE": "सक्रिय",
+      "INACTIVE": "निष्क्रिय",
+      "PENDING": "लंबित",
+      "APPROVED": "स्वीकृत",
+      "REJECTED": "अस्वीकृत",
+      "DRAFT": "मसौदा",
+      "PUBLISHED": "प्रकाशित",
+      "OPEN": "खुला",
+      "CLOSED": "बंद"
+    },
+    "priority": {
+      "LOW": "कम",
+      "MEDIUM": "मध्यम",
+      "HIGH": "उच्च",
+      "CRITICAL": "अत्यावश्यक"
+    },
+    "loading": "आपका कार्यक्षेत्र लोड हो रहा है...",
+    "empty": "कोई रिकॉर्ड नहीं मिला",
+    "allOrganizations": "सभी संगठन",
+    "viewing": "देख रहे हैं",
+    "mainNavigation": "मुख्य नेविगेशन",
+    "readOnly": "केवल-पढ़ने की पहुँच। बदलाव के लिए प्रशासक से संपर्क करें।",
+    "items": "{count, plural, =0 {कोई मद नहीं} =1 {एक मद} other {# मद}}"
+  }
+}

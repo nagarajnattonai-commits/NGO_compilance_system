@@ -1,0 +1,79 @@
+{
+  "Common": {
+    "brand": "सेतू एनजीओ",
+    "tagline": "अनुपालन प्रशासन पॅनेल",
+    "theme": {
+      "label": "थीम",
+      "dayNight": "दिवस / रात्र",
+      "light": "उजळ",
+      "dark": "गडद",
+      "switchLight": "उजळ मोडवर जा",
+      "switchDark": "गडद मोडवर जा"
+    },
+    "nav": {
+      "dashboard": "डॅशबोर्ड",
+      "compliance": "अनुपालन",
+      "tasks": "कामे",
+      "calendar": "दिनदर्शिका",
+      "documents": "कागदपत्रे",
+      "reports": "अहवाल",
+      "impact": "प्रभाव विभाग",
+      "operations": "एनजीओ संचालन",
+      "assistant": "सहाय्यक",
+      "integrations": "एकत्रीकरणे",
+      "administration": "प्रशासन",
+      "localization": "भाषा व्यवस्थापन"
+    },
+    "actions": {
+      "add": "जोडा",
+      "save": "जतन करा",
+      "saving": "जतन होत आहे...",
+      "cancel": "रद्द करा",
+      "close": "बंद करा",
+      "delete": "हटवा",
+      "edit": "संपादित करा",
+      "search": "शोधा",
+      "filter": "गाळणी",
+      "download": "डाउनलोड",
+      "upload": "अपलोड",
+      "viewAll": "सर्व पहा",
+      "tryAgain": "पुन्हा प्रयत्न करा",
+      "signOut": "साइन आउट"
+    },
+    "status": {
+      "NOT_STARTED": "सुरू नाही",
+      "IN_PROGRESS": "प्रगतीत",
+      "UNDER_REVIEW": "पुनरावलोकनात",
+      "PLANNED": "नियोजित",
+      "CHANGES_REQUESTED": "बदल अपेक्षित",
+      "READY_TO_FILE": "दाखल करण्यास तयार",
+      "FILED": "दाखल",
+      "COMPLETED": "पूर्ण",
+      "NOT_APPLICABLE": "लागू नाही",
+      "ON_HOLD": "स्थगित",
+      "OVERDUE": "मुदत उलटलेली",
+      "ACTIVE": "सक्रिय",
+      "INACTIVE": "निष्क्रिय",
+      "PENDING": "प्रलंबित",
+      "APPROVED": "मंजूर",
+      "REJECTED": "नामंजूर",
+      "DRAFT": "मसुदा",
+      "PUBLISHED": "प्रकाशित",
+      "OPEN": "खुले",
+      "CLOSED": "बंद"
+    },
+    "priority": {
+      "LOW": "कमी",
+      "MEDIUM": "मध्यम",
+      "HIGH": "उच्च",
+      "CRITICAL": "अत्यावश्यक"
+    },
+    "loading": "तुमचे कार्यक्षेत्र लोड होत आहे...",
+    "empty": "कोणत्याही नोंदी सापडल्या नाहीत",
+    "allOrganizations": "सर्व संस्था",
+    "viewing": "पाहत आहात",
+    "mainNavigation": "मुख्य नेव्हिगेशन",
+    "readOnly": "केवळ-वाचन प्रवेश. बदलांसाठी प्रशासकाशी संपर्क करा.",
+    "items": "{count, plural, =0 {कोणतेही घटक नाहीत} =1 {एक घटक} other {# घटक}}"
+  }
+}

@@ -66,6 +66,11 @@
 .account-content h1 { font-size: 28px; margin: 0 0 10px; }
 .account-intro { margin: 0 0 25px; color: #74818c; font-size: 13px; line-height: 1.6; }
 .account-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.auth-theme-toggle { display: flex; align-items: center; gap: 8px; }
+.auth-theme-toggle > .theme-toggle { position: static; }
+.auth-form .locale-switcher { width: 100%; margin-top: 7px; }
+.auth-form .password-input select { width: 100%; min-height: 42px; padding-inline: 38px 10px; border: 1px solid var(--line); border-radius: 5px; background: white; }
+.auth-form .password-input > svg { position: absolute; z-index: 1; inset-inline-start: 11px; top: 13px; color: var(--muted); }
 .account-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; color: #218838; }
 .account-section-head h2 { margin: 0; font-size: 18px; color: #2c3e50; }
 .account-grid .card { padding: 25px; }

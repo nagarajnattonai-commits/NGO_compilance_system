@@ -161,3 +161,35 @@ export type ComplianceComment = {
   kind: "COMMENT" | "CORRECTION" | "EXCEPTION" | "RECOVERY_PLAN";
   created_at: string;
 };
+
+export type TenantLocale = {
+  id: string;
+  locale_code: string;
+  display_name: string;
+  enabled: boolean;
+  is_default: boolean;
+  sort_order: number;
+};
+
+export type UserPreference = {
+  user_id: string;
+  locale: string | null;
+  timezone: string;
+  time_format: "12h" | "24h";
+  updated_at: string;
+};
+
+export type LocalizationSettings = {
+  locales: TenantLocale[];
+  preference: UserPreference;
+};
+
+export type TranslationOverride = {
+  id: string;
+  locale_code: string;
+  translation_key: string;
+  translation_value: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+};

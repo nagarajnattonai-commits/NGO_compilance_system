@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -233,6 +233,44 @@ class Subscription(Base):
     organization_limit: Mapped[int] = mapped_column(Integer, default=10)
     storage_limit_gb: Mapped[int] = mapped_column(Integer, default=25)
     period_end: Mapped[date] = mapped_column(Date)
+
+
+class TenantLocale(Base):
+    __tablename__ = "tenant_locales"
+    __table_args__ = (UniqueConstraint("tenant_id", "locale_code", name="uq_tenant_locale"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    locale_code: Mapped[str] = mapped_column(String(16))
+    display_name: Mapped[str] = mapped_column(String(80))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("auth_users.id"), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    locale: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Kolkata")
+    time_format: Mapped[str] = mapped_column(String(8), default="12h")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class TranslationOverride(Base):
+    __tablename__ = "translation_overrides"
+    __table_args__ = (UniqueConstraint("tenant_id", "locale_code", "translation_key", name="uq_translation_override"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    locale_code: Mapped[str] = mapped_column(String(16), index=True)
+    translation_key: Mapped[str] = mapped_column(String(180), index=True)
+    translation_value: Mapped[str] = mapped_column(Text)
+    updated_by: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Workspace(Base):

@@ -1,0 +1,79 @@
+{
+  "Common": {
+    "brand": "ಸೇತು ಎನ್‌ಜಿಒ",
+    "tagline": "ಅನುಸರಣೆ ಆಡಳಿತ ಫಲಕ",
+    "theme": {
+      "label": "ಥೀಮ್",
+      "dayNight": "ಹಗಲು / ರಾತ್ರಿ",
+      "light": "ಬೆಳಕು",
+      "dark": "ಕತ್ತಲೆ",
+      "switchLight": "ಬೆಳಕಿನ ಮೋಡ್‌ಗೆ ಬದಲಿಸಿ",
+      "switchDark": "ಕತ್ತಲೆ ಮೋಡ್‌ಗೆ ಬದಲಿಸಿ"
+    },
+    "nav": {
+      "dashboard": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+      "compliance": "ಅನುಸರಣೆ",
+      "tasks": "ಕಾರ್ಯಗಳು",
+      "calendar": "ಕ್ಯಾಲೆಂಡರ್",
+      "documents": "ದಾಖಲೆಗಳು",
+      "reports": "ವರದಿಗಳು",
+      "impact": "ಪರಿಣಾಮ ಘಟಕಗಳು",
+      "operations": "ಎನ್‌ಜಿಒ ಕಾರ್ಯಾಚರಣೆ",
+      "assistant": "ಸಹಾಯಕ",
+      "integrations": "ಏಕೀಕರಣಗಳು",
+      "administration": "ಆಡಳಿತ",
+      "localization": "ಭಾಷಾ ನಿರ್ವಹಣೆ"
+    },
+    "actions": {
+      "add": "ಸೇರಿಸಿ",
+      "save": "ಉಳಿಸಿ",
+      "saving": "ಉಳಿಸಲಾಗುತ್ತಿದೆ...",
+      "cancel": "ರದ್ದುಮಾಡಿ",
+      "close": "ಮುಚ್ಚಿ",
+      "delete": "ಅಳಿಸಿ",
+      "edit": "ತಿದ್ದು",
+      "search": "ಹುಡುಕಿ",
+      "filter": "ಶೋಧಕ",
+      "download": "ಡೌನ್‌ಲೋಡ್",
+      "upload": "ಅಪ್‌ಲೋಡ್",
+      "viewAll": "ಎಲ್ಲವನ್ನೂ ನೋಡಿ",
+      "tryAgain": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+      "signOut": "ಸೈನ್ ಔಟ್"
+    },
+    "status": {
+      "NOT_STARTED": "ಪ್ರಾರಂಭವಾಗಿಲ್ಲ",
+      "IN_PROGRESS": "ಪ್ರಗತಿಯಲ್ಲಿದೆ",
+      "UNDER_REVIEW": "ಪರಿಶೀಲನೆಯಲ್ಲಿದೆ",
+      "PLANNED": "ಯೋಜಿಸಲಾಗಿದೆ",
+      "CHANGES_REQUESTED": "ಬದಲಾವಣೆ ಕೋರಲಾಗಿದೆ",
+      "READY_TO_FILE": "ಸಲ್ಲಿಸಲು ಸಿದ್ಧ",
+      "FILED": "ಸಲ್ಲಿಸಲಾಗಿದೆ",
+      "COMPLETED": "ಪೂರ್ಣಗೊಂಡಿದೆ",
+      "NOT_APPLICABLE": "ಅನ್ವಯಿಸುವುದಿಲ್ಲ",
+      "ON_HOLD": "ತಡೆಹಿಡಿಯಲಾಗಿದೆ",
+      "OVERDUE": "ಬಾಕಿಯಾಗಿದೆ",
+      "ACTIVE": "ಸಕ್ರಿಯ",
+      "INACTIVE": "ನಿಷ್ಕ್ರಿಯ",
+      "PENDING": "ಬಾಕಿ",
+      "APPROVED": "ಅನುಮೋದಿಸಲಾಗಿದೆ",
+      "REJECTED": "ತಿರಸ್ಕರಿಸಲಾಗಿದೆ",
+      "DRAFT": "ಕರಡು",
+      "PUBLISHED": "ಪ್ರಕಟಿಸಲಾಗಿದೆ",
+      "OPEN": "ತೆರೆದಿದೆ",
+      "CLOSED": "ಮುಚ್ಚಲಾಗಿದೆ"
+    },
+    "priority": {
+      "LOW": "ಕಡಿಮೆ",
+      "MEDIUM": "ಮಧ್ಯಮ",
+      "HIGH": "ಹೆಚ್ಚು",
+      "CRITICAL": "ತುರ್ತು"
+    },
+    "loading": "ನಿಮ್ಮ ಕಾರ್ಯಕ್ಷೇತ್ರ ಲೋಡ್ ಆಗುತ್ತಿದೆ...",
+    "empty": "ಯಾವುದೇ ದಾಖಲೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ",
+    "allOrganizations": "ಎಲ್ಲಾ ಸಂಸ್ಥೆಗಳು",
+    "viewing": "ವೀಕ್ಷಣೆ",
+    "mainNavigation": "ಮುಖ್ಯ ಸಂಚರಣೆ",
+    "readOnly": "ಓದಲು ಮಾತ್ರ ಪ್ರವೇಶ. ಬದಲಾವಣೆಗಾಗಿ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.",
+    "items": "{count, plural, =0 {ಯಾವುದೇ ಅಂಶಗಳಿಲ್ಲ} =1 {ಒಂದು ಅಂಶ} other {# ಅಂಶಗಳು}}"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "Dashboard": {
+    "adminTitle": "ನಿರ್ವಾಹಕ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+    "teamTitle": "ತಂಡದ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+    "welcome": "ಮತ್ತೆ ಸ್ವಾಗತ! ನಿಮ್ಮ ಎನ್‌ಜಿಒ ಅನುಸರಣೆ ಅವಲೋಕನ ಇಲ್ಲಿದೆ.",
+    "totalCompliances": "ಒಟ್ಟು ಅನುಸರಣೆಗಳು",
+    "openTasks": "ತೆರೆದ ಕಾರ್ಯಗಳು",
+    "evidenceRecords": "ಸಾಕ್ಷ್ಯ ದಾಖಲೆಗಳು",
+    "complianceHealth": "ಅನುಸರಣೆ ಸ್ಥಿತಿ",
+    "priorityDeadlines": "ಆದ್ಯತೆಯ ಗಡುವುಗಳು",
+    "recentActivity": "ಇತ್ತೀಚಿನ ಚಟುವಟಿಕೆ",
+    "attentionRequired": "ಗಮನ ಅಗತ್ಯ",
+    "addCompliance": "ಅನುಸರಣೆ ಸೇರಿಸಿ",
+    "addEvidence": "ಸಾಕ್ಷ್ಯ ಸೇರಿಸಿ",
+    "completed": "{count, plural, =0 {ಯಾವುದೇ ಅನುಸರಣೆ ಪೂರ್ಣಗೊಂಡಿಲ್ಲ} =1 {ಒಂದು ಅನುಸರಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ} other {# ಅನುಸರಣೆಗಳು ಪೂರ್ಣಗೊಂಡಿವೆ}}",
+    "organizations": "{count, plural, =1 {ಒಂದು ಸಂಸ್ಥೆಯಲ್ಲಿ} other {# ಸಂಸ್ಥೆಗಳಲ್ಲಿ}}"
+  }
+}

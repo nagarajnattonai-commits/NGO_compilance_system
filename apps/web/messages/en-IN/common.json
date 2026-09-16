@@ -1,0 +1,79 @@
+{
+  "Common": {
+    "brand": "Setu NGO",
+    "tagline": "Compliance Admin Panel",
+    "theme": {
+      "label": "Theme",
+      "dayNight": "Day / Night",
+      "light": "Light",
+      "dark": "Dark",
+      "switchLight": "Switch to light mode",
+      "switchDark": "Switch to dark mode"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "compliance": "Compliance",
+      "tasks": "Tasks",
+      "calendar": "Calendar",
+      "documents": "Documents",
+      "reports": "Reports",
+      "impact": "Impact modules",
+      "operations": "NGO operations",
+      "assistant": "Assistant",
+      "integrations": "Integrations",
+      "administration": "Administration",
+      "localization": "Localization"
+    },
+    "actions": {
+      "add": "Add",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "close": "Close",
+      "delete": "Delete",
+      "edit": "Edit",
+      "search": "Search",
+      "filter": "Filter",
+      "download": "Download",
+      "upload": "Upload",
+      "viewAll": "View all",
+      "tryAgain": "Try again",
+      "signOut": "Sign out"
+    },
+    "status": {
+      "NOT_STARTED": "Not started",
+      "IN_PROGRESS": "In progress",
+      "UNDER_REVIEW": "Under review",
+      "PLANNED": "Planned",
+      "CHANGES_REQUESTED": "Changes requested",
+      "READY_TO_FILE": "Ready to file",
+      "FILED": "Filed",
+      "COMPLETED": "Completed",
+      "NOT_APPLICABLE": "Not applicable",
+      "ON_HOLD": "On hold",
+      "OVERDUE": "Overdue",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "OPEN": "Open",
+      "CLOSED": "Closed"
+    },
+    "priority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "CRITICAL": "Critical"
+    },
+    "loading": "Loading your workspace...",
+    "empty": "No records found",
+    "allOrganizations": "All organizations",
+    "viewing": "Viewing",
+    "mainNavigation": "Main navigation",
+    "readOnly": "Read-only access. Contact your administrator if you need to make changes.",
+    "items": "{count, plural, =0 {No items} =1 {One item} other {# items}}"
+  }
+}

@@ -1,5 +1,5 @@
 import { apiRequest } from "./http";
-import type { AssistantAnswer, AuditEvent, Compliance, ComplianceComment, ComplianceDefinition, ComplianceDocument, ComplianceTask, DocumentVersion, IntegrationConnection, Membership, Notification, Organization, PortfolioRecord, Subscription } from "./types";
+import type { AssistantAnswer, AuditEvent, Compliance, ComplianceComment, ComplianceDefinition, ComplianceDocument, ComplianceTask, DocumentVersion, IntegrationConnection, LocalizationSettings, Membership, Notification, Organization, PortfolioRecord, Subscription, TenantLocale, TranslationOverride, UserPreference } from "./types";
 
 export type ComplianceCreateInput = Pick<
   Compliance,
@@ -69,3 +69,9 @@ export const runAutomation = () => apiRequest<{ run_date: string; overdue_compli
 export const askAssistant = (question: string, organization_id?: string) => apiRequest<AssistantAnswer>("/assistant/query", "POST", { question, organization_id });
 export const loadComplianceComments = (complianceId: string) => apiRequest<ComplianceComment[]>(`/compliances/${complianceId}/comments`);
 export const addComplianceComment = (complianceId: string, body: string, kind: ComplianceComment["kind"]) => apiRequest<ComplianceComment>(`/compliances/${complianceId}/comments`, "POST", { body, kind });
+export const loadLocalizationSettings = () => apiRequest<LocalizationSettings>("/localization/settings");
+export const updateLocalizationPreference = (payload: { locale: string | null; timezone: string; time_format: "12h" | "24h" }) => apiRequest<UserPreference>("/localization/preferences", "PATCH", payload);
+export const updateTenantLocales = (payload: Array<Pick<TenantLocale, "locale_code" | "display_name" | "enabled" | "is_default" | "sort_order">>) => apiRequest<TenantLocale[]>("/localization/locales", "PUT", payload);
+export const loadTranslationOverrides = (locale?: string) => apiRequest<TranslationOverride[]>(`/localization/overrides${locale ? `?locale_code=${encodeURIComponent(locale)}` : ""}`);
+export const saveTranslationOverride = (payload: { locale_code: string; translation_key: string; translation_value: string }) => apiRequest<TranslationOverride>("/localization/overrides", "PUT", payload);
+export const deleteTranslationOverride = (id: string) => apiRequest<void>(`/localization/overrides/${id}`, "DELETE");

@@ -1,0 +1,15 @@
+{
+  "Documents": {
+    "title": "Document library",
+    "description": "Keep compliance evidence organized, versioned and expiry-aware.",
+    "document": "Document",
+    "category": "Category",
+    "version": "Version",
+    "expiry": "Expiry",
+    "uploadedBy": "Uploaded by",
+    "upload": "Upload document",
+    "downloadRecord": "Download record",
+    "emptyTitle": "No documents found",
+    "emptyText": "Upload evidence to begin the audit-ready record."
+  }
+}

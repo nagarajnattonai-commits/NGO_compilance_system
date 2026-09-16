@@ -47,7 +47,9 @@ This map follows the priority groups in the approved requirement analysis. “Im
 | CSR project management | Implemented as tenant-scoped impact records |
 | Volunteer management | Implemented as tenant-scoped impact records |
 | Mobile | Responsive web experience implemented; native apps remain planned |
-| Multi-language UI | Planned |
+| Multi-language UI | Implemented for en-IN, hi-IN, kn-IN and mr-IN with English fallback, route-preserving selectors, locale-aware dates/numbers/currency/percentages and localized auth/workspace navigation |
+| Tenant localization administration | Implemented: enabled/default locales, accessible drag-and-drop ordering, completion/missing filters, tenant translation overrides, reset and audit events |
+| User regional preferences | Implemented: preferred locale, timezone and 12/24-hour display stored independently per user |
 | White-label SaaS | Planned |
 
 ## Dotskills Trust admin comparison

@@ -227,6 +227,61 @@ class SubscriptionOut(ORMModel):
     period_end: date
 
 
+SupportedLocale = Literal["en-IN", "hi-IN", "kn-IN", "mr-IN"]
+
+
+class TenantLocaleInput(BaseModel):
+    locale_code: SupportedLocale
+    display_name: str = Field(min_length=2, max_length=80)
+    enabled: bool = True
+    is_default: bool = False
+    sort_order: int = Field(ge=0, le=100)
+
+
+class TenantLocaleOut(ORMModel):
+    id: str
+    locale_code: str
+    display_name: str
+    enabled: bool
+    is_default: bool
+    sort_order: int
+
+
+class UserPreferenceUpdate(BaseModel):
+    locale: SupportedLocale | None = None
+    timezone: Literal["Asia/Kolkata", "Asia/Calcutta", "Asia/Dubai", "Europe/London", "America/New_York", "UTC"] = "Asia/Kolkata"
+    time_format: Literal["12h", "24h"] = "12h"
+
+
+class UserPreferenceOut(ORMModel):
+    user_id: str
+    locale: str | None
+    timezone: str
+    time_format: str
+    updated_at: datetime
+
+
+class LocalizationSettingsOut(BaseModel):
+    locales: list[TenantLocaleOut]
+    preference: UserPreferenceOut
+
+
+class TranslationOverrideInput(BaseModel):
+    locale_code: SupportedLocale
+    translation_key: str = Field(pattern=r"^[a-zA-Z0-9_.-]+$", min_length=3, max_length=180)
+    translation_value: str = Field(min_length=1, max_length=4000)
+
+
+class TranslationOverrideOut(ORMModel):
+    id: str
+    locale_code: str
+    translation_key: str
+    translation_value: str
+    updated_by: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class OrganizationOnboardingOut(BaseModel):
     organization: OrganizationOut
     generated_compliances: list[ComplianceOut]

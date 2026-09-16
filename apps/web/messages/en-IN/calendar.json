@@ -1,0 +1,15 @@
+{
+  "Calendar": {
+    "title": "Compliance calendar",
+    "description": "See statutory deadlines and internal targets without mixing the two.",
+    "export": "Export calendar",
+    "today": "Today",
+    "agenda": "{month} agenda",
+    "deadlines": "{count, plural, =0 {No statutory deadlines} =1 {One statutory deadline} other {# statutory deadlines}}",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "internalTarget": "Internal target",
+    "emptyTitle": "No deadlines",
+    "emptyText": "Use the arrows to review another month."
+  }
+}

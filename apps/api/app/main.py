@@ -12,7 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .database import Base, SessionLocal, engine
-from .auth import ALLOWED_ORIGINS, AdminUser, get_db, router as auth_router, tenant_context as get_tenant_id
+from .auth import ALLOWED_ORIGINS, AdminUser, CurrentUser, get_db, router as auth_router, tenant_context as get_tenant_id
 from .models import (
     AutomationReceipt,
     AuditEvent,
@@ -29,6 +29,9 @@ from .models import (
     Submission,
     Subscription,
     Task,
+    TenantLocale,
+    TranslationOverride,
+    UserPreference,
 )
 from .schemas import (
     AssistantInput,
@@ -46,6 +49,7 @@ from .schemas import (
     DocumentVersionOut,
     IntegrationOut,
     IntegrationUpdate,
+    LocalizationSettingsOut,
     MembershipCreate,
     MembershipOut,
     MembershipUpdate,
@@ -58,9 +62,15 @@ from .schemas import (
     PortfolioRecordOut,
     PortfolioRecordUpdate,
     SubscriptionOut,
+    TenantLocaleInput,
+    TenantLocaleOut,
     TaskCreate,
     TaskOut,
     TaskUpdate,
+    TranslationOverrideInput,
+    TranslationOverrideOut,
+    UserPreferenceOut,
+    UserPreferenceUpdate,
 )
 from .seed import seed_demo_data
 
@@ -605,6 +615,121 @@ def subscription(db: DB, tenant_id: Tenant):
     return item
 
 
+DEFAULT_LOCALES = [
+    ("en-IN", "English", True, 1),
+    ("hi-IN", "हिन्दी", False, 2),
+    ("kn-IN", "ಕನ್ನಡ", False, 3),
+    ("mr-IN", "मराठी", False, 4),
+]
+
+
+def ensure_localization(db: Session, tenant_id: str, user_id: str) -> tuple[list[TenantLocale], UserPreference, bool]:
+    changed = False
+    existing = {item.locale_code: item for item in db.scalars(select(TenantLocale).where(TenantLocale.tenant_id == tenant_id)).all()}
+    for code, name, is_default, order in DEFAULT_LOCALES:
+        if code not in existing:
+            item = TenantLocale(tenant_id=tenant_id, locale_code=code, display_name=name, enabled=True, is_default=is_default, sort_order=order)
+            db.add(item)
+            existing[code] = item
+            changed = True
+    preference = db.get(UserPreference, user_id)
+    if not preference:
+        preference = UserPreference(user_id=user_id, tenant_id=tenant_id, locale=None, timezone="Asia/Kolkata", time_format="12h")
+        db.add(preference)
+        changed = True
+    if changed:
+        db.flush()
+    return sorted(existing.values(), key=lambda item: item.sort_order), preference, changed
+
+
+@app.get("/api/v1/localization/settings", response_model=LocalizationSettingsOut)
+def localization_settings(db: DB, tenant_id: Tenant, user: CurrentUser):
+    locales, preference, changed = ensure_localization(db, tenant_id, user.id)
+    if changed:
+        db.commit()
+        db.refresh(preference)
+    return LocalizationSettingsOut(locales=locales, preference=preference)
+
+
+@app.patch("/api/v1/localization/preferences", response_model=UserPreferenceOut)
+def update_localization_preference(payload: UserPreferenceUpdate, db: DB, tenant_id: Tenant, user: CurrentUser):
+    locales, preference, _ = ensure_localization(db, tenant_id, user.id)
+    if payload.locale and not any(item.locale_code == payload.locale and item.enabled for item in locales):
+        raise HTTPException(status_code=422, detail="The selected locale is not enabled for this workspace")
+    preference.locale = payload.locale
+    preference.timezone = payload.timezone
+    preference.time_format = payload.time_format
+    preference.updated_at = datetime.now(timezone.utc)
+    audit(db, tenant_id, "LOCALIZATION_PREFERENCE_UPDATED", "UserPreference", user.id, f"Updated locale preference to {payload.locale or 'workspace default'}")
+    db.commit()
+    db.refresh(preference)
+    return preference
+
+
+@app.put("/api/v1/localization/locales", response_model=list[TenantLocaleOut])
+def update_tenant_locales(payload: list[TenantLocaleInput], db: DB, tenant_id: Tenant, admin: AdminUser):
+    if len(payload) != len({item.locale_code for item in payload}):
+        raise HTTPException(status_code=422, detail="Each locale may appear only once")
+    defaults = [item for item in payload if item.is_default]
+    if len(defaults) != 1 or not defaults[0].enabled:
+        raise HTTPException(status_code=422, detail="Select exactly one enabled default locale")
+    rows, _, _ = ensure_localization(db, tenant_id, admin.id)
+    existing = {item.locale_code: item for item in rows}
+    for locale_input in payload:
+        item = existing.get(locale_input.locale_code)
+        if not item:
+            item = TenantLocale(tenant_id=tenant_id, locale_code=locale_input.locale_code)
+            db.add(item)
+        for field, value in locale_input.model_dump().items():
+            setattr(item, field, value)
+    audit(db, tenant_id, "TENANT_LOCALES_UPDATED", "TenantLocale", tenant_id, "Updated enabled languages, default locale and display order")
+    db.commit()
+    return db.scalars(select(TenantLocale).where(TenantLocale.tenant_id == tenant_id).order_by(TenantLocale.sort_order)).all()
+
+
+@app.get("/api/v1/localization/overrides", response_model=list[TranslationOverrideOut])
+def translation_overrides(db: DB, tenant_id: Tenant, _: CurrentUser, locale_code: str | None = None):
+    filters = [TranslationOverride.tenant_id == tenant_id]
+    if locale_code:
+        filters.append(TranslationOverride.locale_code == locale_code)
+    return db.scalars(select(TranslationOverride).where(*filters).order_by(TranslationOverride.translation_key)).all()
+
+
+@app.put("/api/v1/localization/overrides", response_model=TranslationOverrideOut)
+def upsert_translation_override(payload: TranslationOverrideInput, db: DB, tenant_id: Tenant, admin: AdminUser):
+    locale = db.scalar(select(TenantLocale).where(TenantLocale.tenant_id == tenant_id, TenantLocale.locale_code == payload.locale_code))
+    if not locale:
+        raise HTTPException(status_code=404, detail="Locale is not configured for this workspace")
+    item = db.scalar(select(TranslationOverride).where(
+        TranslationOverride.tenant_id == tenant_id,
+        TranslationOverride.locale_code == payload.locale_code,
+        TranslationOverride.translation_key == payload.translation_key,
+    ))
+    if not item:
+        item = TranslationOverride(tenant_id=tenant_id, locale_code=payload.locale_code, translation_key=payload.translation_key, translation_value=payload.translation_value, updated_by=admin.name)
+        db.add(item)
+    else:
+        item.translation_value = payload.translation_value
+        item.updated_by = admin.name
+        item.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    audit(db, tenant_id, "TRANSLATION_OVERRIDE_SAVED", "TranslationOverride", item.id, f"Updated {payload.translation_key} for {payload.locale_code}")
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@app.delete("/api/v1/localization/overrides/{override_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_translation_override(override_id: str, db: DB, tenant_id: Tenant, _: AdminUser):
+    item = db.scalar(select(TranslationOverride).where(TranslationOverride.id == override_id, TranslationOverride.tenant_id == tenant_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Translation override not found")
+    audit(db, tenant_id, "TRANSLATION_OVERRIDE_RESET", "TranslationOverride", item.id, f"Restored application translation for {item.translation_key}")
+    db.delete(item)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.get("/api/v1/notifications", response_model=list[NotificationOut])
 def notifications(db: DB, tenant_id: Tenant):
     return db.scalars(select(Notification).where(Notification.tenant_id == tenant_id).order_by(Notification.created_at.desc())).all()
@@ -758,7 +883,11 @@ def run_daily_automation(db: DB, tenant_id: Tenant, _: AdminUser):
         elif item.status in open_statuses and 0 <= (item.statutory_deadline - today).days <= 30:
             if create_automation_notice(db, tenant_id, f"compliance-upcoming:{item.id}:{item.statutory_deadline}:30", "COMPLIANCE_UPCOMING", f"{item.code} due soon", f"{item.title} is due on {item.statutory_deadline.isoformat()}.", "REMINDER"):
                 counters["upcoming"] += 1
-        if item.status == "COMPLETED" and item.statutory_deadline < today:
+        # Only roll forward a completed obligation once its filing/submission is
+        # evidenced. This prevents prematurely recurring manually closed work.
+        if item.status == "COMPLETED" and item.statutory_deadline < today and db.scalar(
+            select(Submission.id).where(Submission.tenant_id == tenant_id, Submission.compliance_id == item.id)
+        ):
             try:
                 next_deadline = item.statutory_deadline.replace(year=item.statutory_deadline.year + 1)
             except ValueError:

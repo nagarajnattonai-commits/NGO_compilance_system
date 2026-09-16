@@ -342,3 +342,40 @@ def test_grounded_assistant_returns_only_tenant_record_sources():
         body = response.json()
         assert "Operational assistance only" in body["disclaimer"]
         assert all(source["type"] == "task" for source in body["sources"])
+
+
+def test_localization_preferences_tenant_configuration_and_overrides():
+    with authenticated_client() as client:
+        settings = client.get("/api/v1/localization/settings")
+        assert settings.status_code == 200
+        assert [row["locale_code"] for row in settings.json()["locales"]] == ["en-IN", "hi-IN", "kn-IN", "mr-IN"]
+        assert settings.json()["locales"][0]["is_default"] is True
+
+        preference = client.patch("/api/v1/localization/preferences", json={
+            "locale": "kn-IN", "timezone": "Asia/Kolkata", "time_format": "24h",
+        })
+        assert preference.status_code == 200
+        assert preference.json()["locale"] == "kn-IN"
+        assert preference.json()["time_format"] == "24h"
+        assert client.patch("/api/v1/localization/preferences", json={
+            "locale": "kn-IN", "timezone": "Not/A_Timezone", "time_format": "24h",
+        }).status_code == 422
+
+        locales = settings.json()["locales"]
+        payload = [{
+            "locale_code": row["locale_code"], "display_name": row["display_name"],
+            "enabled": True, "is_default": row["locale_code"] == "hi-IN",
+            "sort_order": 1 if row["locale_code"] == "hi-IN" else row["sort_order"] + 1,
+        } for row in locales]
+        updated = client.put("/api/v1/localization/locales", json=payload)
+        assert updated.status_code == 200
+        assert next(row for row in updated.json() if row["locale_code"] == "hi-IN")["is_default"] is True
+
+        override = client.put("/api/v1/localization/overrides", json={
+            "locale_code": "kn-IN", "translation_key": "Common.actions.save", "translation_value": "ಉಳಿಸಿ ಈಗ",
+        })
+        assert override.status_code == 200
+        override_id = override.json()["id"]
+        rows = client.get("/api/v1/localization/overrides", params={"locale_code": "kn-IN"}).json()
+        assert rows[0]["translation_value"] == "ಉಳಿಸಿ ಈಗ"
+        assert client.delete(f"/api/v1/localization/overrides/{override_id}").status_code == 204
