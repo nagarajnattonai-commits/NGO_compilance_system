@@ -431,7 +431,10 @@ export default function PublicNavigation() {
             title={`Language: ${selectedLanguage.label}`}
             aria-expanded={openMenu === "language"}
             aria-controls="language-options"
-            onClick={() => toggleMenu("language")}
+            onClick={() => {
+              setMobileOpen(false);
+              toggleMenu("language");
+            }}
           >
             <Globe2 size={17} />
             <span className="language-current">{selectedLanguage.badge}</span>
