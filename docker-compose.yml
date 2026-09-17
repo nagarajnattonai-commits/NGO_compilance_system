@@ -16,6 +16,9 @@ services:
       context: ./apps/web
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+        API_INTERNAL_URL: http://api:8000
+    environment:
+      API_INTERNAL_URL: http://api:8000
     ports:
       - "3000:3000"
     depends_on:

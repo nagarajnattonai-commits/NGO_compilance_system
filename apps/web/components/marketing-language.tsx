@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useLocale } from "next-intl";
+import { useTenantBrand } from "@/branding/client";
 
 type Locale = "en" | "hi" | "mr" | "kn";
 
@@ -218,6 +219,7 @@ const translationTargets: Record<string, string> = {
 
 export default function MarketingLanguage() {
   const requestLocale = useLocale();
+  const brand = useTenantBrand();
   useEffect(() => {
     const applyLanguage = (locale: Locale) => {
       const dictionary = translations[locale] ?? translations.en;
@@ -225,11 +227,11 @@ export default function MarketingLanguage() {
         .querySelectorAll<HTMLElement>("[data-i18n]")
         .forEach((element) => {
           const key = element.dataset.i18n;
-          if (key && dictionary[key]) element.textContent = dictionary[key];
+          if (key && dictionary[key]) element.textContent = brand.enabled ? dictionary[key].replace(/Setu|सेतु|ಸೇತು/g, brand.brand_name) : dictionary[key];
         });
       Object.entries(translationTargets).forEach(([selector, key]) => {
         const element = document.querySelector<HTMLElement>(selector);
-        if (element && dictionary[key]) element.textContent = dictionary[key];
+        if (element && dictionary[key]) element.textContent = brand.enabled ? dictionary[key].replace(/Setu|सेतु|ಸೇತು/g, brand.brand_name) : dictionary[key];
       });
     };
 
@@ -239,7 +241,7 @@ export default function MarketingLanguage() {
         ? language
         : "en",
     );
-  }, [requestLocale]);
+  }, [requestLocale, brand.enabled, brand.brand_name]);
 
   return null;
 }

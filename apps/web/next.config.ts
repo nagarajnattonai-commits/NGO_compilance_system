@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   outputFileTracingRoot: process.cwd(),
+  distDir: process.env.NEXT_BUILD_DIR || ".next",
   async rewrites() {
     return [
       {

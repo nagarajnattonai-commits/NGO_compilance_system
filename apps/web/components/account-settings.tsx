@@ -22,9 +22,11 @@ import { useTranslations } from "next-intl";
 import LocaleSwitcher from "@/components/locale-switcher";
 import { useLocalization } from "@/i18n/client";
 import { updateLocalizationPreference } from "@/lib/api";
+import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
 export default function AccountSettings({ session }: { session: AuthSession }) {
   const t = useTranslations("Settings");
+  const brand = useTenantBrand();
   const { settings, refresh } = useLocalization();
   const [user, setUser] = useState(session.user);
   const [error, setError] = useState("");
@@ -142,8 +144,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
     <main className="account-page">
       <header className="account-header">
         <Link href="/" className="account-brand">
-          <ShieldCheck size={26} />
-          Setu NGO
+          {brand.enabled ? <BrandIdentity /> : <><ShieldCheck size={26} />Setu NGO</>}
         </Link>
         <Link href="/">
           <ArrowLeft size={16} />

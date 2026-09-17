@@ -22,7 +22,8 @@
       "assistant": "Assistant",
       "integrations": "Integrations",
       "administration": "Administration",
-      "localization": "Localization"
+      "localization": "Localization",
+      "whiteLabel": "White Label"
     },
     "actions": {
       "add": "Add",

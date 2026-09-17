@@ -94,4 +94,14 @@ The UI uses `next-intl` with module-split dictionaries for `en-IN`, `hi-IN`, `kn
 
 ## Production roadmap
 
+### White-label branding
+
+Tenant administrators can configure branding at `/settings/white-label`; approved
+platform operators manage access at `/admin/white-label`. The implementation uses
+the existing tenancy, authentication, localization, and audit model with explicit
+entitlements, immutable draft/published versions, validated image assets, theme
+tokens, verified custom domains, branded reset emails, and printable reports.
+See [white-label operations](docs/WHITE_LABEL.md) for permissions, lifecycle,
+security controls, test commands, and the opt-in PostgreSQL/S3/Caddy deployment.
+
 Before deployment, replace the local identity fallback and SQLite with managed OIDC and PostgreSQL, add Redis-backed scheduled workers, connect S3-compatible document storage, configure an email provider, and migrate the validated compliance catalogue into versioned rules. These are intentionally isolated behind the current API boundaries.

@@ -237,7 +237,8 @@ def test_reset_link_delivery_single_use_and_session_revocation(monkeypatch):
         response = client.post("/api/v1/auth/forgot-password", headers=HEADERS, json={"email": "owner@example.test"})
         assert response.status_code == 200
         message = smtp.return_value.__enter__.return_value.send_message.call_args.args[0]
-        token = message.get_content().split("#token=")[1].split()[0]
+        assert message.get_body(preferencelist=("html",)) is not None
+        token = message.get_body(preferencelist=("plain",)).get_content().split("#token=")[1].split()[0]
         assert token not in response.text
         assert client.post("/api/v1/auth/reset-password", headers=HEADERS, json={"token": token, "password": NEW_PASSWORD}).status_code == 204
         assert client.get("/api/v1/auth/me").status_code == 401

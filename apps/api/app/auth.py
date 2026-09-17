@@ -9,6 +9,7 @@ import smtplib
 import ssl
 from datetime import date, datetime, timedelta, timezone
 from email.message import EmailMessage
+from email.utils import formataddr
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -79,7 +80,9 @@ def check_mutation(request: Request):
         raise HTTPException(403, "Missing request protection header")
     origin = request.headers.get("origin")
     if origin and origin not in ALLOWED_ORIGINS:
-        raise HTTPException(403, "Request origin is not allowed")
+        from .brand_domains import custom_origin_allowed
+        if not custom_origin_allowed(request, origin):
+            raise HTTPException(403, "Request origin is not allowed")
 
 
 def current_user(request: Request, db: DB) -> User:
@@ -89,6 +92,8 @@ def current_user(request: Request, db: DB) -> User:
     user = db.get(User, session.user_id) if session and aware(session.expires_at) > now() else None
     if not user or user.status != "ACTIVE":
         raise HTTPException(401, "Please sign in to continue")
+    from .brand_domains import enforce_request_tenant
+    enforce_request_tenant(request, db, user.tenant_id)
     request.state.actor_name = user.name
     request.state.user_id = user.id
     db.info["actor_name"] = user.name
@@ -256,6 +261,9 @@ router = APIRouter(prefix="/api/v1", dependencies=[Depends(check_mutation)])
 
 @router.post("/auth/signup", response_model=UserOut, status_code=201)
 def signup(payload: SignupInput, request: Request, response: Response, db: DB):
+    from .brand_domains import platform_hosts, request_hostname
+    if request_hostname(request) not in platform_hosts():
+        raise HTTPException(403, "New workspaces must be created on the platform domain")
     limit_attempts(db, f"signup:{request_ip(request)}", 10, 3600)
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(409, "Unable to create this account. Try signing in or recovering your password.")
@@ -286,6 +294,8 @@ def login(payload: LoginInput, request: Request, response: Response, db: DB):
     valid = verify_password(payload.password, user.password_hash if user else None)
     if not valid or not user or user.status != "ACTIVE":
         raise HTTPException(401, "Email or password is incorrect, or the account is unavailable")
+    from .brand_domains import enforce_request_tenant
+    enforce_request_tenant(request, db, user.tenant_id)
     if payload.admin_only and user.role != "ADMIN":
         raise HTTPException(403, "This account is not a workspace administrator. Use team member sign in.")
     old_token = request.cookies.get(COOKIE_NAME)
@@ -347,11 +357,21 @@ def forgot_password(payload: EmailInput, request: Request, db: DB):
     user = db.scalar(select(User).where(User.email == payload.email, User.status == "ACTIVE"))
     if user:
         token = issue_token(db, user, "RESET", 1)
+        from .brand_outputs import render_email, site_origin
+        from .models import UserPreference
+        preference = db.get(UserPreference, user.id)
+        email = render_email(db, user.tenant_id, "auth.passwordReset", {
+            "userName": user.name, "link": f"{site_origin(db, user.tenant_id)}/reset-password#token={token}"
+        }, preference.locale if preference else None)
         message = EmailMessage()
-        message["Subject"] = "Reset your Setu password"
-        message["From"] = smtp_from
+        message["Subject"] = email["subject"]
+        # From address remains the provider-verified platform sender.
+        message["From"] = formataddr((email["sender_name"], smtp_from))
         message["To"] = user.email
-        message.set_content(f"Use this single-use link within one hour:\n{APP_ORIGIN}/reset-password#token={token}\n\nIf you did not request this, ignore this email.")
+        if email["reply_to"]:
+            message["Reply-To"] = email["reply_to"]
+        message.set_content(email["text"])
+        message.add_alternative(email["html"], subtype="html")
         try:
             with smtplib.SMTP_SSL(smtp_host, int(os.getenv("SMTP_PORT", "465")), timeout=10, context=ssl.create_default_context()) as smtp:
                 if os.getenv("SMTP_USER"):
@@ -365,7 +385,7 @@ def forgot_password(payload: EmailInput, request: Request, db: DB):
     return {"message": "If an active account matches, a password-reset link will be sent. Check your inbox and spam folder."}
 
 
-def redeem_token(db: Session, payload: TokenInput, purpose: str) -> User:
+def redeem_token(db: Session, payload: TokenInput, purpose: str, request: Request) -> User:
     token = db.get(AuthToken, digest(payload.token))
     if not token or token.purpose != purpose or token.used_at or aware(token.expires_at) <= now():
         raise HTTPException(400, "This link is invalid, expired, or already used")
@@ -373,6 +393,8 @@ def redeem_token(db: Session, payload: TokenInput, purpose: str) -> User:
     allowed_status = "INVITED" if purpose == "INVITE" else "ACTIVE"
     if not user or user.status != allowed_status:
         raise HTTPException(400, "This link is no longer available")
+    from .brand_domains import enforce_request_tenant
+    enforce_request_tenant(request, db, user.tenant_id)
     # Atomic claim prevents concurrent requests from reusing the same token.
     claimed = db.execute(update(AuthToken).where(AuthToken.token_hash == token.token_hash, AuthToken.used_at.is_(None)).values(used_at=now()))
     if claimed.rowcount != 1:
@@ -388,13 +410,13 @@ def redeem_token(db: Session, payload: TokenInput, purpose: str) -> User:
 @router.post("/auth/reset-password", status_code=204)
 def reset_password(payload: TokenInput, request: Request, db: DB):
     limit_attempts(db, f"redeem:{request_ip(request)}", 20)
-    redeem_token(db, payload, "RESET")
+    redeem_token(db, payload, "RESET", request)
 
 
 @router.post("/auth/accept-invitation", status_code=204)
 def accept_invitation(payload: TokenInput, request: Request, db: DB):
     limit_attempts(db, f"redeem:{request_ip(request)}", 20)
-    redeem_token(db, payload, "INVITE")
+    redeem_token(db, payload, "INVITE", request)
 
 
 @router.get("/admin/users", response_model=list[UserOut])

@@ -1,0 +1,85 @@
+# Explicit opt-in production deployment. Supply .env values; no example secrets.
+# Only the TLS edge is public. Never expose API or PostgreSQL to the internet.
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: compliance
+      POSTGRES_USER: compliance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong database password}
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U compliance -d compliance"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ../apps/api
+    environment:
+      APP_ENV: production
+      APP_ORIGIN: https://${PLATFORM_DOMAIN:?Set the platform hostname}
+      PLATFORM_HOSTS: ${PLATFORM_DOMAIN}
+      DATABASE_URL: postgresql+psycopg://compliance:${POSTGRES_PASSWORD}@database:5432/compliance
+      BRAND_PROXY_KEY: ${BRAND_PROXY_KEY:?Set a random shared key of at least 32 characters}
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:?Set the operator account allowlist}
+      WHITE_LABEL_CNAME_TARGET: ${WHITE_LABEL_CNAME_TARGET:?Set the TLS edge DNS hostname}
+      BRAND_S3_BUCKET: ${BRAND_S3_BUCKET:?Set a private S3-compatible asset bucket}
+      BRAND_S3_ENDPOINT: ${BRAND_S3_ENDPOINT:-}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../apps/web
+      args:
+        API_INTERNAL_URL: http://api:8000
+    environment:
+      APP_ENV: production
+      APP_ORIGIN: https://${PLATFORM_DOMAIN}
+      API_INTERNAL_URL: http://api:8000
+      BRAND_PROXY_KEY: ${BRAND_PROXY_KEY}
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set the certificate operator email}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  database-data:
+  caddy-data:
+  caddy-config:

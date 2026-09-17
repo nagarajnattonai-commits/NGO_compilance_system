@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
+import os
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,13 +74,18 @@ from .schemas import (
     UserPreferenceUpdate,
 )
 from .seed import seed_demo_data
+from .branding import router as branding_router
+from .brand_outputs import router as brand_outputs_router
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if os.getenv("APP_ENV") == "production" and len(os.getenv("BRAND_PROXY_KEY", "")) < 32:
+        raise RuntimeError("Production requires a shared BRAND_PROXY_KEY of at least 32 characters")
     Base.metadata.create_all(bind=engine)
-    with SessionLocal() as db:
-        seed_demo_data(db)
+    if os.getenv("APP_ENV") != "production":
+        with SessionLocal() as db:
+            seed_demo_data(db)
     yield
 
 
@@ -99,6 +105,8 @@ app.add_middleware(
 
 
 app.include_router(auth_router)
+app.include_router(branding_router)
+app.include_router(brand_outputs_router)
 
 
 @app.exception_handler(RequestValidationError)

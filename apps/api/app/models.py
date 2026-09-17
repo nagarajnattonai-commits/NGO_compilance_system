@@ -281,6 +281,79 @@ class Workspace(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class TenantEntitlement(Base):
+    __tablename__ = "tenant_entitlements"
+    __table_args__ = (UniqueConstraint("tenant_id", "feature_key", name="uq_tenant_feature"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    feature_key: Mapped[str] = mapped_column(String(80))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_by: Mapped[str] = mapped_column(String(120), default="System")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class TenantBranding(Base):
+    __tablename__ = "tenant_branding"
+
+    tenant_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), default="DISABLED")
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    draft_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    published_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class BrandingVersion(Base):
+    __tablename__ = "tenant_branding_versions"
+    __table_args__ = (UniqueConstraint("tenant_id", "version", name="uq_brand_version"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    configuration: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    published_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class BrandAsset(Base):
+    __tablename__ = "tenant_brand_assets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    asset_type: Mapped[str] = mapped_column(String(30))
+    storage_key: Mapped[str] = mapped_column(String(255), unique=True)
+    mime_type: Mapped[str] = mapped_column(String(60))
+    file_size: Mapped[int] = mapped_column(Integer)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    created_by: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TenantDomain(Base):
+    __tablename__ = "tenant_domains"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    hostname: Mapped[str] = mapped_column(String(253), unique=True, index=True)
+    verification_token: Mapped[str] = mapped_column(String(100))
+    verification_method: Mapped[str] = mapped_column(String(20), default="DNS_TXT")
+    status: Mapped[str] = mapped_column(String(20), default="PENDING")
+    ssl_status: Mapped[str] = mapped_column(String(20), default="PENDING")
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    platform_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
+    routing_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class User(Base):
     __tablename__ = "auth_users"
 

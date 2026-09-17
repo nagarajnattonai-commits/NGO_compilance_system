@@ -22,7 +22,8 @@
       "assistant": "ಸಹಾಯಕ",
       "integrations": "ಏಕೀಕರಣಗಳು",
       "administration": "ಆಡಳಿತ",
-      "localization": "ಭಾಷಾ ನಿರ್ವಹಣೆ"
+      "localization": "ಭಾಷಾ ನಿರ್ವಹಣೆ",
+      "whiteLabel": "ವೈಟ್ ಲೇಬಲ್"
     },
     "actions": {
       "add": "ಸೇರಿಸಿ",

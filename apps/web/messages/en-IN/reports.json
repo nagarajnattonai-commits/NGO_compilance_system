@@ -1,5 +1,6 @@
 {
   "Reports": {
+    "printPdf": "PDF / Print",
     "title": "Reports and analytics",
     "description": "Review portfolio health, ownership, deadlines and evidence coverage.",
     "completionRate": "Completion rate",

@@ -69,3 +69,32 @@ jobs:
       - name: Validate Docker Compose
         run: docker compose config --quiet
 
+  white-label-browser:
+    name: White-label browser regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install API test environment
+        run: |
+          python -m venv apps/api/.venv
+          apps/api/.venv/bin/python -m pip install -r apps/api/requirements.txt
+      - name: Install website and Chromium
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Verify branded UI and responsive layouts
+        working-directory: apps/web
+        run: npm run test:white-label

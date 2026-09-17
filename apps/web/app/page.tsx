@@ -10,11 +10,17 @@ import "./marketing.css";
 import MarketingEffects from "@/components/marketing-effects";
 import MarketingLanguage from "@/components/marketing-language";
 import PublicNavigation from "@/components/public-navigation";
+import { getLocale } from "next-intl/server";
+import { getServerBrand } from "@/branding/server";
+import { BrandIdentity } from "@/branding/client";
 
-export const metadata: Metadata = {
-  title: "Setu NGO | Compliance and Impact Management Platform",
-  description: "Manage NGO compliance, deadlines, evidence, tasks, donors, grants, CSR projects and reporting in one secure workspace.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getServerBrand(await getLocale());
+  return {
+    title: { absolute: brand.enabled ? brand.product_name : "Setu NGO | Compliance and Impact Management Platform" },
+    description: brand.enabled ? brand.description : "Manage NGO compliance, deadlines, evidence, tasks, donors, grants, CSR projects and reporting in one secure workspace.",
+  };
+}
 
 const coreServices = [
   { icon: ClipboardCheck, title: "Compliance operations", text: "Plan obligations, assign accountable owners, track statutory and internal dates, review evidence and record filing proof." },
@@ -52,7 +58,8 @@ const projectFeatures = [
   { icon: UsersRound, label: "VOLUNTEERS", title: "Programmes and participation", text: "Maintain responsible owners, activity records and time-bound programme obligations." },
 ];
 
-export default function MarketingHome() {
+export default async function MarketingHome() {
+  const brand = await getServerBrand(await getLocale());
   return <main className="marketing-site">
     <MarketingEffects />
     <MarketingLanguage />
@@ -98,6 +105,6 @@ export default function MarketingHome() {
 
     <section className="final-cta" id="contact"><span><Languages size={19} />CONTACT AND ONBOARDING</span><h2>Give every compliance responsibility a clear owner, deadline and evidence trail.</h2><p>Create a workspace to begin onboarding, or sign in to continue with your existing NGO or professional practice.</p><div><Link className="marketing-button light" href="/signup">Request onboarding <ArrowRight size={17} /></Link><Link className="marketing-button outline-light" href="/login">Log in to Setu</Link></div></section>
 
-    <footer className="marketing-footer"><div><Link className="marketing-brand" href="/"><span><ShieldCheck size={21} /></span><strong>Setu NGO<small>Compliance and impact management</small></strong></Link><p>Operational software for NGO compliance teams and professional service providers.</p></div><div><strong>Platform</strong><a href="#platform">Compliance</a><a href="#dnd">D&amp;D</a><a href="#admin">Administration</a><a href="#security">Security</a><a href="#plans">Plans</a></div><div><strong>Access</strong><Link href="/login">Team login</Link><Link href="/admin/login">Admin login</Link><Link href="/signup">Create workspace</Link><Link href="/dashboard">Open dashboard</Link></div><div><strong>Important</strong><p>Setu supports compliance operations. It does not replace a CA, lawyer, auditor or official government portal.</p></div><small>© 2026 Setu NGO. All rights reserved.</small></footer>
+    <footer className="marketing-footer"><div><Link className="marketing-brand" href="/">{brand.enabled ? <BrandIdentity /> : <><span><ShieldCheck size={21} /></span><strong>Setu NGO<small>Compliance and impact management</small></strong></>}</Link><p>{brand.enabled ? brand.description : "Operational software for NGO compliance teams and professional service providers."}</p>{brand.support_email && <a href={`mailto:${brand.support_email}`}>{brand.support_email}</a>}{brand.support_phone && <p>{brand.support_phone}</p>}{brand.support_url && <a href={brand.support_url} target="_blank" rel="noopener noreferrer">Support</a>}</div><div><strong>Platform</strong><a href="#platform">Compliance</a><a href="#dnd">D&amp;D</a><a href="#admin">Administration</a><a href="#security">Security</a><a href="#plans">Plans</a></div><div><strong>Access</strong><Link href="/login">Team login</Link><Link href="/admin/login">Admin login</Link><Link href="/signup">Create workspace</Link><Link href="/dashboard">Open dashboard</Link></div><div><strong>Important</strong><p>{brand.brand_name} supports compliance operations. It does not replace a CA, lawyer, auditor or official government portal.</p>{brand.privacy_url && <a href={brand.privacy_url} target="_blank" rel="noopener noreferrer">Privacy</a>}{brand.terms_url && <a href={brand.terms_url} target="_blank" rel="noopener noreferrer">Terms</a>}</div><small>{brand.footer_text || `© 2026 ${brand.brand_name}. All rights reserved.`}</small></footer>
   </main>;
 }

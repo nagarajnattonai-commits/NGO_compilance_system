@@ -20,6 +20,7 @@ import {
 import ThemeToggle from "@/components/theme-toggle";
 import { useLocale } from "next-intl";
 import { localeCookieName, type AppLocale } from "@/i18n/config";
+import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
 type Locale = "en" | "hi" | "mr" | "kn";
 type OpenMenu = "about" | "donation" | "more" | "language" | null;
@@ -97,6 +98,7 @@ const navigationCopy: Record<
 };
 
 export default function PublicNavigation() {
+  const brand = useTenantBrand();
   const requestLocale = useLocale();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
@@ -241,16 +243,16 @@ export default function PublicNavigation() {
       <Link
         className="marketing-brand"
         href="/"
-        aria-label="Setu NGO home"
+        aria-label={brand.product_name}
         onClick={closeNavigation}
       >
-        <span className="brand-mark">
+        {brand.enabled ? <BrandIdentity /> : <><span className="brand-mark">
           <ShieldCheck size={23} />
           <i />
         </span>
         <strong>
           Setu NGO<small>Compliance and impact management</small>
-        </strong>
+        </strong></>}
       </Link>
 
       {mobileOpen && (

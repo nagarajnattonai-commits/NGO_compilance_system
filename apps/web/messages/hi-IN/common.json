@@ -22,7 +22,8 @@
       "assistant": "सहायक",
       "integrations": "एकीकरण",
       "administration": "प्रशासन",
-      "localization": "भाषा प्रबंधन"
+      "localization": "भाषा प्रबंधन",
+      "whiteLabel": "व्हाइट लेबल"
     },
     "actions": {
       "add": "जोड़ें",

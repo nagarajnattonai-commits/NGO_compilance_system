@@ -1,6 +1,9 @@
 # Dependencies and builds
 node_modules/
 .next/
+.next-*/
+test-results/
+playwright-report/
 dist/
 __pycache__/
 .pytest_cache/
@@ -14,6 +17,7 @@ coverage/
 apps/api/data/
 .env
 .env.local
+deploy/.env.white-label
 
 # Editors and OS
 .DS_Store

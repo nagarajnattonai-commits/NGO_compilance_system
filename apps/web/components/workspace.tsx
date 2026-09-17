@@ -41,6 +41,7 @@ import {
   Newspaper,
   Trash2,
   Languages,
+  Palette,
 } from "lucide-react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -96,6 +97,8 @@ import {
   localizedCollator,
 } from "@/i18n/format";
 import LocalizationAdmin from "@/components/localization-admin";
+import WhiteLabelSettings from "@/components/white-label-settings";
+import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
 const UserContext = createContext<AuthUser | null>(null);
 function useCurrentUser() {
@@ -116,7 +119,8 @@ type View =
   | "assistant"
   | "integrations"
   | "administration"
-  | "localization";
+  | "localization"
+  | "whiteLabel";
 
 const nav = [
   { id: "overview" as View, labelKey: "dashboard", icon: LayoutDashboard },
@@ -131,6 +135,7 @@ const nav = [
   { id: "integrations" as View, labelKey: "integrations", icon: PlugZap },
   { id: "administration" as View, labelKey: "administration", icon: Users },
   { id: "localization" as View, labelKey: "localization", icon: Languages },
+  { id: "whiteLabel" as View, labelKey: "whiteLabel", icon: Palette },
 ];
 
 const statusLabels: Record<string, string> = {
@@ -216,6 +221,8 @@ function Avatar({ name, label }: { name: string; label?: string }) {
 
 function AppLogo() {
   const t = useTranslations("Common");
+  const brand = useTenantBrand();
+  if (brand.enabled) return <div className="brand tenant-sidebar-brand"><BrandIdentity /></div>;
   return (
     <div className="brand">
       <div className="brand-mark">
@@ -237,6 +244,7 @@ export default function ComplianceApp({
   initialView?: View;
 }) {
   const tCommon = useTranslations("Common");
+  const tBrand = useTranslations("WhiteLabel");
   const [view, setView] = useState<View>(initialView);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState("all");
@@ -277,6 +285,7 @@ export default function ComplianceApp({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+  const [brandDirty, setBrandDirty] = useState(false);
 
   useEffect(() => {
     loadWorkspace(user.role === "ADMIN")
@@ -331,6 +340,7 @@ export default function ComplianceApp({
   const unread = notifications.filter((item) => !item.is_read).length;
 
   function go(next: View) {
+    if (view === "whiteLabel" && brandDirty && !window.confirm(tBrand("unsavedConfirm"))) return;
     setView(next);
     setMobileMenu(false);
     setSearch("");
@@ -382,6 +392,7 @@ export default function ComplianceApp({
     }
   }
   async function logout() {
+    if (brandDirty && !window.confirm(tBrand("unsavedConfirm"))) return;
     setSigningOut(true);
     try {
       await apiRequest<void>("/auth/logout", "POST");
@@ -460,7 +471,7 @@ export default function ComplianceApp({
             {nav
               .filter(
                 (item) =>
-                  !["operations", "administration", "localization"].includes(
+                  !["operations", "administration", "localization", "whiteLabel"].includes(
                     item.id,
                   ) || user.role === "ADMIN",
               )
@@ -618,6 +629,7 @@ export default function ComplianceApp({
                 role="search"
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (view === "whiteLabel" && brandDirty && !window.confirm(tBrand("unsavedConfirm"))) return;
                   setView("compliance");
                   setSearch(headerSearch);
                   setMobileMenu(false);
@@ -818,6 +830,9 @@ export default function ComplianceApp({
           )}
           {view === "localization" && user.role === "ADMIN" && (
             <LocalizationAdmin />
+          )}
+          {view === "whiteLabel" && user.role === "ADMIN" && (
+            <WhiteLabelSettings onDirtyChange={setBrandDirty} />
           )}
         </main>
 
@@ -2187,10 +2202,10 @@ function ReportsView({
         title={t("title")}
         text={t("description")}
         action={
-          <button className="button primary" onClick={exportReport}>
+          <div className="report-export-actions"><a className="button secondary" href={`/api/v1/reports/compliance/print?locale=${encodeURIComponent(activeLocale())}${organizations.length === 1 ? `&organization_id=${encodeURIComponent(organizations[0].id)}` : ""}`} target="_blank" rel="noopener noreferrer"><FileText size={17} />{t("printPdf")}</a><button className="button primary" onClick={exportReport}>
             <Download size={17} />
             {t("exportCsv")}
-          </button>
+          </button></div>
         }
       />
       <div className="report-banner">

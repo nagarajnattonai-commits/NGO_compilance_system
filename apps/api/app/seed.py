@@ -78,6 +78,10 @@ def seed_demo_data(db: Session) -> None:
 
 
 def seed_extended_data(db: Session) -> None:
+    # Explicit demo entitlement, not a plan-name rule or a default for all tenants.
+    from .models import TenantEntitlement
+    if not db.scalar(select(TenantEntitlement.id).where(TenantEntitlement.tenant_id == TENANT_ID, TenantEntitlement.feature_key == "white_label")):
+        db.add(TenantEntitlement(tenant_id=TENANT_ID, feature_key="white_label", enabled=True))
     if not db.scalar(select(ComplianceDefinition.id).where(ComplianceDefinition.tenant_id == TENANT_ID).limit(1)):
         db.add_all([
             ComplianceDefinition(

@@ -50,7 +50,8 @@ This map follows the priority groups in the approved requirement analysis. “Im
 | Multi-language UI | Implemented for en-IN, hi-IN, kn-IN and mr-IN with English fallback, route-preserving selectors, locale-aware dates/numbers/currency/percentages and localized auth/workspace navigation |
 | Tenant localization administration | Implemented: enabled/default locales, accessible drag-and-drop ordering, completion/missing filters, tenant translation overrides, reset and audit events |
 | User regional preferences | Implemented: preferred locale, timezone and 12/24-hour display stored independently per user |
-| White-label SaaS | Planned |
+| White-label SaaS | Implemented: explicit feature entitlements and RBAC, tenant draft/publish/version history, safe asset upload, light/dark tokens, branded auth/navigation/favicon/public footer, localized output templates, report Print/Save as PDF, audit and platform operator controls |
+| White-label custom domains | DNS TXT/CNAME verification, HTTPS checks, tenant-bound authentication, suspension/downgrade safeguards and an internal certificate authorization gate implemented; live DNS/ACME provisioning requires the supplied deployment configuration |
 
 ## Dotskills Trust admin comparison
 

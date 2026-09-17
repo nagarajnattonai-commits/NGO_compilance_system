@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth-validation";
 import { useTranslations } from "next-intl";
 import PublicLocaleSwitcher from "@/components/public-locale-switcher";
+import { BrandLogo, useTenantBrand } from "@/branding/client";
 
 type Mode =
   | "login"
@@ -33,6 +34,8 @@ const modeKeys: Record<Mode, string> = {
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const t = useTranslations("Auth");
+  const tBrand = useTranslations("WhiteLabel");
+  const brand = useTenantBrand();
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -153,7 +156,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <main className="auth-shell">
+    <main className="auth-shell" style={brand.enabled && brand.login_background === "IMAGE" && brand.assets.LOGIN_BACKGROUND ? { backgroundImage: `linear-gradient(rgba(0,0,0,.4),rgba(0,0,0,.4)),url("${brand.assets.LOGIN_BACKGROUND}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
       <div className="auth-theme-toggle">
         <PublicLocaleSwitcher compact />
         <ThemeToggle />
@@ -161,10 +164,11 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       <section
         className={`auth-card ${mode === "signup" ? "auth-card-signup" : ""}`}
       >
-        <Link href="/" className="auth-logo" aria-label="Setu public website">
-          <ShieldCheck size={32} />
+        <Link href="/" className="auth-logo" aria-label={brand.product_name}>
+          {brand.enabled ? <BrandLogo variant="login" /> : <ShieldCheck size={32} />}
         </Link>
-        <p className="auth-brand">SETU NGO</p>
+        <p className="auth-brand" title={brand.product_name}>{brand.enabled ? brand.product_name : "SETU NGO"}</p>
+        {brand.enabled && <p className="auth-description">{brand.tagline}</p>}
         <h1>{t(`titles.${modeKeys[mode]}`)}</h1>
         <p className="auth-description">
           {t(`descriptions.${modeKeys[mode]}`)}
@@ -405,13 +409,18 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           )}
           <Link className="auth-back" href="/">
             <ArrowLeft size={14} />
-            Explore the Setu website
+            {brand.enabled ? brand.product_name : "Explore the Setu website"}
           </Link>
         </div>
       </section>
       <footer className="auth-footer">
-        Setu NGO Compliance System
-        <span>One workspace. Every obligation accounted for.</span>
+        {brand.enabled ? brand.footer_text || brand.brand_name : "Setu NGO Compliance System"}
+        <span>{brand.enabled ? brand.tagline : "One workspace. Every obligation accounted for."}</span>
+        {brand.enabled && <nav className="tenant-legal-links">
+          {brand.support_url && <a href={brand.support_url} rel="noopener noreferrer">{tBrand("tabs.support")}</a>}
+          {brand.privacy_url && <a href={brand.privacy_url} rel="noopener noreferrer">{tBrand("privacy")}</a>}
+          {brand.terms_url && <a href={brand.terms_url} rel="noopener noreferrer">{tBrand("terms")}</a>}
+        </nav>}
       </footer>
     </main>
   );
