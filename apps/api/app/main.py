@@ -77,6 +77,7 @@ from .auth_experience import router as auth_experience_router
 from .auth_oauth import router as auth_oauth_router
 from .integration_api import router as integration_router
 from .developer_api import router as developer_router
+from .onboarding import router as onboarding_router
 from .organization_profile import router as organization_profile_router
 from .seed import seed_demo_data
 from .branding import router as branding_router
@@ -123,6 +124,7 @@ app.include_router(compliance_master_router)
 app.include_router(integration_router)
 app.include_router(developer_router)
 app.include_router(organization_profile_router)
+app.include_router(onboarding_router)
 
 
 @app.exception_handler(RequestValidationError)

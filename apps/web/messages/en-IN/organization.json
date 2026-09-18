@@ -85,6 +85,9 @@
     "role": "Role",
     "date": "Date",
     "action": "Action",
-    "auditHelp": "Profile audit entries name the changed fields without retaining full tax identifiers."
+    "auditHelp": "Profile audit entries name the changed fields without retaining full tax identifiers.",
+    "INVITED": "Invited",
+    "INACTIVE": "Inactive",
+    "DISABLED": "Disabled"
   }
 }

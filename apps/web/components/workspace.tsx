@@ -67,6 +67,7 @@ import {
   transitionCompliance,
 } from "@/lib/api";
 import Link from "next/link";
+import OnboardingBanner from "./onboarding-banner";
 import { apiRequest } from "@/lib/http";
 import { roleLabel, type AuthUser } from "@/lib/auth-types";
 import UserManagement from "@/components/user-management";
@@ -565,6 +566,7 @@ export default function ComplianceApp({
           />
         )}
         <main className="main">
+          <OnboardingBanner canManage={user.role==="ADMIN"}/>
           <header className="topbar">
             <button
               className="menu-button"

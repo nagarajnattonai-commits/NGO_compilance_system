@@ -188,8 +188,7 @@ def get_profile(organization_id: str, db: DB, tenant: Tenant):
 def get_completeness(organization_id: str, db: DB, tenant: Tenant):
     return completeness(db, owned_org(db, tenant, organization_id))
 
-@router.patch("/organizations/{organization_id}/profile")
-def patch_profile(organization_id: str, payload: ProfileInput, db: DB, tenant: Tenant, actor: CurrentUser):
+def save_profile(organization_id, payload, db, tenant, actor, commit=True):
     org = owned_org(db, tenant, organization_id)
     details = db.get(OrganizationDetails, org.id)
     if not details:
@@ -233,5 +232,11 @@ def patch_profile(organization_id: str, payload: ProfileInput, db: DB, tenant: T
         financial.annual_revenue = payload.financial.annual_revenue; financial.revenue_period = payload.financial.revenue_period
         financial.updated_by = actor.name; financial.updated_at = utcnow(); db.add(financial); changed.append("financial")
     db.add(AuditEvent(tenant_id=tenant, actor_name=actor.name, action="ORGANIZATION_PROFILE_UPDATED", entity_type="Organization", entity_id=org.id, summary="Updated profile fields: "+", ".join(sorted(set(changed)))))
-    db.commit(); db.expire(details)
+    if commit: db.commit()
+    else: db.flush()
+    db.expire(details)
     return {**profile_data(db, org), "completeness": completeness(db, org)}
+
+@router.patch("/organizations/{organization_id}/profile")
+def patch_profile(organization_id: str, payload: ProfileInput, db: DB, tenant: Tenant, actor: CurrentUser):
+    return save_profile(organization_id, payload, db, tenant, actor)
