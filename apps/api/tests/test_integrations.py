@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from app.main import app
 from app.database import SessionLocal
+from app.auth_models import AuthAccount, SessionContext
 from app.auth import digest, now
 from app.models import User, AuthSession, Workspace, Subscription, TenantEntitlement, IntegrationConnection, AuditEvent
 from app.integration_models import ConnectionSettings, ApiKey, WebhookDelivery, WebhookEvent, IntegrationOperation
@@ -54,6 +55,8 @@ def client_for(tenant="tenant-a",role="ADMIN",entitled=True):
             user=User(tenant_id=tenant,name="Test integration administrator",email=role.lower()+"@"+tenant+".test",role=role)
             db.add(user);db.flush()
             token=tenant+"-"+role
+            db.add(AuthAccount(user_id=user.id,verified=True,platform_access=tenant == "tenant-a" and role == "ADMIN"))
+            db.add(SessionContext(token_hash=digest(token),tenant_id=tenant,audience="admin" if tenant == "tenant-a" and role == "ADMIN" else "user"))
             db.add(AuthSession(token_hash=digest(token),user_id=user.id,expires_at=now()+timedelta(hours=1)));db.commit()
         client.cookies.set("setu_session",token);client.headers["X-Setu-Request"]="1"
         yield client

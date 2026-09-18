@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
+from .compliance_states import CLOSED_STATES
 from .compliance_template_schema import FIELDS, TemplateConfiguration
 from .models import (AuditEvent, AutomationReceipt, Compliance, ComplianceCategory, ComplianceMaster, ComplianceNotificationTemplate,
                      ComplianceReminder, ComplianceSnapshot, ComplianceTemplateVersion, Document,
@@ -60,11 +61,11 @@ def validate_publish(config: TemplateConfiguration) -> list[str]:
         reachable.update(b for a, b in pairs if a in reachable)
     if any(state not in reachable for state in states):
         errors.append("workflow: every stage must be reachable from NOT_STARTED")
-    can_complete = {"COMPLETED"}
+    can_complete = set(CLOSED_STATES.intersection(states))
     for _ in states:
         can_complete.update(a for a, b in pairs if b in can_complete)
     if any(state not in can_complete for state in states):
-        errors.append("workflow: every stage must have a path to COMPLETED")
+        errors.append("workflow: every stage must have a path to a configured closed state")
     if any(not item.title for item in config.checklist):
         errors.append("checklist: all items require a title")
     if any(not item.document_type for item in config.documents):
@@ -341,7 +342,7 @@ def dispatch_master_reminders(db, tenant_id: str, today: date) -> int:
         ComplianceReminder.scheduled_for <= today, ComplianceReminder.sent_at.is_(None)).with_for_update()).all()
     for reminder in reminders:
         item = db.get(Compliance, reminder.compliance_id)
-        if not item or item.status in {"COMPLETED", "CANCELLED", "NOT_APPLICABLE"}:
+        if not item or item.status in CLOSED_STATES:
             reminder.sent_at = utcnow()
             continue
         if db.scalar(select(AutomationReceipt.id).where(AutomationReceipt.event_key == reminder.event_key)):

@@ -61,7 +61,8 @@
       "DRAFT": "मसौदा",
       "PUBLISHED": "प्रकाशित",
       "OPEN": "खुला",
-      "CLOSED": "बंद"
+      "CLOSED": "बंद",
+      "CANCELLED": "रद्द"
     },
     "priority": {
       "LOW": "कम",

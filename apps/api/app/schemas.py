@@ -73,7 +73,7 @@ class ComplianceUpdate(BaseModel):
 class ComplianceTransition(BaseModel):
     target_status: Literal[
         "IN_PROGRESS", "UNDER_REVIEW", "CHANGES_REQUESTED", "READY_TO_FILE",
-        "FILED", "COMPLETED", "NOT_APPLICABLE", "ON_HOLD"
+        "FILED", "COMPLETED", "NOT_APPLICABLE", "ON_HOLD", "CANCELLED"
     ]
     reason: str | None = Field(default=None, max_length=500)
     submission_reference: str | None = Field(default=None, max_length=160)

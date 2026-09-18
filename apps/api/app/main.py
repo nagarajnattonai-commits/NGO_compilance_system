@@ -83,6 +83,7 @@ from .brand_outputs import router as brand_outputs_router
 from .compliance_master import router as compliance_master_router
 from .compliance_engine import dispatch_master_reminders, enforce_snapshot_transition, generate_master_plan, published_templates
 from .models import ComplianceMaster, ComplianceSnapshot, ComplianceTemplateVersion
+from .compliance_states import CLOSED_STATES, counts_toward_completion, is_open
 from .compliance_template_schema import GeneratePlanInput, TemplateConfiguration
 
 
@@ -257,7 +258,7 @@ def apply_compliance_transition(
     configured_edge = enforce_snapshot_transition(db, tenant_id, item, target_status, proof_document_id)
     if configured_edge is None and target_status not in ALLOWED_TRANSITIONS.get(item.status, set()):
         raise HTTPException(status_code=409, detail=f"Cannot move compliance from {item.status} to {target_status}")
-    if target_status in {"CHANGES_REQUESTED", "NOT_APPLICABLE", "ON_HOLD"} or item.status in {"COMPLETED", "NOT_APPLICABLE"}:
+    if target_status in {"CHANGES_REQUESTED", "NOT_APPLICABLE", "ON_HOLD", "CANCELLED"} or item.status in CLOSED_STATES:
         if not reason or len(reason.strip()) < 3:
             raise HTTPException(status_code=422, detail="A reason is required for this transition")
     if proof_document_id:
@@ -399,7 +400,8 @@ def dashboard(db: DB, tenant_id: Tenant, organization_id: str | None = None):
     compliances = list(db.scalars(select(Compliance).where(*filters)).all())
     tasks = list(db.scalars(select(Task).where(*task_filters).order_by(Task.due_at).limit(6)).all())
     documents = list(db.scalars(select(Document).where(*doc_filters).order_by(Document.expiry_at).limit(5)).all())
-    active = [item for item in compliances if item.status != "COMPLETED"]
+    active = [item for item in compliances if is_open(item.status)]
+    eligible = [item for item in compliances if counts_toward_completion(item.status)]
     completed = [item for item in compliances if item.status == "COMPLETED"]
     high_risk = [item for item in active if item.priority in {"HIGH", "CRITICAL"}]
     return {
@@ -408,7 +410,11 @@ def dashboard(db: DB, tenant_id: Tenant, organization_id: str | None = None):
             "completed": len(completed),
             "in_progress": len([item for item in active if item.status in {"IN_PROGRESS", "UNDER_REVIEW", "READY_TO_FILE"}]),
             "high_risk": len(high_risk),
-            "completion_rate": round(len(completed) / len(compliances) * 100) if compliances else 0,
+            "open": len(active),
+            "cancelled": sum(item.status == "CANCELLED" for item in compliances),
+            "not_applicable": sum(item.status == "NOT_APPLICABLE" for item in compliances),
+            "overdue": sum(item.statutory_deadline < date.today() for item in active),
+            "completion_rate": round(len(completed) / len(eligible) * 100) if eligible else 0,
         },
         "compliances": compliances,
         "tasks": tasks,
@@ -1024,8 +1030,8 @@ def assistant_query(payload: AssistantInput, db: DB, tenant_id: Tenant):
         sources = [{"type": "task", "id": item.id, "label": item.title} for item in rows[:8]]
         answer = f"There are {len(rows)} open task(s). The earliest due task is {rows[0].title} on {rows[0].due_at.isoformat()}." if rows else "There are no open tasks in this scope."
     else:
-        rows = [item for item in compliances if item.status == "OVERDUE" or (item.status not in {"COMPLETED", "NOT_APPLICABLE", "CANCELLED"} and item.statutory_deadline < today)]
-        high = [item for item in compliances if item.status not in {"COMPLETED", "NOT_APPLICABLE", "CANCELLED"} and item.priority in {"HIGH", "CRITICAL"}]
+        rows = [item for item in compliances if item.status == "OVERDUE" or (is_open(item.status) and item.statutory_deadline < today)]
+        high = [item for item in compliances if is_open(item.status) and item.priority in {"HIGH", "CRITICAL"}]
         sources = [{"type": "compliance", "id": item.id, "label": f"{item.code} - {item.title}"} for item in (rows or high)[:8]]
         answer = f"This scope has {len(compliances)} compliance record(s), {len(rows)} overdue and {len(high)} open high-risk item(s). Open the cited records to validate deadlines, evidence and accountable owners."
     audit(db, tenant_id, "ASSISTANT_QUERIED", "Assistant", tenant_id, "Generated a tenant-grounded operational answer")

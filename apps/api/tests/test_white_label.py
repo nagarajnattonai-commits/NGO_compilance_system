@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy import select
 
+from app.auth_models import AuthAccount, SessionContext
 from app.auth import digest
 from app.brand_domains import active_domain, invalidate_domains, valid_https, validate_hostname, verify_domain_records
 from app.brand_outputs import render_email
@@ -33,6 +34,8 @@ def client_for(role="ADMIN", tenant="tenant-demo", entitled=True):
             user = User(tenant_id=tenant, name="Brand Administrator", email=f"{role.lower()}@white-label.test", role=role)
             db.add(user)
             db.flush()
+            db.add(AuthAccount(user_id=user.id, verified=True, platform_access=role == "ADMIN"))
+            db.add(SessionContext(token_hash=digest("white-label-session"), tenant_id=tenant, audience="user"))
             db.add(AuthSession(token_hash=digest("white-label-session"), user_id=user.id, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)))
             db.commit()
         client.cookies.set("setu_session", "white-label-session")
@@ -113,6 +116,7 @@ def test_cross_tenant_configuration_domain_and_assets_are_blocked(monkeypatch, t
             db.add(TenantEntitlement(tenant_id="tenant-b", feature_key="white_label", enabled=True))
             user = db.scalar(select(User).where(User.email == "admin@white-label.test"))
             user.tenant_id = "tenant-b"
+            db.get(SessionContext, digest("white-label-session")).tenant_id = "tenant-b"
             db.commit()
         assert client.get("/api/v1/white-label").json()["configuration"]["brand_name"] == "Setu NGO"
         assert client.get("/api/v1/white-label/versions/1").status_code == 404
@@ -243,6 +247,9 @@ def test_certificate_ask_gate_requires_recorded_ownership_and_routing(monkeypatc
         assert response.status_code == 204 and not response.content
         assert response.headers["cache-control"] == "no-store"
         monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "admin@white-label.test")
+        with SessionLocal() as db:
+            db.get(SessionContext, digest("white-label-session")).audience = "admin"
+            db.commit()
         assert client.post(f'/api/v1/platform/white-label/tenant-demo/domains/{row["id"]}/suspend').status_code == 200
         assert client.get(path).status_code == 403
         assert client.post(f'/api/v1/white-label/domains/{row["id"]}/verify').status_code == 403
@@ -276,6 +283,9 @@ def test_platform_admin_permission_entitlement_and_suspension(monkeypatch):
         settings = publish(client, draft(client))
         assert client.get("/api/v1/platform/white-label").status_code == 403
         monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "admin@white-label.test")
+        with SessionLocal() as db:
+            db.get(SessionContext, digest("white-label-session")).audience = "admin"
+            db.commit()
         assert client.get("/api/v1/platform/white-label/access").json()["allowed"] is True
         assert client.get("/api/v1/platform/white-label").status_code == 200
         response = client.post("/api/v1/platform/white-label/tenant-demo/action", json={"action": "SUSPEND"})

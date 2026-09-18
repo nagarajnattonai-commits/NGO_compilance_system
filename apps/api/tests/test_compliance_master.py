@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from app.auth_models import AuthAccount, SessionContext
 from app.auth import digest
 from app.compliance_engine import calculate_deadline, evaluate_rules, validate_publish
 from app.compliance_template_schema import TemplateConfiguration
@@ -24,6 +25,8 @@ def platform_client(monkeypatch):
             user = User(tenant_id="tenant-demo", name="Master Admin", email="master@example.test", role="ADMIN")
             db.add(user)
             db.flush()
+            db.add(AuthAccount(user_id=user.id, verified=True, platform_access=True))
+            db.add(SessionContext(token_hash=digest("master-test"), tenant_id=user.tenant_id, audience="admin"))
             db.add(AuthSession(token_hash=digest("master-test"), user_id=user.id, expires_at=datetime.now(timezone.utc) + timedelta(hours=1)))
             db.commit()
         client.cookies.set("setu_session", "master-test")
@@ -172,6 +175,7 @@ def test_nonplatform_rbac_all_operations(monkeypatch, role):
             user = db.scalar(select(User).where(User.email == "master@example.test"))
             user.role = role
             user.email = "tenant-admin@example.test"
+            db.get(SessionContext, digest("master-test")).audience = "user"
             db.commit()
         assert not client.get("/api/v1/admin/compliance-master/access").json()["allowed"]
         assert client.get("/api/v1/admin/compliance-templates").status_code == 403

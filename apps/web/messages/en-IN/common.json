@@ -61,7 +61,8 @@
       "DRAFT": "Draft",
       "PUBLISHED": "Published",
       "OPEN": "Open",
-      "CLOSED": "Closed"
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled"
     },
     "priority": {
       "LOW": "Low",

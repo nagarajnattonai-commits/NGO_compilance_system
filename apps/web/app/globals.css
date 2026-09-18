@@ -475,3 +475,5 @@ button.table-row:hover { background: #fbfcfa; }
   .order-buttons { grid-column: 3; }
   .translation-toolbar > label { width: 100%; }
 }
+
+.status-cancelled { color: var(--muted); background: var(--canvas); }

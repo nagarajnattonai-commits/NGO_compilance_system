@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from app.auth_models import SessionContext
 from app.auth import digest
 from app.database import SessionLocal
 from app.models import AuthSession, Compliance, ComplianceReminder, Organization, User
@@ -59,6 +60,7 @@ def test_reminders_freeze_locale_variables_and_role_transition_enforcement(monke
         with SessionLocal() as db:
             user = db.scalar(select(User).where(User.email == "master@example.test"))
             user.role = "MEMBER"
+            db.get(SessionContext, digest("master-test")).audience = "user"
             db.commit()
         assert client.get(f"/api/v1/compliances/{instance['id']}/template-snapshot").json()["available_transitions"] == []
         assert client.post(f"/api/v1/compliances/{instance['id']}/transitions", json={"target_status": "IN_PROGRESS"}).status_code == 403

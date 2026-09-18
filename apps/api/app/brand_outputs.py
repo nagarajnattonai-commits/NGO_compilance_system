@@ -35,6 +35,10 @@ STATUSES = {
 }
 
 
+# Shared translated closed-state labels.
+for _locale, _labels in {'en-IN': {'CANCELLED': 'Cancelled', 'NOT_APPLICABLE': 'Not applicable'}, 'hi-IN': {'CANCELLED': 'रद्द', 'NOT_APPLICABLE': 'लागू नहीं'}, 'kn-IN': {'CANCELLED': 'ರದ್ದಾಗಿದೆ', 'NOT_APPLICABLE': 'ಅನ್ವಯಿಸುವುದಿಲ್ಲ'}, 'mr-IN': {'CANCELLED': 'रद्द', 'NOT_APPLICABLE': 'लागू नाही'}}.items():
+    STATUSES[_locale].update(_labels)
+
 for _locale, _subject, _body in [
     ("en-IN","Verify your email","Use this single-use verification link within 24 hours."),
     ("hi-IN","अपना ईमेल सत्यापित करें","24 घंटे के भीतर इस एकल-उपयोग सत्यापन लिंक का उपयोग करें।"),

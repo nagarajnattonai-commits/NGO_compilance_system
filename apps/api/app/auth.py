@@ -93,7 +93,7 @@ def current_user(request: Request, db: DB) -> User:
     user._platform_host=request_hostname(request) in platform_hosts()
     from .auth_experience import apply_context
     auth_context=apply_context(db, user, session)
-    user._admin_audience=auth_context is None or auth_context.audience=="admin"
+    user._admin_audience=bool(auth_context and auth_context.audience=="admin")
     from .brand_domains import enforce_request_tenant
     enforce_request_tenant(request, db, user.tenant_id)
     request.state.actor_name = user.name

@@ -104,6 +104,8 @@ import { ComplianceNotificationMessage, ComplianceNotificationTitle } from "@/co
 import OrganizationComplianceProfile from "@/components/organization-compliance-profile";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
+import { countsTowardCompletion, isOpenCompliance } from "@/lib/compliance-states";
+
 const UserContext = createContext<AuthUser | null>(null);
 function useCurrentUser() {
   const user = useContext(UserContext);
@@ -151,6 +153,7 @@ const statusLabels: Record<string, string> = {
   READY_TO_FILE: "Ready to file",
   FILED: "Filed",
   COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
   NOT_APPLICABLE: "Not applicable",
   ON_HOLD: "On hold",
   OVERDUE: "Overdue",
@@ -1025,10 +1028,8 @@ function Overview({
   openUpload: () => void;
 }) {
   const t = useTranslations("Dashboard");
-  const closedStatuses = ["COMPLETED", "NOT_APPLICABLE"];
-  const openItems = compliances.filter(
-    (item) => !closedStatuses.includes(item.status),
-  );
+  const openItems = compliances.filter((item) => isOpenCompliance(item.status));
+  const eligibleItems = compliances.filter((item) => countsTowardCompletion(item.status));
   const completed = compliances.filter(
     (item) => item.status === "COMPLETED",
   ).length;
@@ -1040,8 +1041,8 @@ function Overview({
   const risk = openItems.filter((item) =>
     ["HIGH", "CRITICAL"].includes(item.priority),
   ).length;
-  const rate = compliances.length
-    ? Math.round((completed / compliances.length) * 100)
+  const rate = eligibleItems.length
+    ? Math.round((completed / eligibleItems.length) * 100)
     : 0;
   const today = dateInput(0);
   const overdue = openItems.filter(
@@ -1464,6 +1465,8 @@ function ComplianceView({
             "IN_PROGRESS",
             "UNDER_REVIEW",
             "COMPLETED",
+            "CANCELLED",
+            "NOT_APPLICABLE",
           ].map((item) => (
             <button
               className={filter === item ? "active" : ""}
@@ -1765,6 +1768,7 @@ function CalendarView({
   selectCompliance: (c: Compliance) => void;
 }) {
   const t = useTranslations("Calendar");
+  items = items.filter((item) => isOpenCompliance(item.status));
   const now = new Date();
   const [month, setMonth] = useState(
     () => new Date(now.getFullYear(), now.getMonth(), 1),
@@ -2167,7 +2171,8 @@ function ReportsView({
   showToast: (message: string) => void;
 }) {
   const t = useTranslations("Reports");
-  const categories = [...new Set(compliances.map((c) => c.category))];
+  const eligibleItems = compliances.filter((c) => countsTowardCompletion(c.status));
+  const categories = [...new Set(eligibleItems.map((c) => c.category))];
   function exportReport() {
     const header = [
       "Code",
@@ -2227,7 +2232,7 @@ function ReportsView({
               compliances.filter(
                 (c) =>
                   ["HIGH", "CRITICAL"].includes(c.priority) &&
-                  c.status !== "COMPLETED",
+                  isOpenCompliance(c.status),
               ).length
             }{" "}
             high-risk items across{" "}
@@ -2238,8 +2243,8 @@ function ReportsView({
         <div className="report-score">
           <strong>
             {Math.round(
-              compliances.reduce((sum, c) => sum + c.progress, 0) /
-                Math.max(1, compliances.length),
+              eligibleItems.reduce((sum, c) => sum + c.progress, 0) /
+                Math.max(1, eligibleItems.length),
             )}
           </strong>
           <span>Health score</span>
@@ -2254,7 +2259,7 @@ function ReportsView({
           />
           <div className="bar-chart">
             {categories.map((category) => {
-              const rows = compliances.filter((c) => c.category === category);
+              const rows = eligibleItems.filter((c) => c.category === category);
               const value = Math.round(
                 rows.reduce((sum, c) => sum + c.progress, 0) / rows.length,
               );
@@ -2274,7 +2279,7 @@ function ReportsView({
           <CardTitle title="Organization health" sub="Portfolio comparison" />
           <div className="org-health">
             {organizations.map((org) => {
-              const rows = compliances.filter(
+              const rows = eligibleItems.filter(
                 (c) => c.organization_id === org.id,
               );
               const score = rows.length
@@ -2432,7 +2437,7 @@ function AdministrationView({
               );
               const risk = rows.filter(
                 (item) =>
-                  item.status !== "COMPLETED" &&
+                  isOpenCompliance(item.status) &&
                   ["HIGH", "CRITICAL"].includes(item.priority),
               ).length;
               return (
@@ -2688,6 +2693,7 @@ function ComplianceDrawer({
   attachEvidence: () => void;
   showToast: (message: string) => void;
 }) {
+  const cancelLabel = useTranslations("Common")("status.CANCELLED");
   const [transition, setTransition] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [submissionReference, setSubmissionReference] = useState("");
@@ -2755,7 +2761,7 @@ function ComplianceDrawer({
       label: "Reopen compliance",
       needsReason: true,
     },
-    ON_HOLD: { status: "IN_PROGRESS", label: "Resume work" },
+    ON_HOLD: { status: "IN_PROGRESS", label: "Resume work", secondary: { status: "CANCELLED", label: cancelLabel, needsReason: true } },
     NOT_APPLICABLE: {
       status: "IN_PROGRESS",
       label: "Reopen as applicable",
@@ -3661,7 +3667,7 @@ function NewTaskModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const availableCompliances = compliances.filter(
-    (item) => item.organization_id === org && item.status !== "COMPLETED",
+    (item) => item.organization_id === org && isOpenCompliance(item.status),
   );
 
   async function submit(e: React.FormEvent) {
