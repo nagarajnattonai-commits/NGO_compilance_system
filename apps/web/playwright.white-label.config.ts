@@ -5,7 +5,9 @@ import path from "node:path";
 
 // Disposable database/storage and separate ports/build output: never reset the
 // user's development database or replace their current login/session.
-const temporary = mkdtempSync(path.join(tmpdir(), "setu-white-label-qa-"));
+const temporary = process.env.SETU_QA_DIRECTORY || mkdtempSync(path.join(tmpdir(), "setu-white-label-qa-"));
+process.env.SETU_QA_DIRECTORY=temporary;
+process.env.SETU_QA_DATABASE_URL="sqlite:///"+path.join(temporary,"qa.db").split(String.fromCharCode(92)).join("/");
 const common = {
   APP_ENV: "development",
   APP_ORIGIN: "http://localhost:3001",

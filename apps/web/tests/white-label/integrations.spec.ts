@@ -1,3 +1,4 @@
+import {provisionPlatformOperator} from "./platform-operator";
 import {test,expect,type APIRequestContext,type BrowserContext} from "@playwright/test";
 import {readFileSync} from "node:fs";
 import path from "node:path";
@@ -8,6 +9,7 @@ async function login(request:APIRequestContext,context:BrowserContext,locale="en
  const response=await request.post("/api/v1/auth/login",{headers,data:credentials});
  if(response.status()===401)expect((await request.post("/api/v1/auth/signup",{headers,data:{name:"Integration QA",workspace_name:"Integration QA",...credentials}})).status()).toBe(201);
  else expect(response.ok()).toBeTruthy();
+ await provisionPlatformOperator(request);
  expect((await request.patch("/api/v1/localization/preferences",{headers,data:{locale,timezone:"Asia/Kolkata",time_format:"12h"}})).ok()).toBeTruthy();
  await context.addCookies((await request.storageState()).cookies);
  const me=await request.get("/api/v1/auth/me");return (await me.json()).user.tenant_id as string;

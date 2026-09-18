@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from .auth import AdminUser, CurrentUser, DB, APP_ORIGIN, check_mutation, tenant_context
 from .branding import resolve_tenant_branding, version_configuration
-from .branding_schema import ConfigurationModel
+from .branding_schema import ConfigurationModel, BrandConfiguration
 from .brand_domains import active_domain
 from .models import Compliance, Organization, TenantBranding, TenantDomain, TenantLocale, UserPreference
 
@@ -35,6 +35,15 @@ STATUSES = {
 }
 
 
+for _locale, _subject, _body in [
+    ("en-IN","Verify your email","Use this single-use verification link within 24 hours."),
+    ("hi-IN","अपना ईमेल सत्यापित करें","24 घंटे के भीतर इस एकल-उपयोग सत्यापन लिंक का उपयोग करें।"),
+    ("kn-IN","ನಿಮ್ಮ ಇಮೇಲ್ ಪರಿಶೀಲಿಸಿ","24 ಗಂಟೆಗಳ ಒಳಗೆ ಈ ಏಕಬಳಕೆಯ ಪರಿಶೀಲನಾ ಲಿಂಕ್ ಬಳಸಿ."),
+    ("mr-IN","तुमचा ईमेल पडताळा","24 तासांच्या आत ही एकदाच वापरण्याची पडताळणी लिंक वापरा.")
+]:
+    CONTENT[_locale].update(verifySubject=_subject,verify=_body)
+
+
 def output_locale(db, tenant_id: str, requested: str | None) -> str:
     default = db.scalar(select(TenantLocale.locale_code).where(TenantLocale.tenant_id == tenant_id,
                                                               TenantLocale.is_default.is_(True), TenantLocale.enabled.is_(True)))
@@ -52,15 +61,17 @@ def output_configuration(db, tenant_id: str):
     return version_configuration(db, tenant_id, state.published_version if state and brand["enabled"] else None)
 
 
-def render_email(db, tenant_id: str, template_key: str, variables: dict[str, str], locale: str | None = None) -> dict:
+def render_email(db, tenant_id: str, template_key: str, variables: dict[str, str], locale: str | None = None, platform: bool = False) -> dict:
     locale = output_locale(db, tenant_id, locale)
     content = CONTENT[locale]
-    names = {"auth.passwordReset": ("resetSubject", "reset"), "auth.invitation": ("inviteSubject", "invite"), "compliance.deadlineReminder": ("deadlineSubject", "deadline")}
+    names = {"auth.emailVerification": ("verifySubject", "verify"), "auth.passwordReset": ("resetSubject", "reset"), "auth.invitation": ("inviteSubject", "invite"), "compliance.deadlineReminder": ("deadlineSubject", "deadline")}
     if template_key not in names:
         raise ValueError("Unsupported email template")
     subject_key, body_key = names[template_key]
     brand = resolve_tenant_branding(db, tenant_id, locale)
-    configuration = output_configuration(db, tenant_id)
+    if platform:
+        brand = resolve_tenant_branding(db, None, locale)
+    configuration = BrandConfiguration() if platform else output_configuration(db, tenant_id)
     body = content[body_key]
     detail = variables.get("complianceName", "")
     if variables.get("dueDate"):
@@ -70,7 +81,7 @@ def render_email(db, tenant_id: str, template_key: str, variables: dict[str, str
             pass
     link = variables.get("link", "")
     # Only application-generated links on an approved origin are renderable.
-    if link and not link.startswith(site_origin(db, tenant_id) + "/"):
+    if link and not link.startswith((APP_ORIGIN if platform else site_origin(db, tenant_id)) + "/"):
         raise ValueError("Email links must use the authorized application origin")
     footer = configuration.email_footer or configuration.footer_text or brand["brand_name"]
     logo = brand["assets"].get("PRIMARY_LOGO")

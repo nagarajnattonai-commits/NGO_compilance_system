@@ -39,6 +39,7 @@
     "node_modules",
     ".next-white-label-qa",
     ".next-compliance-build",
-    ".next-integration-build"
+    ".next-integration-build",
+    ".next-auth-build"
   ]
 }

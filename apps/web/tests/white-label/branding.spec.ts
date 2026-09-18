@@ -1,3 +1,4 @@
+import {provisionPlatformOperator} from "./platform-operator";
 import { test, expect } from "@playwright/test";
 import { localeCookieName } from "../../i18n/config";
 
@@ -21,8 +22,12 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
       password: "WhiteLabel-browser-QA-2026!",
     },
   });
-  expect(signup.status()).toBe(201);
-  const user = await signup.json();
+  expect([201,409]).toContain(signup.status());
+  if(signup.status()===409){
+    expect((await request.post("/api/v1/auth/login",{headers,data:{email:"white-label-qa@example.test",password:"WhiteLabel-browser-QA-2026!"}})).ok()).toBeTruthy();
+  }
+  const user = (await (await request.get("/api/v1/auth/me")).json()).user;
+  await provisionPlatformOperator(request);
   const grant = await request.put(
     `/api/v1/platform/white-label/${user.tenant_id}/entitlement`,
     { headers, data: { enabled: true } },
@@ -203,7 +208,7 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
       path: testInfo.outputPath(`public-viewport-${width}.png`),
     });
   }
-  await page.goto("/login");
+  await page.goto("/forgot-password");
   await expect(page.locator(".auth-brand")).toHaveText(longName);
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });

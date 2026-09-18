@@ -3,7 +3,7 @@ import { getPasswordChecks, passwordStrength } from "@/lib/auth-validation";
 import { useTranslations } from "next-intl";
 
 export default function PasswordGuidance({ password }: { password: string }) {
-  const t = useTranslations("Auth.passwordRules");
+  const t = useTranslations("Authentication.passwordRules");
   const checks = getPasswordChecks(password);
   const strength = passwordStrength(password);
   return (
@@ -23,7 +23,7 @@ export default function PasswordGuidance({ password }: { password: string }) {
         {checks.map((check, index) => (
           <li className={check.valid ? "valid" : ""} key={check.label}>
             {check.valid ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-            {t(["length", "upper", "lower", "number", "symbol"][index])}
+            {t(["length", "spacing", "variety", "predictable"][index])}
           </li>
         ))}
       </ul>

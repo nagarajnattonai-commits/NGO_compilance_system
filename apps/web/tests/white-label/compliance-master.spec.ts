@@ -1,3 +1,4 @@
+import {provisionPlatformOperator} from "./platform-operator";
 import { test, expect, type APIRequestContext, type BrowserContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -13,6 +14,7 @@ async function platformLogin(request: APIRequestContext, context: BrowserContext
     const signup = await request.post("/api/v1/auth/signup", { headers, data: { name: "Master QA", workspace_name: "Template QA", ...credentials } });
     expect(signup.status()).toBe(201);
   } else expect(login.ok()).toBeTruthy();
+  await provisionPlatformOperator(request);
   expect((await request.patch("/api/v1/localization/preferences", { headers, data: { locale: "en-IN", timezone: "Asia/Kolkata", time_format: "12h" } })).ok()).toBeTruthy();
   await context.addCookies((await request.storageState()).cookies);
 }
@@ -129,7 +131,7 @@ test("all template builder steps and master table remain responsive in " + local
 test("tenant accounts cannot open the platform builder or write global templates", async ({ page, request, context }) => {
   const signup = await request.post("/api/v1/auth/signup", { headers, data: { name: "Tenant QA", workspace_name: "Tenant restriction QA", email: "tenant-master-qa@example.test", password: "Tenant-browser-QA-2026!" } }); expect(signup.status()).toBe(201);
   await context.addCookies((await request.storageState()).cookies);
-  await page.goto("/admin/compliance-master/new"); await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goto("/admin/compliance-master/new"); await expect(page).toHaveURL(/\/access-denied\?admin=1$/);
   expect((await request.get("/api/v1/admin/compliance-templates")).status()).toBe(403);
   expect((await request.post("/api/v1/admin/compliance-templates", { headers, data: { code: "NO-ACCESS", configuration: newConfiguration() } })).status()).toBe(403);
   await page.goto("/admin"); await expect(page.locator(".platform-navigation")).toHaveCount(0);

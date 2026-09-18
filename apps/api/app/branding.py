@@ -1,5 +1,6 @@
 """Tenant-owned white-label configuration extending existing auth/audit conventions."""
 from __future__ import annotations
+from .auth_policy import is_platform_admin
 
 import copy
 import logging
@@ -48,7 +49,7 @@ def require_feature(db, tenant_id: str):
 
 def platform_admin(user: AdminUser):
     allowed = {email.strip().lower() for email in os.getenv("PLATFORM_ADMIN_EMAILS", "").split(",") if email.strip()}
-    if user.email.lower() not in allowed:
+    if not is_platform_admin(user):
         raise HTTPException(403, "Platform administrator access is required")
     return user
 
@@ -475,7 +476,7 @@ def primary_domain(domain_id: str, db: DB, tenant_id: Tenant, user: AdminUser):
 @router.get("/platform/white-label/access")
 def platform_access(user: CurrentUser):
     allowed = {email.strip().lower() for email in os.getenv("PLATFORM_ADMIN_EMAILS", "").split(",") if email.strip()}
-    return {"allowed": user.role == "ADMIN" and user.email.lower() in allowed}
+    return {"allowed": user.role == "ADMIN" and is_platform_admin(user)}
 
 
 @router.get("/platform/white-label")

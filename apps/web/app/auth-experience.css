@@ -1,0 +1,47 @@
+/* Auth pages reuse the existing workspace and white-label tokens. */
+html .auth-shell.auth-experience.auth-user,html .auth-shell.auth-experience.auth-admin{display:flex;flex-direction:column;justify-content:center;gap:32px;padding:100px 24px 24px;background:var(--brand-background,var(--canvas));color:var(--ink)}
+.auth-experience .auth-layout{width:100%;max-width:1040px;display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:48px;align-items:center}
+.auth-experience .auth-layout-product{grid-template-columns:minmax(0,1fr) minmax(0,440px)}
+.auth-experience .auth-card{width:100%;max-width:440px;min-width:0;margin:0;padding:32px;border:1px solid var(--line);border-radius:12px;background:var(--brand-surface,var(--paper));color:var(--ink);box-shadow:var(--shadow)}
+.auth-experience .auth-card h1{color:var(--ink);font-size:25px;line-height:1.3}
+.auth-experience .auth-brand{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;letter-spacing:.04em}
+.auth-experience .auth-description{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.auth-experience .auth-logo{border:1px solid var(--line);border-radius:12px;background:var(--mint);color:var(--forest-2)}
+.auth-experience .auth-logo:has(img){width:auto;border:0;background:transparent}
+.auth-experience .auth-theme-toggle{color:var(--ink);top:24px;right:24px}
+.auth-experience .auth-product-panel{min-width:0;padding:24px;color:var(--ink)}
+.auth-product-panel>svg{color:var(--forest-2)}
+.auth-product-panel h2{font-size:clamp(28px,3vw,42px);line-height:1.2;overflow-wrap:anywhere}
+.auth-product-panel p,.auth-product-panel li{color:var(--muted);font-size:15px;line-height:1.7;overflow-wrap:anywhere}
+.auth-product-panel ul{display:grid;gap:12px;padding-inline-start:20px}
+.auth-experience .auth-admin-label{display:flex;gap:6px;align-items:center;justify-content:center;color:var(--forest-2);font-size:12px;font-weight:700}
+.auth-experience .auth-form input:not([type=checkbox]),.auth-experience .auth-form select,.auth-experience .auth-verification input{width:100%;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:6px;background:var(--brand-surface,var(--paper));color:var(--ink);font:inherit;font-size:14px;padding:10px 12px}
+.auth-experience .auth-form label,.auth-experience .auth-password-field,.auth-experience .auth-verification label{display:grid;gap:7px;font-size:13px}
+.auth-experience .auth-form .auth-checkbox{display:flex;align-items:flex-start}
+.auth-experience .auth-checkbox input{flex-shrink:0;margin-top:3px}
+.auth-experience .auth-checkbox span{line-height:1.5}
+.auth-experience .auth-options{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px}
+.auth-experience a{color:var(--forest-2)}
+.auth-experience .auth-submit{display:flex;gap:8px;align-items:center;justify-content:center;min-height:44px;border-radius:6px;background:var(--forest);font:inherit;font-weight:600}
+.auth-experience .auth-submit:hover{background:var(--forest-2);color:var(--paper)}
+.auth-experience .password-input button{height:42px;width:42px;color:var(--muted)}
+.auth-experience .password-guidance{border-color:var(--line);background:var(--canvas)}
+.auth-experience .password-guidance li,.auth-experience .password-strength{color:var(--muted)}
+.auth-experience .password-guidance li.valid,.auth-experience .password-strength>strong{color:var(--forest-2)}
+.auth-experience .auth-footer{position:static;color:var(--muted);font-size:12px;max-width:100%;overflow-wrap:anywhere}
+.auth-experience .auth-links a{display:inline-flex;align-items:center;gap:5px}
+.auth-experience .auth-alert{display:flex;gap:8px;align-items:flex-start}
+.auth-experience .auth-alert svg{flex-shrink:0}
+.auth-experience .auth-verification{display:grid;gap:14px;margin-top:12px}
+.auth-experience .auth-steps{display:flex;gap:12px;list-style:none;padding:0;margin:0;font-size:12px;color:var(--muted)}
+.auth-steps [aria-current=step]{color:var(--forest-2);font-weight:700}
+.google-auth-button{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--brand-surface,var(--paper));color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.google-auth-button img{background:white;flex-shrink:0}
+.auth-provider-notice{font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:20px 0;color:var(--muted);font-size:11px}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:var(--line)}
+.auth-experience :focus-visible{outline:2px solid var(--forest-2);outline-offset:3px}
+.auth-experience button:disabled{opacity:.65;cursor:wait}
+.auth-experience .auth-form input[aria-invalid=true],.auth-experience .auth-form select[aria-invalid=true]{border-color:var(--red)}
+@media(max-width:800px){.auth-experience .auth-layout-product{grid-template-columns:minmax(0,1fr)}.auth-experience .auth-product-panel{display:none}}
+@media(max-width:480px){html .auth-shell.auth-experience.auth-user,html .auth-shell.auth-experience.auth-admin{padding:90px 16px 20px}.auth-experience .auth-card{padding:24px 20px}.auth-experience .auth-theme-toggle{right:16px;top:20px}.auth-experience .auth-options{font-size:11px}}

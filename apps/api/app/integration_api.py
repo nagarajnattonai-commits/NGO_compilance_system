@@ -44,7 +44,8 @@ class FeatureInput(EnabledInput):
 
 def platform_user(user):
     allowlist={email.strip().lower() for email in os.getenv("PLATFORM_ADMIN_EMAILS","").split(",") if email.strip()}
-    if user.role!="ADMIN" or user.email.lower() not in allowlist:
+    from .auth_policy import is_platform_admin
+    if not is_platform_admin(user):
         raise HTTPException(403,"Platform administrator access is required")
 def permission(user,name,platform=False):
     if platform:
@@ -87,7 +88,8 @@ def store_write(db,user,request,reference,value,entity_id,action):
 
 @router.get("/integrations-management/access")
 def access(user:CurrentUser,tenant:Tenant,db:DB):
-    allowed=user.role=="ADMIN" and user.email.lower() in {x.strip().lower() for x in os.getenv("PLATFORM_ADMIN_EMAILS","").split(",")}
+    from .auth_policy import is_platform_admin
+    allowed=is_platform_admin(user)
     writable=os.getenv("INTEGRATION_SECRET_BACKEND","environment")=="aws"
     return {"platform_allowed":allowed,"permissions":sorted(p for p in INTEGRATION_PERMISSIONS if has_permission(user,p)),
         "entitlements":{key:can_use_feature(db,tenant,key) for key in sorted({x.entitlement_key for x in REGISTRY.values()}|{"custom_webhooks","public_api"})},

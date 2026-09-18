@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/http";
 
 export default function PlatformNavigation() {
   const t = useTranslations("ComplianceMaster");
+  const auth = useTranslations("Authentication");
   const integrations = useTranslations("Integrations");
   const [allowed, setAllowed] = useState(false);
   useEffect(() => { apiRequest<{ allowed: boolean }>("/admin/compliance-master/access").then((result) => setAllowed(result.allowed)).catch(() => setAllowed(false)); }, []);
@@ -14,6 +15,7 @@ export default function PlatformNavigation() {
     <Link className="button secondary" href="/admin/compliance-master">{t("title")}</Link>
     <Link className="button secondary" href="/admin/white-label">{t("whiteLabel")}</Link>
     <Link className="button secondary" href="/admin/integrations">{integrations("title")}</Link>
+    <Link className="button secondary" href="/admin/authentication">{auth("providerSettings")}</Link>
     <Link className="button secondary" href="/admin/developers">{integrations("developers")}</Link>
   </nav></section>;
 }

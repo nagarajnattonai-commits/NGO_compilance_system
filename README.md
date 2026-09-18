@@ -84,7 +84,7 @@ apps/web   Next.js App Router + TypeScript presentation layer
 apps/api   FastAPI modular API + tenant-scoped persistence
 ```
 
-The API requires tenant context on every domain query. The local demo falls back to `tenant-demo`; production authentication should replace this with verified OIDC claims. Documents currently store metadata and immutable version records only. The production path should use private S3-compatible object storage, signed URLs and malware scanning as specified in the architecture document.
+The API derives tenant context for domain queries from authenticated server-side sessions and authorized workspace memberships. The existing development demo remains available separately; it does not grant access to authenticated APIs. Documents currently store metadata and immutable version records only. The production path should use private S3-compatible object storage, signed URLs and malware scanning as specified in the architecture document.
 
 The implementation coverage map is maintained in `docs/feature-coverage.md`. It separates working product behavior from provider or infrastructure readiness so optional features are not represented as production integrations before credentials, contracts and regulatory validation exist.
 
@@ -133,3 +133,7 @@ AWS Secrets Manager.
 
 See [integration architecture and operations](docs/INTEGRATIONS_IMPLEMENTATION.md)
 for migration, APIs, permissions, entitlements, worker/vault setup and limitations.
+
+## Authentication
+
+User and platform-admin authentication now use separate routes with shared design tokens. See [authentication setup and implementation](docs/AUTHENTICATION_IMPLEMENTATION.md) for email verification, Google OAuth, operator provisioning, schema migration and deployment requirements.

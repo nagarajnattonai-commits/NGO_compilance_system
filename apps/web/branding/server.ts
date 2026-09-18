@@ -25,6 +25,7 @@ export async function brandingRequestHeaders() {
 
 export const getServerBrand = cache(
   async (locale: string): Promise<PublicBrand> => {
+    if ((await headers()).get("x-setu-pathname")?.startsWith("/admin")) return platformBrand;
     const token = (await cookies()).get("setu_session")?.value;
     const requestHeaders = await brandingRequestHeaders();
     const endpoint = token

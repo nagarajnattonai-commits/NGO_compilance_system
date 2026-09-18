@@ -16,6 +16,7 @@ from .compliance_template_schema import (ApplicabilityTest, CategoryInput, Creat
     ROLES, STATES, ComplianceProfileInput, TemplateAction, TemplateConfiguration, UpdateTemplate)
 from .models import (AuditEvent, Compliance, ComplianceCategory, ComplianceDefinition, ComplianceMaster,
     ComplianceSnapshot, ComplianceTemplateVersion, Organization, OrganizationComplianceProfile, utcnow)
+from .auth_policy import is_platform_admin
 from .permissions import COMPLIANCE_MASTER_PERMISSIONS, has_permission
 
 router = APIRouter(prefix="/api/v1")
@@ -26,7 +27,7 @@ GLOBAL_SCOPE = "platform-global"
 def permission(action):
     def check(user: CurrentUser):
         allowed = {email.strip().lower() for email in os.getenv("PLATFORM_ADMIN_EMAILS", "").split(",") if email.strip()}
-        if user.role != "ADMIN" or user.email.lower() not in allowed or not has_permission(user, "compliance_master." + action):
+        if not is_platform_admin(user) or not has_permission(user, "compliance_master." + action):
             raise HTTPException(403, "Platform compliance master permission is required")
         return user
     return check
@@ -108,7 +109,7 @@ def require_valid(db, version):
 @router.get("/admin/compliance-master/access")
 def access(user: CurrentUser):
     allowed = {email.strip().lower() for email in os.getenv("PLATFORM_ADMIN_EMAILS", "").split(",") if email.strip()}
-    permissions = sorted(item for item in COMPLIANCE_MASTER_PERMISSIONS if has_permission(user, item)) if user.role == "ADMIN" and user.email.lower() in allowed else []
+    permissions = sorted(item for item in COMPLIANCE_MASTER_PERMISSIONS if has_permission(user, item)) if is_platform_admin(user) else []
     return {"allowed": "compliance_master.view" in permissions, "permissions": permissions}
 
 

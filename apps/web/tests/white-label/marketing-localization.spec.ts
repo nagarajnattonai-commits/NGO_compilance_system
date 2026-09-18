@@ -145,7 +145,7 @@ test("public language changes respect tenant configuration, saved preferences, o
   await expect(page.locator("#language-options")).not.toContainText("ಕನ್ನಡ");
   // A disabled locale cookie cannot bypass workspace language policy.
   await context.addCookies([{ name: localeCookieName, value: "kn-IN", domain: "localhost", path: "/" }]);
-  await page.goto("/login");
+  await page.goto("/forgot-password");
   await expect(page.locator("html")).toHaveAttribute("lang", "mr-IN");
   await page.locator(".locale-switcher select").selectOption("hi-IN");
   await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");

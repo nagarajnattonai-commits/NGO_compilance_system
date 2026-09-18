@@ -16,7 +16,13 @@ export function proxy(request: NextRequest) {
       { status: 400 },
     );
   }
+  // Development reloads/navigation aborts can leave the rewrite proxy with a
+  // closed pooled API socket. Close these local connections explicitly.
+  if(process.env.APP_ENV!=="production" && request.nextUrl.pathname.startsWith("/api/v1/")){
+    requestHeaders.set("Connection","close");
+  }
   requestHeaders.set("X-Setu-Host", hostname);
+  requestHeaders.set("X-Setu-Pathname", request.nextUrl.pathname);
   requestHeaders.set(
     "X-Setu-Proxy-Key",
     process.env.BRAND_PROXY_KEY ||
@@ -24,4 +30,4 @@ export function proxy(request: NextRequest) {
   );
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
-export const config = { matcher: "/api/v1/:path*" };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|google-g.png).*)"] };

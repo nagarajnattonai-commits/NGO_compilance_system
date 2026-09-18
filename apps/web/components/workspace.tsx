@@ -248,6 +248,7 @@ export default function ComplianceApp({
   initialView?: View;
 }) {
   const tCommon = useTranslations("Common");
+  const tAuth = useTranslations("Authentication");
   const tBrand = useTranslations("WhiteLabel");
   const [view, setView] = useState<View>(initialView);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -400,7 +401,7 @@ export default function ComplianceApp({
     setSigningOut(true);
     try {
       await apiRequest<void>("/auth/logout", "POST");
-      window.location.assign("/login");
+      window.location.assign(window.location.pathname.startsWith("/admin")?"/admin/login":"/login");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not sign out");
       setSigningOut(false);
@@ -546,6 +547,7 @@ export default function ComplianceApp({
           </div>
           <div className="sidebar-account-links">
             <Link href="/account">My account & password</Link>
+            <Link href="/select-workspace">{tAuth("selectWorkspace")}</Link>
             <button disabled={signingOut} onClick={logout}>
               {signingOut ? "Signing out…" : "Sign out"}
             </button>

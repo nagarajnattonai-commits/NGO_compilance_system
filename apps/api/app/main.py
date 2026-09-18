@@ -73,6 +73,8 @@ from .schemas import (
     UserPreferenceOut,
     UserPreferenceUpdate,
 )
+from .auth_experience import router as auth_experience_router
+from .auth_oauth import router as auth_oauth_router
 from .integration_api import router as integration_router
 from .developer_api import router as developer_router
 from .seed import seed_demo_data
@@ -111,6 +113,8 @@ app.add_middleware(
 
 
 app.include_router(auth_router)
+app.include_router(auth_experience_router)
+app.include_router(auth_oauth_router)
 app.include_router(branding_router)
 app.include_router(brand_outputs_router)
 app.include_router(compliance_master_router)
@@ -1027,3 +1031,14 @@ def assistant_query(payload: AssistantInput, db: DB, tenant_id: Tenant):
     audit(db, tenant_id, "ASSISTANT_QUERIED", "Assistant", tenant_id, "Generated a tenant-grounded operational answer")
     db.commit()
     return {"answer": answer, "sources": sources, "disclaimer": "Operational assistance only. Validate statutory requirements with a qualified professional."}
+
+@app.middleware("http")
+async def authentication_response_headers(request,call_next):
+    response=await call_next(request)
+    if "/auth/" in request.url.path:
+        response.headers["Cache-Control"]="no-store"
+        response.headers["Referrer-Policy"]="no-referrer"
+    if request.url.path.endswith("/auth/google/callback"):
+        # Uvicorn logs the scope after response; remove authorization code/state.
+        request.scope["query_string"]=b""
+    return response

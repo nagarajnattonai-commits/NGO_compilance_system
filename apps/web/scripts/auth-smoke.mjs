@@ -59,8 +59,8 @@ try {
   launch(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "3100"], webRoot,
     { API_INTERNAL_URL: "http://127.0.0.1:8000", NODE_ENV: "production" });
   await ready(origin + "/login");
-  for (const [route, title] of [["/login", "Sign In"], ["/signup", "Create Your Account"], ["/admin/login", "Admin Sign In"],
-    ["/forgot-password", "Forgot Password?"], ["/reset-password", "Set a New Password"], ["/accept-invitation", "Join Your Workspace"]]) {
+  for (const [route, title] of [["/login", "Welcome back"], ["/signup", "Create your account"], ["/admin/login", "Platform Administration"],
+    ["/forgot-password", "Forgot your password?"], ["/reset-password", "Set a new password"], ["/accept-invitation", "Join your workspace"]]) {
     const page = await request(route);
     assert.equal(page.status, 200); assert.ok((await page.text()).includes(title), route);
   }
@@ -71,7 +71,7 @@ try {
   assert.ok(marketingHtml.includes("D&amp;D MANAGEMENT"));
   for (const route of ["/dashboard", "/admin", "/account"]) {
     const page = await request(route);
-    assert.equal(page.status, 307); assert.equal(page.headers.get("location"), "/login");
+    assert.equal(page.status, 307); assert.equal(page.headers.get("location"), route === "/admin" ? "/admin/login" : "/login");
   }
   assert.equal((await request("/api/v1/organizations")).status, 401);
   const signedUp = await request("/api/v1/auth/signup", {
@@ -83,7 +83,8 @@ try {
   assert.equal(owner.role, "ADMIN");
   assert.equal((await request("/api/v1/auth/me")).status, 200);
   assert.equal((await request("/api/v1/admin/users")).status, 200);
-  for (const route of ["/", "/dashboard", "/admin", "/account"]) assert.equal((await request(route)).status, 200, route);
+  for (const route of ["/", "/dashboard", "/account"]) assert.equal((await request(route)).status, 200, route);
+  assert.equal((await request("/admin")).headers.get("location"), "/access-denied?admin=1");
   const account = await (await request("/account")).text();
   assert.ok(account.includes("Smoke Test Owner"));
   const admin = await (await request("/admin")).text();
@@ -92,7 +93,7 @@ try {
   assert.equal(result.status, 204);
   assert.equal((await request("/api/v1/auth/me")).status, 401);
   assert.equal((await request("/admin")).status, 307);
-  const login = await request("/api/v1/auth/login", { email: "smoke@example.test", password: "Isolated-smoke-passphrase-2026", admin_only: true, remember: true });
+  const login = await request("/api/v1/auth/login", { email: "smoke@example.test", password: "Isolated-smoke-passphrase-2026", remember: true });
   assert.equal(login.status, 200);
   assert.equal((await request("/api/v1/auth/me")).status, 200);
   console.log("PASS: public marketing and auth pages, protected route redirects, signup, cookie forwarding, dashboard/admin access, account rendering, logout and sign-in through Next.");

@@ -1,427 +1,166 @@
 "use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Eye, EyeOff, ShieldCheck, ArrowLeft, LockKeyhole } from "lucide-react";
-import { apiRequest } from "@/lib/http";
-import type { AuthUser } from "@/lib/auth-types";
-import ThemeToggle from "@/components/theme-toggle";
-import PasswordGuidance from "@/components/password-guidance";
-import {
-  normalizeEmail,
-  validateEmail,
-  validateNewPassword,
-} from "@/lib/auth-validation";
-import { useTranslations } from "next-intl";
-import PublicLocaleSwitcher from "@/components/public-locale-switcher";
-import { BrandLogo, useTenantBrand } from "@/branding/client";
+import {useEffect,useState} from "react";
+import {ArrowLeft,ShieldCheck,LockKeyhole,ChevronRight,CheckCircle2} from "lucide-react";
+import {useTranslations} from "next-intl";
+import {apiRequest,ApiError} from "@/lib/http";
+import {normalizeEmail,validateEmail,validateNewPassword} from "@/lib/auth-validation";
+import {BrandLogo,useTenantBrand} from "@/branding/client";
+import PublicLocaleSwitcher from "./public-locale-switcher";
+import ThemeToggle from "./theme-toggle";
+import "@/app/auth-experience.css";
+import AuthPasswordInput from "./auth-password-input";
 
-type Mode =
-  | "login"
-  | "admin-login"
-  | "signup"
-  | "forgot-password"
-  | "reset-password"
-  | "accept-invitation";
-const modeKeys: Record<Mode, string> = {
-  login: "login",
-  "admin-login": "adminLogin",
-  signup: "signup",
-  "forgot-password": "forgotPassword",
-  "reset-password": "resetPassword",
-  "accept-invitation": "acceptInvitation",
-};
-
-export default function AuthForm({ mode }: { mode: Mode }) {
-  const t = useTranslations("Auth");
-  const tBrand = useTranslations("WhiteLabel");
-  const brand = useTenantBrand();
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [token, setToken] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [attempted, setAttempted] = useState(false);
-  const [capsLock, setCapsLock] = useState(false);
-  const isLogin = mode === "login" || mode === "admin-login";
-  const isToken = mode === "reset-password" || mode === "accept-invitation";
-  const newPassword = mode === "signup" || isToken;
-  const emailError = isToken
-    ? ""
-    : !email.trim()
-      ? t("validation.emailRequired")
-      : validateEmail(email)
-        ? t("validation.invalidEmail")
-        : "";
-  const passwordError =
-    mode === "forgot-password"
-      ? ""
-      : isLogin
-        ? password
-          ? ""
-          : t("validation.passwordRequired")
-        : validateNewPassword(password)
-          ? t("validation.minLength", { count: 12 })
-          : "";
-  const confirmError =
-    newPassword && password !== confirmPassword
-      ? t("validation.passwordMismatch")
-      : newPassword && !confirmPassword
-        ? t("validation.required")
-        : "";
-  const showFieldError = (field: string, message: string) =>
-    Boolean(message && (attempted || touched[field]));
-  const touch = (field: string) =>
-    setTouched((fields) => ({ ...fields, [field]: true }));
-  const detectCapsLock = (event: React.KeyboardEvent<HTMLInputElement>) =>
-    setCapsLock(event.getModifierState("CapsLock"));
-  useEffect(() => {
-    if (isToken) {
-      const suppliedToken = new URLSearchParams(
-        window.location.hash.slice(1),
-      ).get("token");
-      if (suppliedToken) setToken(suppliedToken);
-      // Keep bearer tokens out of browser history and referrer URLs after capture.
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-    if (new URLSearchParams(window.location.search).has("expired"))
-      setError("Your session has ended. Please sign in again.");
-  }, [isToken]);
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setAttempted(true);
-    setError("");
-    setSuccess("");
-    const data = new FormData(event.currentTarget);
-    const value = (name: string) => String(data.get(name) || "");
-    if (emailError || passwordError || confirmError) {
-      setError("Please correct the highlighted fields before continuing.");
-      return;
-    }
-    if (isToken && !token) {
-      setError(
-        "Open the full invitation or reset link you received. This page is missing a valid token.",
-      );
-      return;
-    }
-    setBusy(true);
-    try {
-      if (isLogin) {
-        const user = await apiRequest<AuthUser>("/auth/login", "POST", {
-          email: normalizeEmail(email),
-          password,
-          remember: data.has("remember"),
-          admin_only: mode === "admin-login",
-        });
-        window.location.assign(user.role === "ADMIN" ? "/admin" : "/dashboard");
-      } else if (mode === "signup") {
-        await apiRequest<AuthUser>("/auth/signup", "POST", {
-          name: value("name"),
-          email: normalizeEmail(email),
-          phone: value("phone"),
-          workspace_name: value("workspace_name"),
-          password,
-        });
-        window.location.assign("/admin");
-      } else if (mode === "forgot-password") {
-        const result = await apiRequest<{ message: string }>(
-          "/auth/forgot-password",
-          "POST",
-          { email: normalizeEmail(email) },
-        );
-        setSuccess(result.message);
-      } else {
-        await apiRequest<void>(`/auth/${mode}`, "POST", { token, password });
-        setToken("");
-        setSuccess(
-          mode === "accept-invitation"
-            ? "Your account is ready. Sign in to join your team."
-            : "Password updated. All previous sessions have been signed out.",
-        );
-      }
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong. Try again.",
-      );
-    } finally {
-      setBusy(false);
-    }
+export type AuthMode="login"|"admin-login"|"signup"|"forgot-password"|"admin-forgot-password"|"reset-password"|"admin-reset-password"|"accept-invitation"|"verify-email"|"google-complete"|"google-link";
+type Options={terms_url:string;privacy_url:string;organization_types:string[];providers:{google:{user:boolean;signup:boolean;admin:boolean}}};
+export default function AuthForm({mode}:{mode:AuthMode}){
+ const t=useTranslations("Authentication");const brand=useTenantBrand();
+ const admin=mode.startsWith("admin-");const login=mode==="login"||mode==="admin-login";
+ const forgot=mode.endsWith("forgot-password");const reset=mode.endsWith("reset-password");
+ const invitation=mode==="accept-invitation";const signup=mode==="signup";const verify=mode==="verify-email";
+ const tokenPage=reset||invitation||verify||mode==="google-complete"||mode==="google-link";
+ const [email,setEmail]=useState("");const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");
+ const [name,setName]=useState("");const [workspace,setWorkspace]=useState("");const [phone,setPhone]=useState("");
+ const [organizationType,setOrganizationType]=useState("");const [terms,setTerms]=useState(false);
+ const [step,setStep]=useState(1);const [token,setToken]=useState("");const [googleTicket,setGoogleTicket]=useState("");
+ const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [success,setSuccess]=useState("");
+ const [attempted,setAttempted]=useState(false);const [options,setOptions]=useState<Options|null>(null);
+ const [existingInvitation,setExistingInvitation]=useState(false);
+ const [verificationNeeded,setVerificationNeeded]=useState(false);
+ useEffect(()=>{
+  function capture(){
+   const query=new URLSearchParams(window.location.search);const fragment=new URLSearchParams(window.location.hash.slice(1));
+   const incoming=fragment.get("token")||"";
+   if(tokenPage&&incoming){
+    setToken(incoming);setSuccess("");setError("");setPassword("");setConfirm("");setAttempted(false);
+    if(invitation)apiRequest<{existing_account:boolean}>("/auth/invitation-info","POST",{token:incoming}).then(value=>setExistingInvitation(value.existing_account)).catch(()=>setError(t("errors.link")));
+   }
+   if(signup&&fragment.get("google"))setGoogleTicket(fragment.get("google")||"");
+   if(verify&&fragment.get("email"))setEmail(fragment.get("email")||"");
+   if(fragment.toString())window.history.replaceState(null,"",window.location.pathname+window.location.search);
+   if(query.has("expired"))setError(t("errors.expired"));
+   if(query.has("oauth"))setError(t("errors.google"));
   }
-
-  return (
-    <main className="auth-shell" style={brand.enabled && brand.login_background === "IMAGE" && brand.assets.LOGIN_BACKGROUND ? { backgroundImage: `linear-gradient(rgba(0,0,0,.4),rgba(0,0,0,.4)),url("${brand.assets.LOGIN_BACKGROUND}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
-      <div className="auth-theme-toggle">
-        <PublicLocaleSwitcher compact />
-        <ThemeToggle />
-      </div>
-      <section
-        className={`auth-card ${mode === "signup" ? "auth-card-signup" : ""}`}
-      >
-        <Link href="/" className="auth-logo" aria-label={brand.product_name}>
-          {brand.enabled ? <BrandLogo variant="login" /> : <ShieldCheck size={32} />}
-        </Link>
-        <p className="auth-brand" title={brand.product_name}>{brand.enabled ? brand.product_name : "SETU NGO"}</p>
-        {brand.enabled && <p className="auth-description">{brand.tagline}</p>}
-        <h1>{t(`titles.${modeKeys[mode]}`)}</h1>
-        <p className="auth-description">
-          {t(`descriptions.${modeKeys[mode]}`)}
-        </p>
-        {error && (
-          <div className="auth-alert error" role="alert">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="auth-alert success" role="status">
-            {success}
-          </div>
-        )}
-        {!(isToken && success) && (
-          <form className="auth-form" onSubmit={submit} noValidate>
-            <fieldset disabled={busy}>
-              {mode === "signup" && (
-                <>
-                  <label>
-                    {t("fullName")}
-                    <input
-                      name="name"
-                      autoComplete="name"
-                      required
-                      minLength={2}
-                      maxLength={120}
-                      placeholder="Enter your full name"
-                    />
-                  </label>
-                  <label>
-                    {t("workspaceName")}
-                    <input
-                      name="workspace_name"
-                      autoComplete="organization"
-                      required
-                      minLength={2}
-                      maxLength={160}
-                      placeholder="Your NGO or consulting firm"
-                    />
-                  </label>
-                  <label>
-                    {t("phone")} <span className="optional">(optional)</span>
-                    <input
-                      name="phone"
-                      type="tel"
-                      autoComplete="tel"
-                      maxLength={30}
-                      placeholder="Enter your mobile number"
-                    />
-                  </label>
-                </>
-              )}
-              {!isToken && (
-                <label>
-                  {t("email")}
-                  <input
-                    name="email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="username"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    required
-                    maxLength={200}
-                    placeholder="you@organization.org"
-                    value={email}
-                    aria-invalid={showFieldError("email", emailError)}
-                    aria-describedby={
-                      showFieldError("email", emailError)
-                        ? "email-error"
-                        : undefined
-                    }
-                    onChange={(event) => setEmail(event.target.value)}
-                    onBlur={() => touch("email")}
-                  />
-                  {showFieldError("email", emailError) && (
-                    <small className="field-error" id="email-error">
-                      {emailError}
-                    </small>
-                  )}
-                </label>
-              )}
-              {mode !== "forgot-password" && (
-                <label>
-                  {t("password")}
-                  <span className="password-input">
-                    <input
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete={
-                        newPassword ? "new-password" : "current-password"
-                      }
-                      required
-                      minLength={newPassword ? 12 : 1}
-                      maxLength={128}
-                      placeholder={
-                        newPassword
-                          ? "Create a strong password"
-                          : "Enter your password"
-                      }
-                      value={password}
-                      aria-invalid={showFieldError("password", passwordError)}
-                      aria-describedby={
-                        newPassword
-                          ? "password-help"
-                          : showFieldError("password", passwordError)
-                            ? "password-error"
-                            : undefined
-                      }
-                      onChange={(event) => setPassword(event.target.value)}
-                      onBlur={() => {
-                        touch("password");
-                        setCapsLock(false);
-                      }}
-                      onKeyDown={detectCapsLock}
-                      onKeyUp={detectCapsLock}
-                    />
-                    <button
-                      type="button"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                      aria-pressed={showPassword}
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                    </button>
-                  </span>
-                  {showFieldError("password", passwordError) && (
-                    <small className="field-error" id="password-error">
-                      {passwordError}
-                    </small>
-                  )}
-                  {capsLock && (
-                    <small className="caps-warning">Caps Lock is on.</small>
-                  )}
-                  {newPassword && <PasswordGuidance password={password} />}
-                </label>
-              )}
-              {newPassword && (
-                <label>
-                  {t("confirmPassword")}
-                  <span className="password-input">
-                    <input
-                      name="confirm_password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      required
-                      minLength={12}
-                      maxLength={128}
-                      placeholder="Re-enter your password"
-                      value={confirmPassword}
-                      aria-invalid={showFieldError("confirm", confirmError)}
-                      aria-describedby={
-                        showFieldError("confirm", confirmError)
-                          ? "confirm-error"
-                          : undefined
-                      }
-                      onChange={(event) =>
-                        setConfirmPassword(event.target.value)
-                      }
-                      onBlur={() => touch("confirm")}
-                      onKeyDown={detectCapsLock}
-                      onKeyUp={detectCapsLock}
-                    />
-                    <button
-                      type="button"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                      aria-pressed={showPassword}
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                    </button>
-                  </span>
-                  {showFieldError("confirm", confirmError) && (
-                    <small className="field-error" id="confirm-error">
-                      {confirmError}
-                    </small>
-                  )}
-                </label>
-              )}
-              {isLogin && (
-                <div className="auth-options">
-                  <label className="auth-checkbox">
-                    <input type="checkbox" name="remember" />
-                    {t("rememberMe")}
-                  </label>
-                </div>
-              )}
-              <button className="auth-submit" type="submit">
-                {busy
-                  ? "Please wait…"
-                  : isLogin
-                    ? t("signIn")
-                    : mode === "signup"
-                      ? t("createAccount")
-                      : mode === "forgot-password"
-                        ? "Send Reset Link"
-                        : mode === "accept-invitation"
-                          ? "Accept Invitation"
-                          : "Update Password"}
-              </button>
-            </fieldset>
-          </form>
-        )}
-        <div className="auth-links">
-          {isLogin && (
-            <>
-              <p>
-                Don’t have an account?{" "}
-                <Link href="/signup">Create an account</Link>
-              </p>
-              <Link href="/forgot-password">{t("forgotPassword")}</Link>
-              <Link
-                className="portal-link"
-                href={mode === "admin-login" ? "/login" : "/admin/login"}
-              >
-                <LockKeyhole size={13} />
-                {mode === "admin-login"
-                  ? "Team member sign in"
-                  : "Administrator sign in"}
-              </Link>
-            </>
-          )}
-          {mode === "signup" && (
-            <p>
-              Already have an account? <Link href="/login">Sign in</Link>
-            </p>
-          )}
-          {!isLogin && mode !== "signup" && (
-            <Link className="auth-back" href="/login">
-              <ArrowLeft size={14} />
-              Back to sign in
-            </Link>
-          )}
-          <Link className="auth-back" href="/">
-            <ArrowLeft size={14} />
-            {brand.enabled ? brand.product_name : "Explore the Setu website"}
-          </Link>
-        </div>
-      </section>
-      <footer className="auth-footer">
-        {brand.enabled ? brand.footer_text || brand.brand_name : "Setu NGO Compliance System"}
-        <span>{brand.enabled ? brand.tagline : "One workspace. Every obligation accounted for."}</span>
-        {brand.enabled && <nav className="tenant-legal-links">
-          {brand.support_url && <a href={brand.support_url} rel="noopener noreferrer">{tBrand("tabs.support")}</a>}
-          {brand.privacy_url && <a href={brand.privacy_url} rel="noopener noreferrer">{tBrand("privacy")}</a>}
-          {brand.terms_url && <a href={brand.terms_url} rel="noopener noreferrer">{tBrand("terms")}</a>}
-        </nav>}
-      </footer>
-    </main>
-  );
+  capture();window.addEventListener("hashchange",capture);
+  apiRequest<Options>("/auth/options").then(setOptions).catch(()=>setOptions(null));
+  return ()=>window.removeEventListener("hashchange",capture);
+ },[mode,tokenPage,signup,verify,invitation,t]);
+ function passwordError(value:string){
+  if(login||mode==="google-link"||existingInvitation)return value?"":t("validation.required");
+  const invalid=validateNewPassword(value);
+  if(!invalid)return "";
+  if(value.length<12)return t("validation.length");
+  if(value.length>128)return t("validation.maximum");
+  if(value!==value.trim()||/[\u0000-\u001f\u007f]/.test(value))return t("validation.spacing");
+  return t("validation.predictable");
+ }
+ const emailError=(!tokenPage&&!(signup&&googleTicket))?(!email.trim()?t("validation.required"):validateEmail(email)?t("validation.email"):""):"";
+ const pwError=(!forgot&&!verify&&mode!=="google-complete"&&!googleTicket)?passwordError(password):"";
+ const confirmError=(signup||reset||invitation&&!existingInvitation)&&!googleTicket&&password!==confirm?t("validation.confirm"):"";
+ const accountError=signup&&name.trim().length<2?t("validation.name"):"";
+ const organizationError=signup&&workspace.trim().length<2?t("validation.organization"):"";
+ const signin=admin?"/admin/login":"/login";
+ function failure(error:unknown){
+  const status=error instanceof ApiError?error.status:0;
+  if(error instanceof Error&&error.message==="EMAIL_NOT_VERIFIED"){setVerificationNeeded(true);return t("errors.unverified");}
+  if(status===429)return t("errors.rate");
+  if(status===401)return t("errors.credentials");
+  if(status===403)return t(admin?"errors.admin":"errors.denied");
+  if(status===400)return t("errors.link");
+  if(status===409)return t("errors.duplicate");
+  if(status===422)return t("errors.validation");
+  return t(status>=500?"errors.unavailable":"errors.network");
+ }
+ async function enterWorkspace(){
+  const memberships=await apiRequest<Array<{id:string}>>("/auth/workspaces");
+  window.location.assign(admin?"/admin":memberships.length>1?"/select-workspace":"/dashboard");
+ }
+ async function submit(event:React.FormEvent<HTMLFormElement>){
+  event.preventDefault();if(busy)return;setAttempted(true);setError("");setSuccess("");
+  if(emailError||pwError||confirmError||accountError){setError(t("errors.fields"));return;}
+  if(signup&&step===1){setStep(2);setAttempted(false);return;}
+  if(signup&&(organizationError||!organizationType||!terms)){setError(t("errors.fields"));return;}
+  if(tokenPage&&!token){setError(t("errors.link"));return;}
+  setBusy(true);
+  try{
+   if(login){const data=new FormData(event.currentTarget);await apiRequest(admin?"/admin/auth/login":"/auth/login","POST",{email:normalizeEmail(email),password,remember:data.has("remember")});setPassword("");await enterWorkspace();}
+   else if(signup){
+    const fields={name:name.trim(),workspace_name:workspace.trim(),organization_type:organizationType,phone,terms_accepted:terms};
+    if(googleTicket){await apiRequest("/auth/google/signup","POST",{...fields,token:googleTicket});setGoogleTicket("");await enterWorkspace();}
+    else{await apiRequest("/auth/signup","POST",{...fields,email:normalizeEmail(email),password,verify_email:true});setPassword("");setConfirm("");window.location.assign("/verify-email#email="+encodeURIComponent(normalizeEmail(email)));}
+   }else if(forgot){await apiRequest(admin?"/admin/auth/forgot-password":"/auth/forgot-password","POST",{email:normalizeEmail(email)});setSuccess(t("resetSent"));}
+   else if(verify){await apiRequest("/auth/verify-email","POST",{token});setToken("");setSuccess(t("verified"));}
+   else if(mode==="google-complete"){await apiRequest("/auth/google/complete","POST",{token});setToken("");await enterWorkspace();}
+   else if(mode==="google-link"){await apiRequest("/auth/google/link","POST",{token,password});setToken("");setPassword("");await enterWorkspace();}
+   else if(invitation&&existingInvitation){await apiRequest("/auth/accept-workspace-invitation","POST",{token,password});setToken("");setPassword("");await enterWorkspace();}
+   else{await apiRequest(invitation?"/auth/accept-invitation":admin?"/admin/auth/reset-password":"/auth/reset-password","POST",{token,password});setToken("");setPassword("");setConfirm("");setSuccess(t(invitation?"invitationSuccess":"resetSuccess"));}
+  }catch(error){setError(failure(error));}finally{setBusy(false);}
+ }
+ async function resend(){
+  if(busy)return;setError("");setSuccess("");
+  if(validateEmail(email)||!email){setError(t("validation.email"));return;}
+  setBusy(true);
+  try{await apiRequest("/auth/resend-verification","POST",{email:normalizeEmail(email)});setSuccess(t("verificationSent"));}
+  catch(error){setError(failure(error));}finally{setBusy(false);}
+ }
+ const key=admin?mode.slice(6):mode;
+ const titleKey=admin&&login?"adminLogin":key==="google-complete"?"complete":key==="google-link"?"linkGoogle":key.replaceAll("-","_");
+ const googleAvailable=options?.providers.google[admin?"admin":signup?"signup":"user"];
+ const showGoogle=(login||signup)&&!googleTicket;
+ const masked=email?email.slice(0,1)+"***@"+email.split("@")[1]:"";
+ const finished=Boolean(success)&&(reset||invitation||verify&&success===t("verified"));
+ return <main className={"auth-shell auth-experience "+(admin?"auth-admin":"auth-user")} style={!admin&&brand.enabled&&brand.login_background==="IMAGE"&&brand.assets.LOGIN_BACKGROUND?{backgroundImage:"url("+JSON.stringify(brand.assets.LOGIN_BACKGROUND)+")",backgroundSize:"cover",backgroundPosition:"center"}:undefined}>
+  <div className="auth-theme-toggle"><PublicLocaleSwitcher compact/><ThemeToggle variant="icon"/></div>
+  <div className={"auth-layout "+((login&&!admin||signup)?"auth-layout-product":"")}>
+   {(login&&!admin||signup)&&<aside className="auth-product-panel">
+    <ShieldCheck size={34} aria-hidden="true"/><h2>{brand.enabled?brand.product_name:t("productTitle")}</h2>
+    <p>{brand.enabled?brand.tagline:t("productDescription")}</p>
+    <ul><li>{t("benefits.compliance")}</li><li>{t("benefits.evidence")}</li><li>{t("benefits.team")}</li></ul>
+   </aside>}
+   <section className="auth-card" aria-labelledby="auth-title">
+    <Link href="/" className="auth-logo" aria-label={admin?"Setu NGO":brand.product_name}>{!admin&&brand.enabled?<BrandLogo variant="login"/>:<ShieldCheck size={30}/>}</Link>
+    <p className="auth-brand" title={admin?"Setu NGO":brand.product_name}>{admin?"Setu NGO":brand.product_name}</p>
+    {admin&&<p className="auth-admin-label"><LockKeyhole size={14}/>{t("platformAdministration")}</p>}
+    <h1 id="auth-title">{t("titles."+titleKey)}</h1><p className="auth-description">{t("descriptions."+titleKey)}</p>
+    {error&&<div className="auth-alert error" role="alert">{error}</div>}
+    {success&&<div className="auth-alert success" role="status"><CheckCircle2 size={16}/>{success}</div>}
+    {showGoogle&&<><button type="button" className="google-auth-button" disabled={busy||!googleAvailable} onClick={()=>{setBusy(true);window.location.assign("/api/v1/auth/google?audience="+(admin?"admin":"user")+"&intent="+(signup?"signup":"login"));}}>
+     <img src="/google-g.png" width="20" height="20" alt="" aria-hidden="true"/>{t("google")}</button>
+     {!googleAvailable&&<p className="auth-provider-notice">{t("googleUnavailable")}</p>}
+     <div className="auth-divider"><span>{t("orEmail")}</span></div></>}
+    {verify&&!token&&!finished?<div className="auth-verification">
+      {masked&&<p>{t("verificationAddress",{email:masked})}</p>}
+      <label>{t("email")}<input type="email" autoComplete="email" value={email} onChange={event=>setEmail(event.target.value)}/></label>
+      <button className="button primary" disabled={busy} onClick={()=>void resend()}>{busy?t("sending"):t("resend")}</button>
+      <Link href="/auth/change-email">{t("changeEmail")}</Link>
+     </div>:!finished&&<form className="auth-form" noValidate onSubmit={submit} aria-busy={busy}>
+      <fieldset disabled={busy}>
+       {signup&&<ol className="auth-steps" aria-label={t("signupSteps")}><li aria-current={step===1?"step":undefined}>{t("yourAccount")}</li><li aria-current={step===2?"step":undefined}>{t("organization")}</li></ol>}
+       {signup&&step===1&&<label>{t("fullName")}<input aria-label={t("fullName")} autoComplete="name" value={name} maxLength={120} onChange={e=>setName(e.target.value)} aria-invalid={attempted&&!!accountError}/>{attempted&&accountError&&<small className="field-error">{accountError}</small>}</label>}
+       {!tokenPage&&!(signup&&(step===2||googleTicket))&&<label>{t("email")}<input aria-label={t("email")} type="email" autoComplete="username" inputMode="email" autoCapitalize="none" spellCheck={false} value={email} maxLength={200} onChange={e=>setEmail(e.target.value)} aria-invalid={attempted&&!!emailError} aria-describedby={attempted&&emailError?"auth-email-error":undefined}/>{attempted&&emailError&&<small id="auth-email-error" className="field-error">{emailError}</small>}</label>}
+       {!forgot&&!verify&&mode!=="google-complete"&&!(signup&&(step===2||googleTicket))&&<AuthPasswordInput value={password} onChange={setPassword} newPassword={signup||reset||invitation&&!existingInvitation} error={attempted?pwError:""}/>}
+       {(signup&&step===1||reset||invitation&&!existingInvitation)&&!googleTicket&&<AuthPasswordInput value={confirm} onChange={setConfirm} confirm error={attempted?confirmError:""}/>}
+       {signup&&step===2&&<>
+        <label>{t("organizationName")}<input aria-label={t("organizationName")} autoComplete="organization" value={workspace} maxLength={160} onChange={e=>setWorkspace(e.target.value)} aria-invalid={attempted&&!!organizationError}/>{attempted&&organizationError&&<small className="field-error">{organizationError}</small>}</label>
+        <label>{t("organizationType")}<select aria-label={t("organizationType")} value={organizationType} onChange={e=>setOrganizationType(e.target.value)} aria-invalid={attempted&&!organizationType}><option value="">{t("chooseType")}</option>{options?.organization_types.map(type=><option key={type} value={type}>{t("types."+type.replaceAll(" ","_"))}</option>)}</select></label>
+        <label>{t("phone")}<span className="optional">{t("optional")}</span><input type="tel" autoComplete="tel" value={phone} maxLength={30} onChange={e=>setPhone(e.target.value)}/></label>
+        <label className="auth-checkbox"><input type="checkbox" checked={terms} onChange={e=>setTerms(e.target.checked)}/><span>{t("terms")} {(brand.terms_url||options?.terms_url)&&<a href={brand.terms_url||options?.terms_url}>{t("termsLink")}</a>} {(brand.privacy_url||options?.privacy_url)&&<a href={brand.privacy_url||options?.privacy_url}>{t("privacyLink")}</a>}</span></label>
+        {attempted&&!terms&&<small className="field-error">{t("validation.terms")}</small>}
+       </>}
+       {login&&<div className="auth-options"><label className="auth-checkbox"><input type="checkbox" name="remember"/>{t("remember")}</label><Link href={admin?"/admin/forgot-password":"/forgot-password"}>{t("forgot")}</Link></div>}
+       <button className="auth-submit" type="submit">{busy?t(login?"signingIn":signup?"creating":"working"):signup&&step===1?t("next"):t(login?admin?"adminSignIn":"signIn":signup?"create":forgot?"sendReset":verify?"verify":mode==="google-link"?"link":mode==="google-complete"?"continue":invitation?"accept":"reset")}{signup&&step===1&&<ChevronRight size={16}/>}</button>
+       {signup&&step===2&&<button type="button" className="button secondary" onClick={()=>{setStep(1);setAttempted(false);}}>{t("back")}</button>}
+      </fieldset>
+     </form>}
+    {verificationNeeded&&<div className="auth-verification"><button className="button secondary" disabled={busy} onClick={()=>void resend()}>{t("resend")}</button><Link href="/verify-email">{t("verificationPage")}</Link></div>}
+    <nav className="auth-links">
+     {login&&!admin&&<p>{t("newHere")} <Link href="/signup">{t("create")}</Link></p>}
+     {login&&<Link href={admin?"/login":"/admin/login"}><LockKeyhole size={13}/>{t(admin?"userSignIn":"adminSignInLink")}</Link>}
+     {!login&&<Link href={signin}><ArrowLeft size={14}/>{t("backToSignIn")}</Link>}
+     {finished&&<Link className="button primary" href={signin}>{t("continueSignIn")}</Link>}
+    </nav>
+   </section>
+  </div>
+  <footer className="auth-footer">{admin?"Setu NGO":brand.footer_text||brand.brand_name}<nav className="tenant-legal-links">{brand.support_url&&!admin&&<a href={brand.support_url}>{t("support")}</a>}{brand.terms_url&&!admin&&<a href={brand.terms_url}>{t("termsLink")}</a>}{brand.privacy_url&&!admin&&<a href={brand.privacy_url}>{t("privacyLink")}</a>}</nav></footer>
+ </main>;
 }

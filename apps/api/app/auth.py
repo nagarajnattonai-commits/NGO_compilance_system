@@ -89,6 +89,11 @@ def current_user(request: Request, db: DB) -> User:
     user = db.get(User, session.user_id) if session and aware(session.expires_at) > now() else None
     if not user or user.status != "ACTIVE":
         raise HTTPException(401, "Please sign in to continue")
+    from .brand_domains import request_hostname,platform_hosts
+    user._platform_host=request_hostname(request) in platform_hosts()
+    from .auth_experience import apply_context
+    auth_context=apply_context(db, user, session)
+    user._admin_audience=auth_context is None or auth_context.audience=="admin"
     from .brand_domains import enforce_request_tenant
     enforce_request_tenant(request, db, user.tenant_id)
     request.state.actor_name = user.name
@@ -132,15 +137,8 @@ def record_event(db: Session, actor: User, action: str, summary: str, entity_id:
 
 
 def limit_attempts(db: Session, scope: str, maximum: int, seconds: int = 900):
-    key = digest(scope)
-    cutoff = now() - timedelta(seconds=seconds)
-    count = db.scalar(select(func.count()).select_from(AuthAttempt).where(
-        AuthAttempt.scope_hash == key, AuthAttempt.created_at > cutoff)) or 0
-    if count >= maximum:
-        raise HTTPException(429, "Too many attempts. Please try again later.", headers={"Retry-After": str(seconds)})
-    db.execute(delete(AuthAttempt).where(AuthAttempt.created_at < now() - timedelta(days=1)))
-    db.add(AuthAttempt(scope_hash=key))
-    db.commit()
+    from .integration_service import quota
+    quota(db,"auth:"+scope,maximum,seconds)
 
 
 def request_ip(request: Request) -> str:
@@ -174,6 +172,9 @@ class SignupInput(EmailInput, PasswordInput):
     name: str = Field(min_length=2, max_length=120)
     workspace_name: str = Field(min_length=2, max_length=160)
     phone: str = Field(default="", max_length=30)
+    organization_type: Literal["TRUST", "SOCIETY", "SECTION 8"] | None = None
+    terms_accepted: bool | None = None
+    verify_email: bool = False
 
     @field_validator("name", "workspace_name")
     @classmethod
@@ -232,17 +233,27 @@ class AccessInput(InputModel):
     status: Literal["ACTIVE", "DISABLED"]
 
 
-def issue_session(db: Session, user: User, response: Response, remember: bool = False):
+def issue_session(db: Session, user: User, response: Response, remember: bool = False, *, tenant_id=None, audience="user", method="password"):
     token = secrets.token_urlsafe(32)
     lifetime = 30 * 86400 if remember else 8 * 3600
-    db.execute(delete(AuthSession).where(AuthSession.expires_at < now()))
+    from .auth_models import SessionContext
+    expired=select(AuthSession.token_hash).where(AuthSession.expires_at<now())
+    db.execute(delete(SessionContext).where(SessionContext.token_hash.in_(expired)))
+    db.execute(delete(AuthSession).where(AuthSession.expires_at < now()).execution_options(synchronize_session=False))
     db.add(AuthSession(token_hash=digest(token), user_id=user.id, expires_at=now() + timedelta(seconds=lifetime)))
+    from .auth_models import SessionContext
+    db.flush()
+    db.add(SessionContext(token_hash=digest(token),tenant_id=tenant_id or user.tenant_id,audience=audience,method=method))
     response.set_cookie(COOKIE_NAME, token, max_age=lifetime if remember else None,
                         httponly=True, secure=SECURE_COOKIE, samesite="lax", path="/")
     response.headers["Cache-Control"] = "no-store"
+    return token
 
 
 def revoke_sessions(db: Session, user_id: str):
+    from .auth_models import SessionContext
+    hashes=select(AuthSession.token_hash).where(AuthSession.user_id==user_id)
+    db.execute(delete(SessionContext).where(SessionContext.token_hash.in_(hashes)))
     db.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
 
 
@@ -262,6 +273,12 @@ def signup(payload: SignupInput, request: Request, response: Response, db: DB):
     from .brand_domains import platform_hosts, request_hostname
     if request_hostname(request) not in platform_hosts():
         raise HTTPException(403, "New workspaces must be created on the platform domain")
+    verification = payload.verify_email or PRODUCTION or os.getenv("AUTH_REQUIRE_EMAIL_VERIFICATION") == "1"
+    if verification and (payload.terms_accepted is not True or not payload.organization_type):
+        raise HTTPException(422, "Terms acceptance and organization type are required")
+    if verification:
+        from .integration_notifications import email_available
+        if not email_available(db): raise HTTPException(503, "Authentication email is not configured")
     limit_attempts(db, f"signup:{request_ip(request)}", 10, 3600)
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(409, "Unable to create this account. Try signing in or recovering your password.")
@@ -274,7 +291,17 @@ def signup(payload: SignupInput, request: Request, response: Response, db: DB):
     db.flush()
     db.add(Subscription(tenant_id=workspace.id, plan_name="STARTER", user_limit=5,
                         organization_limit=3, storage_limit_gb=1, period_end=date.today() + timedelta(days=30)))
-    issue_session(db, user, response)
+    from .auth_models import AuthAccount
+    db.add(AuthAccount(user_id=user.id,verified=not verification,verification_required=verification,
+           organization_type=payload.organization_type or "",terms_at=now() if payload.terms_accepted else None))
+    if verification:
+        from .auth_experience import send_identity_email
+        from .integration_security import IntegrationError
+        try: send_identity_email(db,user)
+        except IntegrationError:
+            db.rollback()
+            raise HTTPException(503,"Authentication email is unavailable") from None
+    else: issue_session(db, user, response)
     record_event(db, user, "ACCOUNT_CREATED", "Created a new workspace administrator account")
     try:
         db.commit()
@@ -291,19 +318,38 @@ def login(payload: LoginInput, request: Request, response: Response, db: DB):
     user = db.scalar(select(User).where(User.email == payload.email))
     valid = verify_password(payload.password, user.password_hash if user else None)
     if not valid or not user or user.status != "ACTIVE":
+        from .auth_experience import security_event
+        security_event(db,request,"ADMIN_LOGIN_FAILED" if payload.admin_only else "LOGIN_FAILED",user,"admin" if payload.admin_only else "user")
+        db.commit()
         raise HTTPException(401, "Email or password is incorrect, or the account is unavailable")
-    from .brand_domains import enforce_request_tenant
-    enforce_request_tenant(request, db, user.tenant_id)
-    if payload.admin_only and user.role != "ADMIN":
-        raise HTTPException(403, "This account is not a workspace administrator. Use team member sign in.")
+    from .auth_experience import verified_login, select_host_workspace, security_event
+    verified_login(db,user)
+    from .auth_policy import is_platform_admin
+    from .brand_domains import request_hostname, platform_hosts
+    if payload.admin_only and os.getenv("AUTH_ADMIN_MFA_REQUIRED")=="1":
+        raise HTTPException(503,"Administrator MFA provider is not configured")
+    if payload.admin_only and (not is_platform_admin(user) or request_hostname(request) not in platform_hosts()):
+        security_event(db,request,"ADMIN_LOGIN_FAILED",user,"admin");db.commit()
+        raise HTTPException(403, "Platform administrator access is required")
+    tenant_id = select_host_workspace(db,user,request)
     old_token = request.cookies.get(COOKIE_NAME)
     if old_token:
+        from .auth_models import SessionContext
+        db.execute(delete(SessionContext).where(SessionContext.token_hash == digest(old_token)))
         db.execute(delete(AuthSession).where(AuthSession.token_hash == digest(old_token)))
-    issue_session(db, user, response, payload.remember)
-    db.execute(delete(AuthAttempt).where(AuthAttempt.scope_hash == digest(f"login-email:{payload.email}")))
+    issue_session(db, user, response, payload.remember, tenant_id=tenant_id,audience="admin" if payload.admin_only else "user")
+    security_event(db,request,"ADMIN_LOGIN_SUCCESS" if payload.admin_only else "LOGIN_SUCCESS",user,"admin" if payload.admin_only else "user")
+    from .integration_models import IntegrationQuota
+    db.execute(delete(IntegrationQuota).where(IntegrationQuota.id.like(digest("auth:login-email:"+payload.email)+":%")))
     record_event(db, user, "SIGNED_IN", "Signed in to the workspace")
     db.commit()
     return user
+
+
+@router.post("/admin/auth/login", response_model=UserOut)
+def platform_login(payload:LoginInput,request:Request,response:Response,db:DB):
+    payload.admin_only=True
+    return login(payload,request,response,db)
 
 
 @router.get("/auth/me")
@@ -317,6 +363,13 @@ def me(user: CurrentUser, db: DB, response: Response):
 def logout(request: Request, response: Response, db: DB):
     token = request.cookies.get(COOKIE_NAME)
     if token:
+        from .auth_models import SessionContext
+        session=db.get(AuthSession,digest(token))
+        user=db.get(User,session.user_id) if session else None
+        if user:
+            from .auth_experience import security_event
+            security_event(db,request,"LOGOUT",user)
+        db.execute(delete(SessionContext).where(SessionContext.token_hash==digest(token)))
         db.execute(delete(AuthSession).where(AuthSession.token_hash == digest(token)))
         db.commit()
     response.delete_cookie(COOKIE_NAME, path="/", secure=SECURE_COOKIE, httponly=True, samesite="lax")
@@ -357,6 +410,8 @@ def forgot_password(payload: EmailInput, request: Request, db: DB):
     if user:
         token = issue_token(db, user, "RESET", 1)
         from .brand_outputs import render_email, site_origin
+        from .auth_experience import security_event
+        security_event(db,request,"PASSWORD_RESET_REQUESTED",user)
         from .models import UserPreference
         preference = db.get(UserPreference, user.id)
         email = render_email(db, user.tenant_id, "auth.passwordReset", {
@@ -389,6 +444,11 @@ def redeem_token(db: Session, payload: TokenInput, purpose: str, request: Reques
     user.password_hash = hash_password(payload.password)
     user.status = "ACTIVE"
     revoke_sessions(db, user.id)
+    from .auth_models import AuthAccount
+    account=db.get(AuthAccount,user.id)
+    if account and purpose=="INVITE":account.verified=True
+    from .auth_experience import security_event
+    security_event(db,request,"INVITATION_ACCEPTED" if purpose=="INVITE" else "PASSWORD_RESET_COMPLETED",user)
     record_event(db, user, "INVITATION_ACCEPTED" if purpose == "INVITE" else "PASSWORD_RESET", "Set account password using a single-use link")
     db.commit()
     return user
@@ -408,13 +468,27 @@ def accept_invitation(payload: TokenInput, request: Request, db: DB):
 
 @router.get("/admin/users", response_model=list[UserOut])
 def list_users(admin: AdminUser, db: DB):
-    return db.scalars(select(User).where(User.tenant_id == admin.tenant_id).order_by(User.created_at)).all()
+    from .auth_models import WorkspaceAccess
+    result=[UserOut.model_validate(user) for user in db.scalars(select(User).where(User.tenant_id==admin.tenant_id).order_by(User.created_at)).all()]
+    for access,user in db.execute(select(WorkspaceAccess,User).join(User,User.id==WorkspaceAccess.user_id).where(WorkspaceAccess.tenant_id==admin.tenant_id,User.tenant_id!=admin.tenant_id)):
+        result.append(UserOut.model_validate(user).model_copy(update={"tenant_id":admin.tenant_id,"role":access.role,"status":"ACTIVE" if access.active else "DISABLED"}))
+    return result
 
 
 @router.post("/admin/users/invite", status_code=201)
 def invite_user(payload: InvitationInput, admin: AdminUser, db: DB):
-    if db.scalar(select(User.id).where(User.email == payload.email)):
-        raise HTTPException(409, "This email already has an account or invitation")
+    from .auth_experience import seat_available,invitation_email
+    seat_available(db,admin.tenant_id)
+    existing=db.scalar(select(User).where(User.email==payload.email))
+    if existing:
+        from .auth_models import WorkspaceAccess,WorkspaceInvitation
+        if existing.status!="ACTIVE" or existing.tenant_id==admin.tenant_id or db.scalar(select(WorkspaceAccess.id).where(WorkspaceAccess.user_id==existing.id,WorkspaceAccess.tenant_id==admin.tenant_id)):
+            raise HTTPException(409,"This email already has an account or invitation")
+        token=issue_token(db,existing,"JOIN",48);db.flush()
+        db.add(WorkspaceInvitation(token_hash=digest(token),tenant_id=admin.tenant_id,role=payload.role))
+        invitation_email(db,existing,token,admin.tenant_id)
+        record_event(db,admin,"USER_INVITED","Invited an existing identity to the workspace",existing.id);db.commit()
+        return {"user":UserOut.model_validate(existing),"token":token,"expires_in_hours":48}
     plan = db.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
     count = db.scalar(select(func.count()).select_from(User).where(User.tenant_id == admin.tenant_id, User.status != "DISABLED")) or 0
     if plan and count >= plan.user_limit:
@@ -424,6 +498,7 @@ def invite_user(payload: InvitationInput, admin: AdminUser, db: DB):
     try:
         db.flush()
         token = issue_token(db, user, "INVITE", 48)
+        invitation_email(db,user,token,admin.tenant_id)
         record_event(db, admin, "USER_INVITED", f"Invited {user.email} as {user.role}", user.id)
         db.commit()
     except IntegrityError:
@@ -444,6 +519,8 @@ def renew_invitation(user_id: str, admin: AdminUser, db: DB):
             raise HTTPException(403, "The workspace user limit has been reached")
         user.status = "INVITED"
     token = issue_token(db, user, "INVITE", 48)
+    from .auth_experience import invitation_email
+    invitation_email(db,user,token,admin.tenant_id)
     record_event(db, admin, "INVITATION_RENEWED", f"Renewed invitation for {user.email}", user.id)
     db.commit()
     return {"user": UserOut.model_validate(user), "token": token, "expires_in_hours": 48}
@@ -453,7 +530,17 @@ def renew_invitation(user_id: str, admin: AdminUser, db: DB):
 def update_access(user_id: str, payload: AccessInput, admin: AdminUser, db: DB):
     user = db.scalar(select(User).where(User.id == user_id, User.tenant_id == admin.tenant_id))
     if not user:
-        raise HTTPException(404, "User not found")
+        from .auth_models import WorkspaceAccess
+        access=db.scalar(select(WorkspaceAccess).where(WorkspaceAccess.user_id==user_id,WorkspaceAccess.tenant_id==admin.tenant_id))
+        if not access:raise HTTPException(404,"User not found")
+        identity=db.get(User,user_id)
+        if not access.active and payload.status=="ACTIVE":
+            from .auth_experience import seat_available
+            seat_available(db,admin.tenant_id)
+        access.role=payload.role;access.active=payload.status=="ACTIVE"
+        revoke_sessions(db,user_id)
+        record_event(db,admin,"ACCESS_UPDATED","Updated workspace membership",user_id);db.commit()
+        return UserOut.model_validate(identity).model_copy(update={"tenant_id":admin.tenant_id,"role":access.role,"status":payload.status})
     if user.id == admin.id:
         raise HTTPException(409, "You cannot change your own role or account status")
     if payload.status == "ACTIVE" and not user.password_hash:
@@ -483,3 +570,34 @@ def update_access(user_id: str, payload: AccessInput, admin: AdminUser, db: DB):
     record_event(db, admin, "ACCESS_UPDATED", f"Changed {user.email} to {user.role}, {user.status}", user.id)
     db.commit()
     return user
+
+
+@router.post("/admin/auth/forgot-password")
+def admin_forgot(payload:EmailInput,request:Request,db:DB):
+    from .auth_policy import is_platform_admin
+    from .brand_domains import request_hostname, platform_hosts
+    from .auth_experience import send_identity_email,security_event
+    from .integration_notifications import email_available
+    from .integration_security import IntegrationError
+    if request_hostname(request) not in platform_hosts():raise HTTPException(403,"Platform domain required")
+    limit_attempts(db,"admin-reset:"+request_ip(request),5,3600)
+    if not email_available(db):raise HTTPException(503,"Authentication email is not configured")
+    user=db.scalar(select(User).where(User.email==payload.email,User.status=="ACTIVE"))
+    if user and is_platform_admin(user):
+        try:
+            send_identity_email(db,user,"ADMIN_RESET",True)
+            security_event(db,request,"PASSWORD_RESET_REQUESTED",user,"admin")
+            db.commit()
+        except IntegrationError:db.rollback()
+    return {"message":"If an account exists for this email, password reset instructions have been sent."}
+
+@router.post("/admin/auth/reset-password",status_code=204)
+def admin_reset(payload:TokenInput,request:Request,db:DB):
+    from .auth_policy import is_platform_admin
+    from .brand_domains import request_hostname,platform_hosts
+    token=db.get(AuthToken,digest(payload.token))
+    user=db.get(User,token.user_id) if token else None
+    if request_hostname(request) not in platform_hosts() or not user or not is_platform_admin(user):
+        raise HTTPException(400,"This link is invalid, expired, or already used")
+    limit_attempts(db,"admin-redeem:"+request_ip(request),10)
+    redeem_token(db,payload,"ADMIN_RESET",request)
