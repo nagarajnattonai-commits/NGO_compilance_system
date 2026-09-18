@@ -121,3 +121,15 @@ See [white-label operations](docs/WHITE_LABEL.md) for permissions, lifecycle,
 security controls, test commands, and the opt-in PostgreSQL/S3/Caddy deployment.
 
 Before deployment, replace the local identity fallback and SQLite with managed OIDC and PostgreSQL, add Redis-backed scheduled workers, connect S3-compatible document storage, configure an email provider, and migrate the validated compliance catalogue into versioned rules. These are intentionally isolated behind the current API boundaries.
+
+### Integrations and developer API
+
+Platform operators manage providers, connections, credentials, recorded health,
+logs and tenant access at /admin/integrations; API metadata is at /admin/developers.
+Tenant administrators use /settings/integrations and /settings/developers.
+Provider credentials remain server-side; API keys appear once and are hashed.
+Local environment credentials are read-only. Writable credentials/webhooks use
+AWS Secrets Manager.
+
+See [integration architecture and operations](docs/INTEGRATIONS_IMPLEMENTATION.md)
+for migration, APIs, permissions, entitlements, worker/vault setup and limitations.

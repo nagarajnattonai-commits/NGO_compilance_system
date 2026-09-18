@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe2 } from "lucide-react";
+import { ChevronDown, Globe2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { availableLocales, type AppLocale } from "@/i18n/config";
@@ -23,7 +23,8 @@ export default function LocaleSwitcher({
     setBusy(true);
     setError("");
     try { await switchLocale(locale); }
-    catch { setBusy(false); setError(t("saveFailed")); }
+    catch { setError(t("saveFailed")); }
+    finally { setBusy(false); }
   }
   return (
     <label
@@ -40,12 +41,11 @@ export default function LocaleSwitcher({
       >
         {options.map((item) => (
           <option key={item.code} value={item.code}>
-            {compact
-              ? `${item.language.toUpperCase()} · ${item.nativeLabel}`
-              : `${item.nativeLabel} (${item.code})`}
+            {compact ? item.nativeLabel : item.nativeLabel + " (" + item.code + ")"}
           </option>
         ))}
       </select>
+      <ChevronDown className="locale-chevron" size={14} aria-hidden="true" />
       {error && <span role="alert">{error}</span>}
     </label>
   );

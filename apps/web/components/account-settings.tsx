@@ -146,15 +146,18 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
         <Link href="/" className="account-brand">
           {brand.enabled ? <BrandIdentity /> : <><ShieldCheck size={26} />Setu NGO</>}
         </Link>
-        <Link href="/">
-          <ArrowLeft size={16} />
-          Back to dashboard
-        </Link>
-        <ThemeToggle variant="icon" />
-        <button className="button secondary" disabled={busy} onClick={logout}>
-          <LogOut size={16} />
-          Sign out
-        </button>
+        <div className="account-header-actions">
+          <Link href="/dashboard">
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </Link>
+          <LocaleSwitcher compact />
+          <ThemeToggle variant="icon" />
+          <button className="button secondary" disabled={busy} onClick={logout}>
+            <LogOut size={16} />
+            Sign out
+          </button>
+        </div>
       </header>
       <div className="account-content">
         <span className="eyebrow">Home / My account</span>
@@ -223,10 +226,10 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
             </div>
             <form className="auth-form" onSubmit={saveLocalization}>
               <fieldset disabled={busy}>
-                <label>
-                  {t("preferredLanguage")}
+                <div className="account-language-field">
+                  <span>{t("preferredLanguage")}</span>
                   <LocaleSwitcher />
-                </label>
+                </div>
                 <label>
                   {t("timezone")}
                   <span className="password-input">

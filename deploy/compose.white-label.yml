@@ -18,7 +18,7 @@ services:
 
   api:
     build: ../apps/api
-    environment:
+    environment: &api-environment
       APP_ENV: production
       APP_ORIGIN: https://${PLATFORM_DOMAIN:?Set the platform hostname}
       PLATFORM_HOSTS: ${PLATFORM_DOMAIN}
@@ -36,6 +36,11 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      INTEGRATION_SECRET_BACKEND: ${INTEGRATION_SECRET_BACKEND:-aws}
+      INTEGRATION_SECRET_PREFIX: ${INTEGRATION_SECRET_PREFIX:-setu/integrations}
+      INTEGRATION_SECRET_KMS_KEY_ID: ${INTEGRATION_SECRET_KMS_KEY_ID:-}
+      INTEGRATION_SMTP_HOSTS: ${INTEGRATION_SMTP_HOSTS:-}
+      INTEGRATION_LEGACY_EMAIL_FALLBACK: ${INTEGRATION_LEGACY_EMAIL_FALLBACK:-1}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -43,6 +48,15 @@ services:
       retries: 10
     depends_on:
       database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  integration-worker:
+    build: ../apps/api
+    command: [python, -m, app.integration_worker, --loop]
+    environment: *api-environment
+    depends_on:
+      api:
         condition: service_healthy
     restart: unless-stopped
 

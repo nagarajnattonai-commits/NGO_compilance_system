@@ -148,3 +148,64 @@ test("explicit locale survives blocked browser storage and preference-save failu
   expect(settings.preference.locale).toBe("mr-IN");
   expect(errors).toEqual([]);
 });
+
+
+for (const role of ["ADMIN", "MEMBER"] as const) {
+  test("authenticated language selector works in account and dashboard headers for " + role, async ({ page, request, context }) => {
+    const headers = { "X-Setu-Request": "1" };
+    const password = "Header-localization-QA-2026!";
+    const email = "header-admin-" + role.toLowerCase() + "@example.test";
+    expect((await request.post("/api/v1/auth/signup", {
+      headers, data: { name: "Header Admin", workspace_name: "Header Localization", email, password },
+    })).status()).toBe(201);
+    if (role === "MEMBER") {
+      const memberEmail = "header-member@example.test";
+      const invitation = await request.post("/api/v1/admin/users/invite", {
+        headers, data: { name: "Header Member", email: memberEmail, role: "MEMBER" },
+      });
+      expect(invitation.status()).toBe(201);
+      expect((await request.post("/api/v1/auth/accept-invitation", {
+        headers, data: { token: (await invitation.json()).token, password },
+      })).status()).toBe(204);
+      expect((await request.post("/api/v1/auth/login", {
+        headers, data: { email: memberEmail, password },
+      })).ok()).toBeTruthy();
+    }
+    expect((await request.patch("/api/v1/localization/preferences", {
+      headers, data: { locale: "en-IN", timezone: "UTC", time_format: "24h" },
+    })).ok()).toBeTruthy();
+    await context.addCookies((await request.storageState()).cookies);
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto("/account");
+    const accountSelector = page.locator(".account-header .locale-switcher select");
+    await expect(accountSelector).toBeEnabled();
+    await expect(accountSelector.locator("option:checked")).toHaveText("English");
+    await expect(page.locator(".account-header .locale-switcher")).toHaveCSS("height", "40px");
+    for (const locale of ["hi-IN", "kn-IN", "mr-IN", "en-IN"]) {
+      await accountSelector.selectOption(locale);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(accountSelector).toBeEnabled();
+      await expect(accountSelector).toHaveValue(locale);
+    }
+    await page.goto("/dashboard");
+    const dashboardSelector = page.locator(".top-actions .locale-switcher select");
+    await expect(dashboardSelector).toHaveValue("en-IN");
+    await expect(page.locator(".top-actions .locale-switcher")).toHaveCSS("height", "40px");
+    await dashboardSelector.selectOption("hi-IN");
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi-IN");
+    await page.goto("/account");
+    await expect(accountSelector).toHaveValue("hi-IN");
+    const preference = (await (await page.request.get("/api/v1/localization/settings")).json()).preference;
+    expect(preference).toMatchObject({ locale: "hi-IN", timezone: "UTC", time_format: "24h" });
+    for (const width of [320, 375, 768, 1280]) {
+      await page.setViewportSize({ width, height: 1000 });
+      for (const route of ["/account", "/dashboard"]) {
+        await page.goto(route);
+        await expect(page.locator(route === "/account" ? ".account-header .locale-switcher" : ".top-actions .locale-switcher")).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();
+      }
+    }
+    expect(errors).toEqual([]);
+  });
+}

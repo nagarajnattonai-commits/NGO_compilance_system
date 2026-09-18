@@ -799,7 +799,7 @@ export default function ComplianceApp({
             />
           )}
           {view === "integrations" && (
-            <IntegrationsView
+            <><IntegrationLinks /><IntegrationsView
               items={integrations}
               isAdmin={user.role === "ADMIN"}
               onUpdate={(updated) =>
@@ -819,7 +819,7 @@ export default function ComplianceApp({
                   setAuditEvents(data.auditEvents);
                 });
               }}
-            />
+            /></>
           )}
           {view === "administration" && user.role === "ADMIN" && (
             <AdministrationView
@@ -5682,4 +5682,9 @@ function EmptyState({
       <p>{text}</p>
     </div>
   );
+}
+
+function IntegrationLinks(){
+ const t=useTranslations("Integrations");
+ return <nav className="integration-actions" aria-label={t("navigation")}><Link className="button secondary" href="/settings/integrations">{t("title")}</Link><Link className="button secondary" href="/settings/developers">{t("developers")}</Link></nav>;
 }

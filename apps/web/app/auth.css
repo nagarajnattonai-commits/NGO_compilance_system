@@ -111,3 +111,7 @@
   .account-search { flex-direction: column; align-items: flex-start; }
   .password-guidance ul { grid-template-columns: 1fr; }
 }
+
+.account-header-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 16px; min-width: 0; }
+.account-language-field { display: grid; gap: 7px; font-size: 12px; font-weight: 500; }
+@media (max-width: 800px) { .account-header-actions { width: 100%; justify-content: flex-start; gap: 12px; } }

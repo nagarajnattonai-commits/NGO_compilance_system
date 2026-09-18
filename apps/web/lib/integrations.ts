@@ -1,0 +1,10 @@
+export type IntegrationScope = "platform" | "tenant";
+export type Connection = { id: string; tenant_id: string | null; provider_key: string; category: string; scope: string; display_name: string; environment: string; configuration: Record<string,string|number>; status: string; health: string; fallback_allowed: boolean; credential_suffix: string; failure_count: number; error_code: string; last_tested_at: string|null; last_success_at: string|null };
+export type Provider = { key: string; category: string; enabled: boolean; entitlement_key: string; configuration_schema: { properties: Record<string,{type:string;default?:string|number;minimum?:number;maximum?:number;maxLength?:number}>; required: string[] } };
+export type IntegrationAccess = {platform_allowed:boolean;permissions:string[];entitlements:Record<string,boolean>;secret_store_writable:boolean;categories:string[];scopes:string[];event_types:string[]};
+export type Application = {id:string;name:string;description:string};
+export type APIKey = {id:string;application_id:string;name:string;key_prefix:string;key_suffix:string;scopes:string[];status:string;expires_at:string;last_used_at:string|null};
+export type Webhook = {id:string;name:string;direction:string;endpoint_url:string;event_types:string[];enabled:boolean;inbound_path:string|null};
+export type OperationLog = {id:string;tenant_id:string|null;provider_key:string;operation:string;status:string;duration_ms:number;error_code:string;retry_count:number;created_at:string;completed_at:string};
+export type TenantIntegration = {id:string;name:string;entitlements:Record<string,boolean>};
+export const connectionStates = ["NOT_CONFIGURED","CONFIGURED","CONNECTED","DEGRADED","ERROR","DISABLED"];

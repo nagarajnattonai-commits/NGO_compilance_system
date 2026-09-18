@@ -13,6 +13,7 @@ export const messageModules = [
   "whiteLabel",
   "marketing",
   "complianceMaster",
+  "integrations",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -31,6 +32,7 @@ const loaders = {
       import("../messages/en-IN/white-label.json"),
       import("../messages/en-IN/marketing.json"),
       import("../messages/en-IN/compliance-master.json"),
+      import("../messages/en-IN/integrations.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -46,6 +48,7 @@ const loaders = {
       import("../messages/hi-IN/white-label.json"),
       import("../messages/hi-IN/marketing.json"),
       import("../messages/hi-IN/compliance-master.json"),
+      import("../messages/hi-IN/integrations.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -61,6 +64,7 @@ const loaders = {
       import("../messages/kn-IN/white-label.json"),
       import("../messages/kn-IN/marketing.json"),
       import("../messages/kn-IN/compliance-master.json"),
+      import("../messages/kn-IN/integrations.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -76,6 +80,7 @@ const loaders = {
       import("../messages/mr-IN/white-label.json"),
       import("../messages/mr-IN/marketing.json"),
       import("../messages/mr-IN/compliance-master.json"),
+      import("../messages/mr-IN/integrations.json"),
     ]),
 } satisfies Record<
   AppLocale,

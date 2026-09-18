@@ -33,11 +33,12 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/dev/types/**/*.ts",
-    ".next-white-label-qa/types/**/*.ts",
-    ".next-white-label-qa/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next-white-label-qa",
+    ".next-compliance-build",
+    ".next-integration-build"
   ]
 }

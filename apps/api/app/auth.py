@@ -6,10 +6,7 @@ import logging
 import os
 import secrets
 import smtplib
-import ssl
 from datetime import date, datetime, timedelta, timezone
-from email.message import EmailMessage
-from email.utils import formataddr
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -352,8 +349,9 @@ def change_password(payload: ChangePasswordInput, request: Request, response: Re
 @router.post("/auth/forgot-password")
 def forgot_password(payload: EmailInput, request: Request, db: DB):
     limit_attempts(db, f"reset-ip:{request_ip(request)}", 10, 3600)
-    smtp_host, smtp_from = os.getenv("SMTP_HOST"), os.getenv("SMTP_FROM")
-    if not smtp_host or not smtp_from:
+    from .integration_notifications import email_available, deliver_email
+    from .integration_security import IntegrationError
+    if not email_available(db):
         raise HTTPException(503, "Password recovery email is not configured. Contact your workspace administrator.")
     user = db.scalar(select(User).where(User.email == payload.email, User.status == "ACTIVE"))
     if user:
@@ -364,24 +362,12 @@ def forgot_password(payload: EmailInput, request: Request, db: DB):
         email = render_email(db, user.tenant_id, "auth.passwordReset", {
             "userName": user.name, "link": f"{site_origin(db, user.tenant_id)}/reset-password#token={token}"
         }, preference.locale if preference else None)
-        message = EmailMessage()
-        message["Subject"] = email["subject"]
-        # From address remains the provider-verified platform sender.
-        message["From"] = formataddr((email["sender_name"], smtp_from))
-        message["To"] = user.email
-        if email["reply_to"]:
-            message["Reply-To"] = email["reply_to"]
-        message.set_content(email["text"])
-        message.add_alternative(email["html"], subtype="html")
         try:
-            with smtplib.SMTP_SSL(smtp_host, int(os.getenv("SMTP_PORT", "465")), timeout=10, context=ssl.create_default_context()) as smtp:
-                if os.getenv("SMTP_USER"):
-                    smtp.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
-                smtp.send_message(message)
+            deliver_email(db,user.tenant_id,user.email,email["subject"],email["text"],email["html"],email["sender_name"],email["reply_to"])
             db.commit()
-        except (OSError, smtplib.SMTPException, KeyError):
+        except IntegrationError:
             db.rollback()
-            logging.getLogger(__name__).error("Password recovery delivery failed; check SMTP configuration")
+            logging.getLogger(__name__).error("Password recovery delivery failed; check email integration configuration")
             # Same public response for unknown accounts and provider failures.
     return {"message": "If an active account matches, a password-reset link will be sent. Check your inbox and spam folder."}
 

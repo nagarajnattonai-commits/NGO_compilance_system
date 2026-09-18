@@ -1,0 +1,25 @@
+.integration-page .account-content{max-width:1240px;width:100%;min-width:0}
+.integration-page .integration-tabs{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.integration-page .integration-tabs a{padding:8px 12px;border-radius:8px;background:var(--brand-surface,var(--paper));color:var(--ink);border:1px solid var(--line);overflow-wrap:anywhere}
+.integration-page .integration-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:16px 0}
+.integration-page .account-content label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:14px;font-weight:600}
+.integration-page .account-content input,.integration-page .account-content select,.integration-page .account-content textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--brand-surface,var(--paper));color:inherit;font:inherit}
+.integration-page .account-content textarea{min-height:90px}
+.integration-page .integration-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+.integration-page .integration-card{min-width:0;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--brand-surface,var(--paper));overflow-wrap:anywhere}
+.integration-page .integration-card h2,.integration-page .integration-card h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.integration-page .integration-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.integration-page .integration-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:18px;margin:16px 0;border:1px solid var(--line);border-radius:12px}
+.integration-page .integration-form .full{grid-column:1/-1}
+.integration-page .check-label{display:flex;flex-direction:row;align-items:center;font-weight:400}
+.integration-page .check-label input{width:auto}
+.integration-page .integration-table{overflow:auto;max-width:100%;border:1px solid var(--line);border-radius:10px}
+.integration-page .integration-table table{width:100%;border-collapse:collapse;min-width:600px}
+.integration-page .integration-table th,.integration-page .integration-table td{padding:12px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top;max-width:240px;overflow-wrap:anywhere}
+.integration-page .integration-status{display:inline-block;border:1px solid currentColor;padding:3px 8px;border-radius:20px;font-size:12px}
+.integration-page .secret-once{padding:16px;background:var(--brand-surface,var(--paper));border:2px solid var(--brand-primary,var(--forest-2));border-radius:10px;margin:16px 0;overflow-wrap:anywhere}
+.integration-page code{overflow-wrap:anywhere;white-space:pre-wrap}
+.integration-page [role=alert]{border:1px solid var(--red);padding:12px;border-radius:8px;margin:12px 0}
+.integration-page button{max-width:100%;white-space:normal}
+.integration-page :focus-visible{outline:3px solid var(--brand-primary,var(--forest-2));outline-offset:3px}
+@media(max-width:600px){.integration-page .integration-form{grid-template-columns:minmax(0,1fr)}.integration-page .account-header{flex-wrap:wrap}.integration-page .account-content{padding:14px}.integration-page .integration-tabs{gap:6px}.integration-page .integration-tabs a{font-size:13px;padding:7px}.integration-page .integration-toolbar>label{width:100%}}

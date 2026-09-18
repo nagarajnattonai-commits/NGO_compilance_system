@@ -80,3 +80,14 @@ PostgreSQL migrations, Redis workers and scheduler, private S3-compatible storag
 ## Configurable Compliance Master
 
 The existing platform-only builder is reviewed and hardened in [Compliance Master review and implementation](COMPLIANCE_MASTER_REVIEW.md). It provides configurable global categories/templates, structured applicability, deadlines, workflow/checklist/document/responsibility/reminder rules, risk, translations, review/approval/publication, versions and instance snapshots. Incomplete drafts remain unpublishable. Platform APIs enforce permissions independently of navigation. External delivery, PostgreSQL migration management and durable scheduled workers retain the production-only status above.
+
+## Integrations and public API
+
+The shared [integration layer](INTEGRATIONS_IMPLEMENTATION.md) provides scoped
+connections, entitlements/RBAC, vault references, typed SMTP/WhatsApp/Calendar/S3
+adapters, successful-test activation, recorded health/latency/logs, scoped
+expiring/revocable API keys, usage/quotas, generic signed ingress and a durable
+outbound webhook worker. The legacy catalogue cannot claim live connectivity.
+Deployment credentials/account verification, native callbacks, Google OAuth
+consent/refresh and automatic external reminders remain explicit follow-up work.
+Generic webhooks never approve payments.

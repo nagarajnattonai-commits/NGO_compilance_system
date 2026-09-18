@@ -73,6 +73,8 @@ from .schemas import (
     UserPreferenceOut,
     UserPreferenceUpdate,
 )
+from .integration_api import router as integration_router
+from .developer_api import router as developer_router
 from .seed import seed_demo_data
 from .branding import router as branding_router
 from .brand_outputs import router as brand_outputs_router
@@ -112,6 +114,8 @@ app.include_router(auth_router)
 app.include_router(branding_router)
 app.include_router(brand_outputs_router)
 app.include_router(compliance_master_router)
+app.include_router(integration_router)
+app.include_router(developer_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -137,6 +141,19 @@ Tenant = Annotated[str, Depends(get_tenant_id)]
 
 
 def audit(db: Session, tenant_id: str, action: str, entity_type: str, entity_id: str, summary: str) -> None:
+    from .integration_service import enqueue_event, EVENT_ACTIONS
+    event_type = EVENT_ACTIONS.get(action)
+    if action == "STATUS_CHANGED":
+        instance = db.get(Compliance, entity_id)
+        if instance and instance.status == "COMPLETED":
+            event_type = "compliance.completed"
+    if action == "TASK_UPDATED":
+        task = db.get(Task, entity_id)
+        if task and task.status == "DONE":
+            event_type = "task.completed"
+    if event_type:
+        enqueue_event(db, tenant_id, event_type, entity_id)
+
     db.add(AuditEvent(tenant_id=tenant_id, actor_name=db.info.get("actor_name", "System"), action=action, entity_type=entity_type, entity_id=entity_id, summary=summary))
 
 
@@ -868,20 +885,33 @@ def delete_portfolio_record(record_id: str, db: DB, tenant_id: Tenant, _: AdminU
 
 
 @app.get("/api/v1/integrations", response_model=list[IntegrationOut])
-def integrations(db: DB, tenant_id: Tenant):
+def integrations(db: DB, tenant_id: Tenant, user: CurrentUser):
+    from .permissions import has_permission
+    if not has_permission(user, "integrations.tenant.view"):
+        return []
+    from .integration_models import ConnectionSettings
     return db.scalars(select(IntegrationConnection).where(
         IntegrationConnection.tenant_id == tenant_id,
+        IntegrationConnection.id.not_in(select(ConnectionSettings.connection_id)),
     ).order_by(IntegrationConnection.category, IntegrationConnection.provider)).all()
 
 
 @app.patch("/api/v1/integrations/{integration_id}", response_model=IntegrationOut)
-def update_integration(integration_id: str, payload: IntegrationUpdate, db: DB, tenant_id: Tenant, _: AdminUser):
+def update_integration(integration_id: str, payload: IntegrationUpdate, db: DB, tenant_id: Tenant, user: AdminUser):
+    from .permissions import has_permission
+    if not has_permission(user, "integrations.tenant.manage"):
+        raise HTTPException(403, "Required integration permission is missing")
     item = db.scalar(select(IntegrationConnection).where(
         IntegrationConnection.id == integration_id,
         IntegrationConnection.tenant_id == tenant_id,
     ))
     if not item:
         raise HTTPException(status_code=404, detail="Integration not found")
+    from .integration_models import ConnectionSettings
+    if db.get(ConnectionSettings, item.id):
+        raise HTTPException(409, "Use the managed connection test and activation workflow")
+    if payload.status == "CONNECTED":
+        raise HTTPException(409, "Legacy entries describe capability readiness. Configure and test a managed provider connection.")
     item.status = payload.status
     item.last_synced_at = datetime.now(timezone.utc) if payload.status == "CONNECTED" else None
     audit(db, tenant_id, "INTEGRATION_UPDATED", "Integration", item.id, f"Set {item.provider} to {item.status}")
