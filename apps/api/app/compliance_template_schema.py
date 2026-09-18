@@ -13,6 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 ROLES = {"TENANT_ADMIN", "ORGANIZATION_ADMIN", "COMPLIANCE_OFFICER", "ACCOUNTANT", "AUDITOR", "CONSULTANT", "MANAGEMENT", "VIEWER"}
 STATES = {"NOT_STARTED", "IN_PROGRESS", "UNDER_REVIEW", "CHANGES_REQUESTED", "READY_TO_FILE", "FILED", "COMPLETED", "ON_HOLD", "NOT_APPLICABLE", "CANCELLED"}
 FIELDS = {"legal_type": "text", "fcra_active": "boolean", "status": "text", "city": "text", "pan": "text", "registration_number": "text", "annual_revenue": "number", "revenue_period": "text", "created_at": "date"}
+FIELDS.update({"organization.legal_type": "text", "organization.registration_date": "date", "organization.pan_present": "boolean", "organization.tan_present": "boolean", "organization.gst.registered": "boolean", "financial.annual_revenue": "number"})
+for _kind in ("12a", "12ab", "80g", "fcra", "gst", "csr"):
+    FIELDS.update({f"organization.{_kind}.status": "text", f"organization.{_kind}.expiry_date": "date"})
 OPERATORS = {
     "text": ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS", "IS_EMPTY", "IS_NOT_EMPTY", "IN", "NOT_IN"],
     "boolean": ["EQUALS", "NOT_EQUALS", "IS_TRUE", "IS_FALSE"],

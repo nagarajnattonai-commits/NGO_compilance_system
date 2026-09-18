@@ -77,6 +77,7 @@ from .auth_experience import router as auth_experience_router
 from .auth_oauth import router as auth_oauth_router
 from .integration_api import router as integration_router
 from .developer_api import router as developer_router
+from .organization_profile import router as organization_profile_router
 from .seed import seed_demo_data
 from .branding import router as branding_router
 from .brand_outputs import router as brand_outputs_router
@@ -121,6 +122,7 @@ app.include_router(brand_outputs_router)
 app.include_router(compliance_master_router)
 app.include_router(integration_router)
 app.include_router(developer_router)
+app.include_router(organization_profile_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -348,9 +350,14 @@ def create_organization(payload: OrganizationCreate, db: DB, tenant_id: Tenant):
 @app.patch("/api/v1/organizations/{organization_id}", response_model=OrganizationOut)
 def update_organization(organization_id: str, payload: OrganizationUpdate, db: DB, tenant_id: Tenant):
     item = verify_org(db, tenant_id, organization_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(item, field, value)
-    audit(db, tenant_id, "ORGANIZATION_UPDATED", "Organization", item.id, f"Updated {item.name}")
+    values = payload.model_dump(exclude_unset=True)
+    checks = []
+    if "registration_number" in values: checks.append(func.lower(Organization.registration_number) == values["registration_number"].lower())
+    if values.get("pan"): checks.append(func.lower(Organization.pan) == values["pan"].lower())
+    if checks and db.scalar(select(Organization.id).where(Organization.tenant_id == tenant_id, Organization.id != item.id, or_(*checks)).limit(1)):
+        raise HTTPException(409, "Registration number or PAN already exists in this workspace")
+    for field, value in values.items(): setattr(item, field, value)
+    audit(db, tenant_id, "ORGANIZATION_UPDATED", "Organization", item.id, "Updated organization fields: " + ", ".join(sorted(values)))
     db.commit()
     db.refresh(item)
     return item

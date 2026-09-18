@@ -2291,7 +2291,7 @@ function ReportsView({
                 <div key={org.id}>
                   <span className="org-mini">{org.name[0]}</span>
                   <div>
-                    <strong>{org.name}</strong>
+                    <Link href={`/organizations/${org.id}`}><strong>{org.name}</strong></Link>
                     <small>{rows.length} obligations</small>
                   </div>
                   <b>{formatPercentage(score / 100)}</b>
@@ -2444,7 +2444,7 @@ function AdministrationView({
                 <article key={organization.id}>
                   <span className="org-mini">{organization.name[0]}</span>
                   <div>
-                    <strong>{organization.name}</strong>
+                    <Link href={`/organizations/${organization.id}`}><strong>{organization.name}</strong></Link>
                     <small>
                       {organization.legal_type} · {organization.city}
                     </small>

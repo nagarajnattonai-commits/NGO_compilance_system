@@ -15,6 +15,7 @@ export const messageModules = [
   "complianceMaster",
   "integrations",
   "authentication",
+  "organization",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -35,6 +36,7 @@ const loaders = {
       import("../messages/en-IN/compliance-master.json"),
       import("../messages/en-IN/integrations.json"),
       import("../messages/en-IN/authentication.json"),
+      import("../messages/en-IN/organization.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -52,6 +54,7 @@ const loaders = {
       import("../messages/hi-IN/compliance-master.json"),
       import("../messages/hi-IN/integrations.json"),
       import("../messages/hi-IN/authentication.json"),
+      import("../messages/hi-IN/organization.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -69,6 +72,7 @@ const loaders = {
       import("../messages/kn-IN/compliance-master.json"),
       import("../messages/kn-IN/integrations.json"),
       import("../messages/kn-IN/authentication.json"),
+      import("../messages/kn-IN/organization.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -86,6 +90,7 @@ const loaders = {
       import("../messages/mr-IN/compliance-master.json"),
       import("../messages/mr-IN/integrations.json"),
       import("../messages/mr-IN/authentication.json"),
+      import("../messages/mr-IN/organization.json"),
     ]),
 } satisfies Record<
   AppLocale,

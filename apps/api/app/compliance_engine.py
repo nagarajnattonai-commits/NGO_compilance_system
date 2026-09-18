@@ -81,9 +81,10 @@ def validate_publish(config: TemplateConfiguration) -> list[str]:
 
 
 def organization_facts(db, organization):
+    from .organization_profile import expanded_facts
     profile = db.get(OrganizationComplianceProfile, organization.id)
     return {"annual_revenue": profile.annual_revenue if profile and profile.tenant_id == organization.tenant_id else None,
-        "revenue_period": profile.revenue_period if profile else ""}
+        "revenue_period": profile.revenue_period if profile else "", **expanded_facts(db, organization)}
 
 
 def combine(matches, operator):
@@ -101,7 +102,7 @@ def evaluate_rules(config: TemplateConfiguration, organization: Organization, fa
     for group in config.applicability.groups:
         conditions = []
         for rule in group.conditions:
-            actual = (facts or {}).get(rule.field) if rule.field in {"annual_revenue", "revenue_period"} else getattr(organization, rule.field, None)
+            actual = (facts or {}).get(rule.field) if rule.field in {"annual_revenue", "revenue_period"} or rule.field.startswith(("organization.", "financial.")) else getattr(organization, rule.field, None)
             expected = rule.value
             op = rule.operator
             if isinstance(actual, datetime):

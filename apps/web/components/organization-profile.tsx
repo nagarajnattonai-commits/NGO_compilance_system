@@ -1,0 +1,50 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { apiRequest } from "@/lib/http";
+import { loadOrganizationProfile, saveOrganizationProfile, type OrganizationProfile } from "@/lib/organization";
+import type { AuthUser } from "@/lib/auth-types";
+import type { AuditEvent, ComplianceDocument } from "@/lib/types";
+import OrganizationShell from "./organization-shell";
+import OrganizationComplianceProfile from "./organization-compliance-profile";
+const sections=["overview","basic","registration","tax","fcra","gst","csr","contact","financial","compliance","documents","team","activity"];
+export function ProfileFields({draft,setDraft,section,disabled,documents=[]}:{draft:OrganizationProfile;setDraft:(profile:OrganizationProfile)=>void;section:string;disabled:boolean;documents?:ComplianceDocument[]}) {
+ const t=useTranslations("Organization");
+ function field(key:string, source:"core"|"details"|"financial"="details", type="text", options?:string[]) {
+  const value=String((draft[source] as unknown as Record<string,unknown>)[key]??"");
+  const change=(value:string)=>setDraft({...draft,[source]:{...draft[source],[key]:type==="date"||key==="annual_revenue"?value||null:value}});
+  return <label key={key}>{t(key)}{options?<select value={value} disabled={disabled} onChange={e=>change(e.target.value)}>{options.map(o=><option key={o} value={o}>{t(o)}</option>)}</select>:<input type={type} value={value} disabled={disabled} required={source==="core"&&["name","city","registration_number"].includes(key)} min={type==="number"?0:undefined} step={type==="number"?"0.01":undefined} maxLength={key==="notes"?2000:key==="pan"||key==="tan"?10:key==="revenue_period"?30:undefined} onChange={e=>change(e.target.value)}/>}</label>;
+ }
+ const kinds=section==="tax"?["12A","12AB","80G"]:section==="fcra"?["FCRA"]:section==="gst"?["GST"]:section==="csr"?["CSR"]:[];
+ return <div className="organization-form">
+  {section==="basic"&&<>{field("name","core")}{field("legal_type","core","text",["TRUST","SOCIETY","SECTION 8"])}{field("city","core")}{field("status","core","text",["DRAFT","ACTIVE","SUSPENDED","ARCHIVED"])}{field("establishment_date","details","date")}{field("website","details","url")}{field("notes")}</>}
+  {section==="registration"&&<>{field("registration_number","core")}{field("registration_date","details","date")}{field("registration_authority")}</>}
+  {section==="tax"&&<>{field("pan","core")}{field("tan")}</>}
+  {kinds.map(kind=>{const index=draft.registrations.findIndex(r=>r.kind===kind);const row=draft.registrations[index];
+   const change=(key:string,value:string|null)=>setDraft({...draft,registrations:draft.registrations.map((r,i)=>i===index?{...r,[key]:value}:r)});
+   return <fieldset key={kind}><legend>{kind}</legend><p>{t("registrationHelp")}</p><div className="organization-form"><label>{t("status")}<select disabled={disabled} value={row.status} onChange={e=>change("status",e.target.value)}>{["UNKNOWN","NOT_REGISTERED","PENDING","ACTIVE","SUSPENDED","EXPIRED"].map(s=><option key={s} value={s}>{t(s)}</option>)}</select></label><label>{t("number")}<input maxLength={100} disabled={disabled} value={row.number} onChange={e=>change("number",e.target.value)}/></label>{["registration_date","effective_date","expiry_date"].map(key=><label key={key}>{t(key)}<input type="date" disabled={disabled} value={String(row[key as keyof typeof row]??"")} onChange={e=>change(key,e.target.value||null)}/></label>)}<label>{t("renewal_status")}<select disabled={disabled} value={row.renewal_status} onChange={e=>change("renewal_status",e.target.value)}>{["UNKNOWN","NOT_REQUIRED","PENDING","RENEWED"].map(s=><option key={s} value={s}>{t(s)}</option>)}</select></label><label>{t("document_id")}<select disabled={disabled} value={row.document_id||""} onChange={e=>change("document_id",e.target.value||null)}><option value="">{t("none")}</option>{documents.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label></div></fieldset>;
+  })}
+  {section==="contact"&&<>{["address_line_1","address_line_2","district","state","postal_code","country","contact_name"].map(key=>field(key))}{field("city","core")}{field("contact_email","details","email")}{field("contact_phone","details","tel")}</>}
+  {section==="financial"&&<>{field("annual_revenue","financial","number")}{field("revenue_period","financial")}{field("financial_year")}</>}
+ </div>;
+}
+export default function OrganizationProfileView({id,user}:{id:string;user:AuthUser}) {
+ const t=useTranslations("Organization");const [profile,setProfile]=useState<OrganizationProfile|null>(null);const [draft,setDraft]=useState<OrganizationProfile|null>(null);const [section,setSection]=useState("overview");const [editing,setEditing]=useState(false);const [busy,setBusy]=useState(true);const [error,setError]=useState("");const [saved,setSaved]=useState(false);const [documents,setDocuments]=useState<ComplianceDocument[]>([]);
+ const dirty=!!profile&&!!draft&&JSON.stringify(profile)!==JSON.stringify(draft);
+ useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[dirty]);
+ async function load(){setBusy(true);setError("");try{const [p,d]=await Promise.all([loadOrganizationProfile(id),apiRequest<ComplianceDocument[]>("/documents")]);setProfile(p);setDraft(structuredClone(p));setDocuments(d.filter(x=>x.organization_id===id));}catch(e){setError(e instanceof Error?e.message:t("error"));}finally{setBusy(false);}}
+ useEffect(()=>{void load();},[id]);
+ async function save(e:React.FormEvent){e.preventDefault();if(!draft)return;setBusy(true);setError("");setSaved(false);try{const p=await saveOrganizationProfile(id,draft);setProfile(p);setDraft(structuredClone(p));setEditing(false);setSaved(true);}catch(e){setError(e instanceof Error?e.message:t("error"));}finally{setBusy(false);}}
+ function choose(s:string){if(dirty&&!window.confirm(t("unsaved")))return;if(dirty&&profile)setDraft(structuredClone(profile));setSection(s);setEditing(false);setSaved(false);}
+ return <OrganizationShell><div className="organization-header"><div><h1>{profile?.core.name||t("title")}</h1><p>{t("title")}</p></div>{user.role!=="ADMIN"&&<p>{t("readonly")}</p>}</div>{error&&<div role="alert" className="auth-alert error">{error}<button className="text-button" onClick={()=>void load()}>{t("retry")}</button></div>}{saved&&<p role="status">{t("saved")}</p>}{busy&&!profile&&<p role="status">{t("loading")}</p>}{profile&&draft&&<><nav className="organization-tabs" role="tablist" aria-label={t("title")}>{sections.map(s=><button key={s} role="tab" aria-selected={section===s} onClick={()=>choose(s)}>{t(s)}</button>)}</nav><section className="organization-panel" role="tabpanel"><h2>{t(section)}</h2>{section==="overview"?<><h3>{t("setup")}: {profile.completeness.percentage}%</h3><p>{t("setupHelp")}</p><progress className="organization-progress" max={100} value={profile.completeness.percentage} aria-label={t("setup")}/><ul className="organization-records">{Object.entries(profile.completeness.sections).map(([key,value])=><li key={key}><button className="text-button" onClick={()=>choose(key==="registrations"?"tax":key)}>{t(key)}</button>: {value.percentage}% ? {t(value.status)}</li>)}</ul>{profile.completeness.missing_required_facts.length>0&&<p>{t("missing")}: {profile.completeness.missing_required_facts.map(k=>t(k)).join(", ")}</p>}<p>{t("nextAction")}: {t(profile.completeness.next_action)}</p></>:section==="compliance"?<OrganizationComplianceProfile organizations={[profile.core]}/>:section==="documents"?<><p>{t("documentsHelp")}</p><ul className="organization-records">{documents.map(d=><li key={d.id}>{d.name} ? {d.category} ? {d.expiry_at||t("none")}</li>)}</ul>{!documents.length&&<p>{t("noRecords")}</p>}</>:section==="team"?<OrganizationTeam id={id} allowed={user.role==="ADMIN"}/>:section==="activity"?<OrganizationActivity id={id}/>:<form onSubmit={e=>void save(e)}><ProfileFields draft={draft} setDraft={setDraft} section={section} disabled={!editing||busy} documents={documents}/>{user.role==="ADMIN"&&<div className="organization-actions">{editing?<><button className="button primary" disabled={busy} type="submit">{t("save")}</button><button className="button secondary" disabled={busy} type="button" onClick={()=>{if(!dirty||window.confirm(t("unsaved"))){setDraft(structuredClone(profile));setEditing(false);setError("");}}}>{t("cancel")}</button></>:<button type="button" className="button primary" onClick={e=>{e.preventDefault();setEditing(true);setSaved(false);}}>{t("edit")}</button>}</div>}</form>}</section></>}</OrganizationShell>;
+}
+export function OrganizationTeam({id,allowed}:{id:string;allowed:boolean}) {
+ const t=useTranslations("Organization");const [rows,setRows]=useState<{id:string;name:string;email:string;role:string;status:string}[]>([]);const [error,setError]=useState(false);
+ useEffect(()=>{if(allowed)apiRequest<typeof rows>("/memberships").then(r=>setRows(r.filter(x=>(x as unknown as {organization_id:string}).organization_id===id))).catch(()=>setError(true));},[id,allowed]);
+ return <><p>{t("teamHelp")}</p>{!allowed?<p>{t("readonly")}</p>:error?<p role="alert">{t("error")}</p>:<ul className="organization-records">{rows.map(r=><li key={r.id}>{r.name} ? {r.email} ? {r.role} ? {r.status}</li>)}</ul>}{allowed&&!rows.length&&<p>{t("noRecords")}</p>}</>;
+}
+function OrganizationActivity({id}:{id:string}) {
+ const t=useTranslations("Organization");const [rows,setRows]=useState<AuditEvent[]>([]);const [error,setError]=useState(false);
+ useEffect(()=>{apiRequest<AuditEvent[]>("/audit-events").then(r=>setRows(r.filter(x=>x.entity_id===id))).catch(()=>setError(true));},[id]);
+ return <><p>{t("auditHelp")}</p>{error?<p role="alert">{t("error")}</p>:<ul className="organization-records">{rows.map(r=><li key={r.id}>{r.created_at} ? {r.action}<p>{r.summary}</p></li>)}</ul>}{!error&&!rows.length&&<p>{t("noRecords")}</p>}</>;
+}

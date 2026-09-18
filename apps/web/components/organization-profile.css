@@ -1,0 +1,16 @@
+.organization-page .account-content { max-width: 1200px; width: 100%; margin: auto; padding: 24px; }
+.organization-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.organization-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.organization-tabs button { border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 10px; }
+.organization-tabs button[aria-selected="true"] { border-color: var(--forest-2); color: var(--forest-2); }
+.organization-panel { padding: 24px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
+.organization-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.organization-form label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.organization-form input,.organization-form select,.organization-form textarea { width: 100%; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
+.organization-form fieldset { grid-column: 1 / -1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.organization-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.organization-records { display: grid; gap: 12px; list-style: none; padding: 0; }
+.organization-records li { padding: 14px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.organization-progress { width: 100%; accent-color: var(--forest-2); }
+.organization-panel h2 { margin-top: 0; }
+@media(max-width:767px) { .organization-page .account-content {padding:16px;} .organization-panel {padding:16px;} .organization-form {grid-template-columns:1fr;} .organization-header h1 {font-size:24px;} }

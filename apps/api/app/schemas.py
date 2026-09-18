@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import Literal
 
@@ -24,8 +25,9 @@ class OrganizationOut(ORMModel):
 
 
 class OrganizationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     name: str = Field(min_length=3, max_length=200)
-    legal_type: Literal["TRUST", "SOCIETY", "SECTION 8"]
+    legal_type: Literal["TRUST", "SOCIETY", "SECTION 8", "SECTION_8"]
     registration_number: str = Field(min_length=2, max_length=80)
     city: str = Field(min_length=2, max_length=100)
     pan: str = Field(default="", max_length=20)
@@ -33,12 +35,47 @@ class OrganizationCreate(BaseModel):
     generate_compliance_plan: bool = True
 
 
+    @field_validator("pan")
+    @classmethod
+    def validated_pan(cls, value):
+        if value is None: return value
+        value=value.upper()
+        if value and not re.fullmatch(r"[A-Z]{5}[0-9]{4}[A-Z]",value): raise ValueError("Invalid PAN format")
+        return value
+
+    @field_validator("legal_type")
+    @classmethod
+    def normalized_legal_type(cls,value):
+        return value.replace("_"," ") if value else value
+
 class OrganizationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    legal_type: Literal["TRUST", "SOCIETY", "SECTION 8", "SECTION_8"] | None = None
+    registration_number: str | None = Field(default=None, min_length=2, max_length=80)
     name: str | None = Field(default=None, min_length=3, max_length=200)
     status: Literal["DRAFT", "ACTIVE", "SUSPENDED", "ARCHIVED"] | None = None
     city: str | None = Field(default=None, min_length=2, max_length=100)
     pan: str | None = Field(default=None, max_length=20)
     fcra_active: bool | None = None
+
+
+    @field_validator("pan")
+    @classmethod
+    def validated_pan(cls, value):
+        if value is None: return value
+        value=value.upper()
+        if value and not re.fullmatch(r"[A-Z]{5}[0-9]{4}[A-Z]",value): raise ValueError("Invalid PAN format")
+        return value
+
+    @field_validator("legal_type")
+    @classmethod
+    def normalized_legal_type(cls,value):
+        return value.replace("_"," ") if value else value
+
+    @model_validator(mode="after")
+    def no_explicit_nulls(self):
+        if any(getattr(self,key) is None for key in self.model_fields_set): raise ValueError("Organization fields cannot be null")
+        return self
 
 
 class ComplianceCreate(BaseModel):
