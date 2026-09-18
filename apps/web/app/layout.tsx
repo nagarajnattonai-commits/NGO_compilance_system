@@ -3,6 +3,8 @@ import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import { localeMetadata } from "@/i18n/config";
+import { getPublicLocalizationSettings } from "@/i18n/public-settings";
+import { PublicLocalizationProvider } from "@/i18n/public-client";
 import { getServerBrand } from "@/branding/server";
 import { TenantBrandProvider } from "@/branding/client";
 import { brandingStyles } from "@/branding/theme";
@@ -28,6 +30,7 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
   const brand = await getServerBrand(locale);
+  const localization = await getPublicLocalizationSettings();
   const metadata = localeMetadata(
     locale as Parameters<typeof localeMetadata>[0],
   );
@@ -41,7 +44,7 @@ export default async function RootLayout({
     >
       <body suppressHydrationWarning>
         {brand.enabled && <style id="setu-brand-tokens" dangerouslySetInnerHTML={{ __html: brandingStyles(brand) }} />}
-        <NextIntlClientProvider><TenantBrandProvider brand={brand}>{children}</TenantBrandProvider></NextIntlClientProvider>
+        <NextIntlClientProvider><PublicLocalizationProvider settings={localization}><TenantBrandProvider brand={brand}>{children}</TenantBrandProvider></PublicLocalizationProvider></NextIntlClientProvider>
         <Script id="setu-theme" strategy="beforeInteractive">
           {themeBootScript}
         </Script>

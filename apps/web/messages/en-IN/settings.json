@@ -29,6 +29,9 @@
     "preview": "Preview",
     "saveChanges": "Save changes",
     "saved": "Localization settings saved",
+    "saveFailed": "Could not save localization changes. Please try again.",
+    "invalidTranslation": "Enter valid translation text and preserve the original variables and plural formats.",
+    "editTranslation": "Edit translation: {key}",
     "dragHelp": "Drag languages or use the arrow buttons to change their order."
   }
 }

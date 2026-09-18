@@ -76,6 +76,10 @@ from .schemas import (
 from .seed import seed_demo_data
 from .branding import router as branding_router
 from .brand_outputs import router as brand_outputs_router
+from .compliance_master import router as compliance_master_router
+from .compliance_engine import dispatch_master_reminders, enforce_snapshot_transition, generate_master_plan, published_templates
+from .models import ComplianceMaster, ComplianceSnapshot, ComplianceTemplateVersion
+from .compliance_template_schema import GeneratePlanInput, TemplateConfiguration
 
 
 @asynccontextmanager
@@ -107,6 +111,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(branding_router)
 app.include_router(brand_outputs_router)
+app.include_router(compliance_master_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -146,7 +151,7 @@ def person_initials(name: str) -> str:
     return "".join(part[0] for part in name.split() if part)[:3].upper()
 
 
-def generate_compliance_plan(db: Session, tenant_id: str, organization: Organization) -> list[Compliance]:
+def generate_compliance_plan(db: Session, tenant_id: str, organization: Organization, event_date: date | None = None) -> list[Compliance]:
     today = date.today()
     definitions = db.scalars(
         select(ComplianceDefinition).where(
@@ -154,8 +159,14 @@ def generate_compliance_plan(db: Session, tenant_id: str, organization: Organiza
             ComplianceDefinition.status == "ACTIVE",
         ).order_by(ComplianceDefinition.code)
     ).all()
-    generated: list[Compliance] = []
+    generated, review = generate_master_plan(db, tenant_id, organization, event_date=event_date)
+    for warning in review:
+        audit(db, tenant_id, "COMPLIANCE_REQUIRES_REVIEW", "Organization", organization.id, f"{warning['code']}: {warning['reason']}"[:280])
+    global_codes = set(db.scalars(select(ComplianceMaster.code).join(ComplianceTemplateVersion, ComplianceTemplateVersion.definition_id == ComplianceMaster.id)
+        .where(ComplianceTemplateVersion.published_at.is_not(None)).distinct()).all())
     for definition in definitions:
+        if definition.code in global_codes:
+            continue
         legal_types = {value.strip() for value in definition.applicable_legal_types.split(",")}
         if "ALL" not in legal_types and organization.legal_type not in legal_types:
             continue
@@ -222,7 +233,8 @@ def apply_compliance_transition(
     submission_reference: str | None = None,
     proof_document_id: str | None = None,
 ) -> None:
-    if target_status not in ALLOWED_TRANSITIONS.get(item.status, set()):
+    configured_edge = enforce_snapshot_transition(db, tenant_id, item, target_status, proof_document_id)
+    if configured_edge is None and target_status not in ALLOWED_TRANSITIONS.get(item.status, set()):
         raise HTTPException(status_code=409, detail=f"Cannot move compliance from {item.status} to {target_status}")
     if target_status in {"CHANGES_REQUESTED", "NOT_APPLICABLE", "ON_HOLD"} or item.status in {"COMPLETED", "NOT_APPLICABLE"}:
         if not reason or len(reason.strip()) < 3:
@@ -244,7 +256,8 @@ def apply_compliance_transition(
             acknowledgement_ref=submission_reference or "Proof document attached",
             proof_document_id=proof_document_id,
         ))
-    if target_status == "COMPLETED" and not db.scalar(select(Submission.id).where(
+    requires_filing = configured_edge is None or any(stage.state == "FILED" for stage in TemplateConfiguration.model_validate_json(db.get(ComplianceSnapshot, item.id).configuration).workflow.stages)
+    if target_status == "COMPLETED" and requires_filing and not db.scalar(select(Submission.id).where(
         Submission.tenant_id == tenant_id,
         Submission.compliance_id == item.id,
     )):
@@ -322,9 +335,9 @@ def update_organization(organization_id: str, payload: OrganizationUpdate, db: D
 
 
 @app.post("/api/v1/organizations/{organization_id}/generate-plan", response_model=list[ComplianceOut])
-def generate_organization_plan(organization_id: str, db: DB, tenant_id: Tenant):
+def generate_organization_plan(organization_id: str, db: DB, tenant_id: Tenant, payload: GeneratePlanInput | None = None):
     organization = verify_org(db, tenant_id, organization_id)
-    generated = generate_compliance_plan(db, tenant_id, organization)
+    generated = generate_compliance_plan(db, tenant_id, organization, event_date=payload.event_date if payload else None)
     db.commit()
     for compliance in generated:
         db.refresh(compliance)
@@ -333,10 +346,22 @@ def generate_organization_plan(organization_id: str, db: DB, tenant_id: Tenant):
 
 @app.get("/api/v1/compliance-definitions", response_model=list[ComplianceDefinitionOut])
 def compliance_definitions(db: DB, tenant_id: Tenant):
-    return db.scalars(select(ComplianceDefinition).where(
+    claimed_codes = set(db.scalars(select(ComplianceMaster.code).join(ComplianceTemplateVersion, ComplianceTemplateVersion.definition_id == ComplianceMaster.id)
+        .where(ComplianceTemplateVersion.published_at.is_not(None)).distinct()).all())
+    legacy = list(db.scalars(select(ComplianceDefinition).where(
         ComplianceDefinition.tenant_id == tenant_id,
         ComplianceDefinition.status == "ACTIVE",
-    ).order_by(ComplianceDefinition.category, ComplianceDefinition.title)).all()
+    ).order_by(ComplianceDefinition.category, ComplianceDefinition.title)).all())
+    result = [item for item in legacy if item.code not in claimed_codes]
+    for master, version in published_templates(db):
+        config = TemplateConfiguration.model_validate_json(version.configuration)
+        definition = db.get(ComplianceDefinition, master.id)
+        result.append({"id": master.id, "code": master.code, "title": config.name, "category": definition.category,
+            "legal_reference": config.legal_reference, "applicable_legal_types": version.organization_types, "requires_fcra": False,
+            "deadline_month": config.deadline.fixed_date.month if config.deadline.strategy == "FIXED_DATE" else None,
+            "deadline_day": config.deadline.fixed_date.day if config.deadline.strategy == "FIXED_DATE" else None,
+            "internal_lead_days": config.deadline.internal_lead_days, "priority": config.priority, "rule_version": version.version, "status": "PUBLISHED"})
+    return result
 
 
 @app.get("/api/v1/dashboard")
@@ -878,9 +903,14 @@ def create_automation_notice(db: Session, tenant_id: str, event_key: str, event_
 def run_daily_automation(db: DB, tenant_id: Tenant, _: AdminUser):
     today = date.today()
     counters = {"overdue_compliances": 0, "overdue_tasks": 0, "upcoming": 0, "expiring_documents": 0, "recurring_created": 0}
+    counters["template_reminders"] = dispatch_master_reminders(db, tenant_id, today)
     open_statuses = {"DRAFT", "PLANNED", "NOT_STARTED", "IN_PROGRESS", "UNDER_REVIEW", "CHANGES_REQUESTED", "READY_TO_FILE", "FILED", "ON_HOLD", "OVERDUE"}
     compliances = list(db.scalars(select(Compliance).where(Compliance.tenant_id == tenant_id)).all())
     for item in compliances:
+        template_snapshot = db.get(ComplianceSnapshot, item.id)
+        if template_snapshot:
+            # Template reminders and recurrence replace legacy globally hard-coded behavior.
+            continue
         if item.status in open_statuses and item.statutory_deadline < today:
             if item.status != "OVERDUE":
                 item.status = "OVERDUE"
@@ -920,6 +950,11 @@ def run_daily_automation(db: DB, tenant_id: Tenant, _: AdminUser):
                 db.flush()
                 audit(db, tenant_id, "COMPLIANCE_RECURRED", "Compliance", rolled.id, f"Rolled forward {item.title} from {item.id}")
                 counters["recurring_created"] += 1
+    for organization in db.scalars(select(Organization).where(Organization.tenant_id == tenant_id, Organization.status == "ACTIVE")).all():
+        created, review = generate_master_plan(db, tenant_id, organization, as_of=today)
+        counters["recurring_created"] += len(created)
+        for warning in review:
+            audit(db, tenant_id, "COMPLIANCE_REQUIRES_REVIEW", "Organization", organization.id, f"{warning['code']}: {warning['reason']}"[:280])
     for task in db.scalars(select(Task).where(Task.tenant_id == tenant_id, Task.status != "DONE", Task.due_at < today)).all():
         if create_automation_notice(db, tenant_id, f"task-overdue:{task.id}:{task.due_at}", "TASK_OVERDUE", "Task overdue", f"{task.title} was due on {task.due_at.isoformat()}.", "WARNING"):
             counters["overdue_tasks"] += 1

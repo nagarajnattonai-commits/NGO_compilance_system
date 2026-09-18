@@ -1,20 +1,22 @@
 "use client";
 
 import { NextIntlClientProvider, useLocale, useMessages } from "next-intl";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   loadLocalizationSettings,
   loadTranslationOverrides,
-  updateLocalizationPreference,
 } from "@/lib/api";
 import type { LocalizationSettings, TranslationOverride } from "@/lib/types";
 import {
   defaultLocale,
   defaultTimeZone,
   isAppLocale,
-  localeCookieName,
   type AppLocale,
 } from "./config";
+import { loadMessages } from "./messages";
+import { applyTranslationOverrides } from "./overrides";
+import { usePublicLocalization } from "./public-client";
+import { hasExplicitLocalePreference, persistLocaleCookie, switchPublicLocale } from "./public-preference";
 
 type LocalizationContextValue = {
   locale: AppLocale;
@@ -27,26 +29,6 @@ type LocalizationContextValue = {
 const LocalizationContext = createContext<LocalizationContextValue | null>(
   null,
 );
-
-function setNested(
-  target: Record<string, unknown>,
-  path: string,
-  value: string,
-) {
-  const parts = path.split(".");
-  let current = target;
-  parts.forEach((part, index) => {
-    if (index === parts.length - 1) current[part] = value;
-    else {
-      const child = current[part];
-      current[part] =
-        child && typeof child === "object"
-          ? { ...(child as Record<string, unknown>) }
-          : {};
-      current = current[part] as Record<string, unknown>;
-    }
-  });
-}
 
 function readableFallback(namespace: string | undefined, key: string) {
   const source =
@@ -65,13 +47,21 @@ export function LocalizationProvider({
   const requestLocale = useLocale();
   const baseMessages = useMessages();
   const locale = isAppLocale(requestLocale) ? requestLocale : defaultLocale;
-  const [settings, setSettings] = useState<LocalizationSettings | null>(null);
+  const initialSettings = usePublicLocalization();
+  const [settings, setSettings] = useState<LocalizationSettings | null>(initialSettings);
+  const [applicationMessages, setApplicationMessages] = useState<Record<string, unknown> | null>(null);
   const [overrides, setOverrides] = useState<TranslationOverride[]>([]);
   const [loading, setLoading] = useState(true);
+  const refreshVersion = useRef(0);
   async function refresh() {
-    const nextSettings = await loadLocalizationSettings();
+    const version = ++refreshVersion.current;
+    const [nextSettings, nextOverrides, dictionary] = await Promise.all([
+      loadLocalizationSettings(), loadTranslationOverrides(), loadMessages(locale),
+    ]);
+    if (version !== refreshVersion.current) return;
     setSettings(nextSettings);
-    setOverrides(await loadTranslationOverrides());
+    setOverrides(nextOverrides);
+    setApplicationMessages(dictionary);
   }
   useEffect(() => {
     refresh()
@@ -83,38 +73,29 @@ export function LocalizationProvider({
     document.documentElement.dataset.timezone = settings.preference.timezone;
     document.documentElement.dataset.timeFormat =
       settings.preference.time_format;
-    const explicit = localStorage.getItem("setu-locale-explicit") === "1";
+    const explicit = hasExplicitLocalePreference();
     const tenantDefault = settings.locales.find(
       (item) => item.enabled && item.is_default,
     )?.locale_code;
-    const resolved =
-      settings.preference.locale || (!explicit ? tenantDefault : null);
+    const preferred = settings.locales.find(item =>
+      item.enabled && item.locale_code === settings.preference.locale,
+    )?.locale_code;
+    const currentEnabled = settings.locales.some(item => item.enabled && item.locale_code === locale);
+    const resolved = preferred || (!explicit || !currentEnabled ? tenantDefault : null);
     if (isAppLocale(resolved) && resolved !== locale) {
-      document.cookie = `${localeCookieName}=${resolved};path=/;max-age=31536000;samesite=lax`;
+      persistLocaleCookie(resolved);
       window.location.reload();
     }
   }, [settings, locale]);
   const messages = useMemo(() => {
-    const merged = JSON.parse(JSON.stringify(baseMessages)) as Record<
-      string,
-      unknown
-    >;
-    overrides
-      .filter((item) => item.locale_code === locale)
-      .forEach((item) =>
-        setNested(merged, item.translation_key, item.translation_value),
-      );
-    return merged;
-  }, [baseMessages, locale, overrides]);
+    if (!applicationMessages) return baseMessages;
+    const result = applyTranslationOverrides(applicationMessages, overrides, locale);
+    if (result.rejected.length) console.warn("Ignored invalid localization override keys", result.rejected);
+    return result.messages;
+  }, [applicationMessages, baseMessages, locale, overrides]);
   async function switchLocale(nextLocale: AppLocale) {
-    const preference = settings?.preference;
-    await updateLocalizationPreference({
-      locale: nextLocale,
-      timezone: preference?.timezone || defaultTimeZone,
-      time_format: preference?.time_format || "12h",
-    });
-    localStorage.setItem("setu-locale-explicit", "1");
-    document.cookie = `${localeCookieName}=${nextLocale};path=/;max-age=31536000;samesite=lax`;
+    // Never overwrite regional settings merely because preference loading is slow.
+    await switchPublicLocale(nextLocale, settings || await loadLocalizationSettings());
     window.location.reload();
   }
   return (

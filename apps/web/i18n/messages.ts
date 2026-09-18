@@ -11,6 +11,8 @@ export const messageModules = [
   "settings",
   "auth",
   "whiteLabel",
+  "marketing",
+  "complianceMaster",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -27,6 +29,8 @@ const loaders = {
       import("../messages/en-IN/settings.json"),
       import("../messages/en-IN/auth.json"),
       import("../messages/en-IN/white-label.json"),
+      import("../messages/en-IN/marketing.json"),
+      import("../messages/en-IN/compliance-master.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -40,6 +44,8 @@ const loaders = {
       import("../messages/hi-IN/settings.json"),
       import("../messages/hi-IN/auth.json"),
       import("../messages/hi-IN/white-label.json"),
+      import("../messages/hi-IN/marketing.json"),
+      import("../messages/hi-IN/compliance-master.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -53,6 +59,8 @@ const loaders = {
       import("../messages/kn-IN/settings.json"),
       import("../messages/kn-IN/auth.json"),
       import("../messages/kn-IN/white-label.json"),
+      import("../messages/kn-IN/marketing.json"),
+      import("../messages/kn-IN/compliance-master.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -66,6 +74,8 @@ const loaders = {
       import("../messages/mr-IN/settings.json"),
       import("../messages/mr-IN/auth.json"),
       import("../messages/mr-IN/white-label.json"),
+      import("../messages/mr-IN/marketing.json"),
+      import("../messages/mr-IN/compliance-master.json"),
     ]),
 } satisfies Record<
   AppLocale,
@@ -87,13 +97,14 @@ export async function loadLocaleMessages(locale: AppLocale) {
   ) as Record<string, unknown>;
 }
 
-function mergeMessages(
+export function mergeMessages(
   fallback: Record<string, unknown>,
   translated: Record<string, unknown>,
 ): Record<string, unknown> {
   const merged = { ...fallback };
   Object.entries(translated).forEach(([key, value]) => {
     const base = fallback[key];
+    if (typeof value === "string" && !value.trim() && typeof base === "string") return;
     merged[key] =
       value && typeof value === "object" && base && typeof base === "object"
         ? mergeMessages(

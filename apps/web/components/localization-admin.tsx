@@ -44,6 +44,7 @@ import {
   updateTenantLocales,
 } from "@/lib/api";
 import type { TenantLocale } from "@/lib/types";
+import { validateTranslation } from "@/i18n/overrides";
 
 function SortableLocale({
   row,
@@ -158,6 +159,7 @@ export default function LocalizationAdmin() {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeType, setNoticeType] = useState<"success" | "error">("success");
   const [busy, setBusy] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
@@ -266,19 +268,23 @@ export default function LocalizationAdmin() {
         ),
       );
       await refresh();
+      setNoticeType("success");
       setNotice(t("saved"));
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "Unable to save localization settings",
-      );
+    } catch {
+      setNoticeType("error");
+      setNotice(t("saveFailed"));
     } finally {
       setBusy(false);
     }
   }
   async function saveOverride(key: string) {
     if (!draft.trim()) return;
+    if (!validateTranslation(english[key], draft.trim(), selectedLocale)) {
+      setNoticeType("error");
+      setNotice(t("invalidTranslation"));
+      return;
+    }
+    setNotice("");
     setBusy(true);
     try {
       await saveTranslationOverride({
@@ -289,6 +295,11 @@ export default function LocalizationAdmin() {
       await refresh();
       setEditing(null);
       setDraft("");
+      setNoticeType("success");
+      setNotice(t("saved"));
+    } catch {
+      setNoticeType("error");
+      setNotice(t("saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -297,9 +308,15 @@ export default function LocalizationAdmin() {
     const row = overrideMap[key];
     if (!row) return;
     setBusy(true);
+    setNotice("");
     try {
       await deleteTranslationOverride(row.id);
       await refresh();
+      setNoticeType("success");
+      setNotice(t("saved"));
+    } catch {
+      setNoticeType("error");
+      setNotice(t("saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -323,7 +340,7 @@ export default function LocalizationAdmin() {
         </button>
       </div>
       {notice && (
-        <div className="auth-alert success" role="status">
+        <div className={`auth-alert ${noticeType}`} role={noticeType === "error" ? "alert" : "status"}>
           {notice}
         </div>
       )}
@@ -457,6 +474,7 @@ export default function LocalizationAdmin() {
                   {editing === key ? (
                     <textarea
                       autoFocus
+                      aria-label={t("editTranslation", { key })}
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
                     />

@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from decimal import Decimal
+from sqlalchemy.orm import Mapped, mapped_column, object_session
 
 from .database import Base
 
@@ -32,6 +33,17 @@ class Organization(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class OrganizationComplianceProfile(Base):
+    """Explicitly entered financial facts; no guessed revenue or legal thresholds."""
+    __tablename__ = "organization_compliance_profiles"
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    annual_revenue: Mapped[Decimal | None] = mapped_column(Numeric(20, 2), nullable=True)
+    revenue_period: Mapped[str] = mapped_column(String(30), default="")
+    updated_by: Mapped[str] = mapped_column(String(120))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Compliance(Base):
     __tablename__ = "compliance_instances"
 
@@ -53,6 +65,12 @@ class Compliance(Base):
     risk_note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    @property
+    def template_version_id(self) -> str | None:
+        from sqlalchemy import select
+        session = object_session(self)
+        return session.scalar(select(ComplianceSnapshot.version_id).where(ComplianceSnapshot.compliance_id == self.id)) if session else None
 
 
 class Task(Base):
@@ -99,6 +117,28 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(30), default="INFO")
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    @property
+    def template_key(self) -> str | None:
+        from sqlalchemy import select
+        session = object_session(self)
+        return session.scalar(select(ComplianceNotificationTemplate.template_key).where(ComplianceNotificationTemplate.notification_id == self.id)) if session else None
+
+    @property
+    def template_variables(self) -> dict:
+        import json
+        from sqlalchemy import select
+        session = object_session(self)
+        value = session.scalar(select(ComplianceNotificationTemplate.variables).where(ComplianceNotificationTemplate.notification_id == self.id)) if session else None
+        return json.loads(value) if value else {}
+
+
+class ComplianceNotificationTemplate(Base):
+    __tablename__ = "compliance_notification_templates"
+    notification_id: Mapped[str] = mapped_column(ForeignKey("notifications.id"), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    template_key: Mapped[str] = mapped_column(String(100), default="compliance.deadlineReminder")
+    variables: Mapped[str] = mapped_column(Text)
 
 
 class ComplianceComment(Base):
@@ -182,6 +222,76 @@ class ComplianceDefinition(Base):
     priority: Mapped[str] = mapped_column(String(20), default="MEDIUM")
     rule_version: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+
+
+class ComplianceCategory(Base):
+    __tablename__ = "compliance_categories"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    name: Mapped[str] = mapped_column(String(60), unique=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ComplianceMaster(Base):
+    """Global identity extending the existing definition, not a second catalogue."""
+    __tablename__ = "compliance_master"
+    id: Mapped[str] = mapped_column(ForeignKey("compliance_definitions.id"), primary_key=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    category_id: Mapped[str] = mapped_column(ForeignKey("compliance_categories.id"))
+    current_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ComplianceTemplateVersion(Base):
+    __tablename__ = "compliance_definition_versions"
+    __table_args__ = (UniqueConstraint("definition_id", "version", name="uq_compliance_template_version"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    definition_id: Mapped[str] = mapped_column(ForeignKey("compliance_master.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), default="DRAFT", index=True)
+    configuration: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(String(220), default="")
+    category_id: Mapped[str] = mapped_column(ForeignKey("compliance_categories.id"))
+    jurisdiction: Mapped[str] = mapped_column(String(100), default="")
+    frequency: Mapped[str] = mapped_column(String(30), default="ANNUAL")
+    risk_level: Mapped[str] = mapped_column(String(20), default="MEDIUM")
+    search_text: Mapped[str] = mapped_column(Text, default="")
+    organization_types: Mapped[str] = mapped_column(String(500), default="")
+    change_summary: Mapped[str] = mapped_column(String(500), default="Initial configuration")
+    created_by: Mapped[str] = mapped_column(String(120))
+    updated_by: Mapped[str] = mapped_column(String(120))
+    reviewed_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    published_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ComplianceSnapshot(Base):
+    __tablename__ = "compliance_instance_snapshots"
+    __table_args__ = (UniqueConstraint("tenant_id", "organization_id", "definition_id", "cycle", name="uq_template_instance_cycle"),)
+    compliance_id: Mapped[str] = mapped_column(ForeignKey("compliance_instances.id"), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"))
+    definition_id: Mapped[str] = mapped_column(ForeignKey("compliance_master.id"))
+    version_id: Mapped[str] = mapped_column(ForeignKey("compliance_definition_versions.id"))
+    cycle: Mapped[str] = mapped_column(String(80))
+    configuration: Mapped[str] = mapped_column(Text)
+    checklist_tasks: Mapped[str] = mapped_column(Text, default="[]")
+    owner_required: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ComplianceReminder(Base):
+    __tablename__ = "compliance_reminder_schedule"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    compliance_id: Mapped[str] = mapped_column(ForeignKey("compliance_instances.id"), index=True)
+    event_key: Mapped[str] = mapped_column(String(220), unique=True)
+    scheduled_for: Mapped[date] = mapped_column(Date, index=True)
+    configuration: Mapped[str] = mapped_column(Text)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Membership(Base):

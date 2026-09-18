@@ -18,98 +18,30 @@ import {
   X,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
-import { useLocale } from "next-intl";
-import { localeCookieName, type AppLocale } from "@/i18n/config";
+import { useLocale, useTranslations } from "next-intl";
+import { availableLocales, localeMetadata, isAppLocale, type AppLocale } from "@/i18n/config";
+import { switchPublicLocale } from "@/i18n/public-preference";
+import type { LocalizationSettings } from "@/lib/types";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
-type Locale = "en" | "hi" | "mr" | "kn";
 type OpenMenu = "about" | "donation" | "more" | "language" | null;
 
-const languages: Array<{
-  id: Locale;
-  htmlLang: string;
-  badge: string;
-  label: string;
-}> = [
-  { id: "en", htmlLang: "en", badge: "EN", label: "English" },
-  { id: "hi", htmlLang: "hi", badge: "हि", label: "हिन्दी" },
-  { id: "mr", htmlLang: "mr", badge: "म", label: "मराठी" },
-  { id: "kn", htmlLang: "kn", badge: "ಕ", label: "ಕನ್ನಡ" },
-];
-
-const navigationCopy: Record<
-  Locale,
-  {
-    home: string;
-    about: string;
-    certificates: string;
-    projects: string;
-    donation: string;
-    contact: string;
-    more: string;
-    login: string;
-    support: string;
-  }
-> = {
-  en: {
-    home: "Home",
-    about: "About",
-    certificates: "Certificates",
-    projects: "Projects",
-    donation: "Donation",
-    contact: "Contact",
-    more: "More",
-    login: "Log in",
-    support: "Support Us",
-  },
-  hi: {
-    home: "होम",
-    about: "परिचय",
-    certificates: "प्रमाणपत्र",
-    projects: "परियोजनाएँ",
-    donation: "दान",
-    contact: "संपर्क",
-    more: "अधिक",
-    login: "लॉग इन",
-    support: "सहयोग करें",
-  },
-  mr: {
-    home: "मुख्यपृष्ठ",
-    about: "आमच्याबद्दल",
-    certificates: "प्रमाणपत्रे",
-    projects: "प्रकल्प",
-    donation: "देणगी",
-    contact: "संपर्क",
-    more: "अधिक",
-    login: "लॉग इन",
-    support: "सहयोग करा",
-  },
-  kn: {
-    home: "ಮುಖಪುಟ",
-    about: "ಪರಿಚಯ",
-    certificates: "ಪ್ರಮಾಣಪತ್ರಗಳು",
-    projects: "ಯೋಜನೆಗಳು",
-    donation: "ದೇಣಿಗೆ",
-    contact: "ಸಂಪರ್ಕ",
-    more: "ಇನ್ನಷ್ಟು",
-    login: "ಲಾಗ್ ಇನ್",
-    support: "ಬೆಂಬಲಿಸಿ",
-  },
-};
-
-export default function PublicNavigation() {
+export default function PublicNavigation({ localization }: { localization?: LocalizationSettings | null }) {
+  const t = useTranslations("Marketing");
+  const [changingLanguage, setChangingLanguage] = useState(false);
+  const languages = availableLocales(localization?.locales);
   const brand = useTenantBrand();
   const requestLocale = useLocale();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [activeSection, setActiveSection] = useState("home");
-  const locale = (requestLocale.split("-")[0] as Locale) || "en";
+  const locale = isAppLocale(requestLocale) ? requestLocale : "en-IN";
   const [languageNotice, setLanguageNotice] = useState("");
   const headerRef = useRef<HTMLElement>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedLanguage =
-    languages.find((language) => language.id === locale) ?? languages[0];
-  const copy = navigationCopy[locale];
+    languages.find((language) => language.code === locale) ?? localeMetadata(locale);
+
 
   const closeNavigation = () => {
     setMobileOpen(false);
@@ -186,23 +118,18 @@ export default function PublicNavigation() {
     return () => observer.disconnect();
   }, []);
 
-  const chooseLanguage = (nextLocale: Locale) => {
-    const language =
-      languages.find((item) => item.id === nextLocale) ?? languages[0];
-    const localeCode = (
-      { en: "en-IN", hi: "hi-IN", mr: "mr-IN", kn: "kn-IN" } as Record<
-        Locale,
-        AppLocale
-      >
-    )[nextLocale];
-    localStorage.setItem("setu-locale-explicit", "1");
-    document.cookie = `${localeCookieName}=${localeCode};path=/;max-age=31536000;samesite=lax`;
-    setOpenMenu(null);
-    setLanguageNotice(
-      `${language.label} selected. Navigation language updated.`,
-    );
-    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-    noticeTimerRef.current = setTimeout(() => window.location.reload(), 250);
+  const chooseLanguage = async (nextLocale: AppLocale) => {
+    if (changingLanguage) return;
+    setChangingLanguage(true);
+    try {
+      await switchPublicLocale(nextLocale, localization);
+      setOpenMenu(null);
+      setLanguageNotice(t("navigation.selectionNotice", {language: localeMetadata(nextLocale).nativeLabel}));
+      noticeTimerRef.current = setTimeout(() => window.location.reload(), 150);
+    } catch {
+      setChangingLanguage(false);
+      setLanguageNotice(t("navigation.selectionFailed"));
+    }
   };
 
   const navigateToSection = (
@@ -251,7 +178,7 @@ export default function PublicNavigation() {
           <i />
         </span>
         <strong>
-          Setu NGO<small>Compliance and impact management</small>
+          Setu NGO<small>{t("complianceAndImpactManagement")}</small>
         </strong></>}
       </Link>
 
@@ -259,18 +186,18 @@ export default function PublicNavigation() {
         <button
           className="public-nav-backdrop"
           type="button"
-          aria-label="Close navigation"
+          aria-label={t("navigation.closeNavigation")}
           onClick={closeNavigation}
         />
       )}
 
-      <nav aria-label="Public website navigation" data-open={mobileOpen}>
+      <nav id="public-navigation" aria-label={t("navigation.publicNavigation")} data-open={mobileOpen}>
         <a
           className={activeSection === "home" ? "active" : ""}
           href="#home"
           onClick={(event) => navigateToSection(event, "home")}
         >
-          {copy.home}
+          {t("navigation.home")}
         </a>
         <div className="public-nav-menu" data-open={openMenu === "about"}>
           <button
@@ -282,29 +209,29 @@ export default function PublicNavigation() {
             aria-controls="about-navigation"
             onClick={() => toggleMenu("about")}
           >
-            {copy.about} <ChevronDown size={13} />
+            {t("navigation.about")} <ChevronDown size={13} />
           </button>
           <div className="nav-menu-panel" id="about-navigation">
             <a
               href="#platform"
               onClick={(event) => navigateToSection(event, "platform")}
             >
-              <strong>About Setu</strong>
-              <small>What the platform provides</small>
+              <strong>{t("navigation.aboutBrand", {brand: brand.brand_name})}</strong>
+              <small>{t("navigation.provides")}</small>
             </a>
             <a
               href="#workflow"
               onClick={(event) => navigateToSection(event, "workflow")}
             >
-              <strong>How it works</strong>
-              <small>The compliance lifecycle</small>
+              <strong>{t("navigation.howItWorks")}</strong>
+              <small>{t("navigation.lifecycle")}</small>
             </a>
             <a
               href="#security"
               onClick={(event) => navigateToSection(event, "security")}
             >
-              <strong>Security</strong>
-              <small>Tenant isolation and audit</small>
+              <strong>{t("navigation.security")}</strong>
+              <small>{t("navigation.isolation")}</small>
             </a>
           </div>
         </div>
@@ -313,14 +240,14 @@ export default function PublicNavigation() {
           href="#certificates"
           onClick={(event) => navigateToSection(event, "certificates")}
         >
-          {copy.certificates}
+          {t("navigation.certificates")}
         </a>
         <a
           className={activeSection === "projects" ? "active" : ""}
           href="#projects"
           onClick={(event) => navigateToSection(event, "projects")}
         >
-          {copy.projects}
+          {t("navigation.projects")}
         </a>
         <div className="public-nav-menu" data-open={openMenu === "donation"}>
           <button
@@ -334,23 +261,23 @@ export default function PublicNavigation() {
             aria-controls="donation-navigation"
             onClick={() => toggleMenu("donation")}
           >
-            {copy.donation} <ChevronDown size={13} />
+            {t("navigation.donation")} <ChevronDown size={13} />
           </button>
           <div className="nav-menu-panel" id="donation-navigation">
             <a href="#dnd" onClick={(event) => navigateToSection(event, "dnd")}>
-              <strong>Donor records</strong>
-              <small>Relationships and stewardship</small>
+              <strong>{t("navigation.donors")}</strong>
+              <small>{t("navigation.relationships")}</small>
             </a>
             <a href="#dnd" onClick={(event) => navigateToSection(event, "dnd")}>
-              <strong>Donations and grants</strong>
-              <small>Commitments and evidence</small>
+              <strong>{t("navigation.grants")}</strong>
+              <small>{t("navigation.commitments")}</small>
             </a>
             <a
               href="#projects"
               onClick={(event) => navigateToSection(event, "projects")}
             >
-              <strong>Impact reporting</strong>
-              <small>Milestones and utilization</small>
+              <strong>{t("navigation.impact")}</strong>
+              <small>{t("navigation.milestones")}</small>
             </a>
           </div>
         </div>
@@ -359,7 +286,7 @@ export default function PublicNavigation() {
           href="#contact"
           onClick={(event) => navigateToSection(event, "contact")}
         >
-          {copy.contact}
+          {t("navigation.contact")}
         </a>
         <div
           className="public-nav-menu more-menu"
@@ -370,55 +297,55 @@ export default function PublicNavigation() {
               moreActive ? "nav-menu-trigger active" : "nav-menu-trigger"
             }
             type="button"
-            aria-label={`${copy.more} navigation`}
+            aria-label={`${t("navigation.more")} navigation`}
             aria-expanded={openMenu === "more"}
             aria-controls="more-navigation"
             onClick={() => toggleMenu("more")}
           >
             <Ellipsis size={18} />
-            <span className="more-label">{copy.more}</span>
+            <span className="more-label">{t("navigation.more")}</span>
           </button>
           <div className="nav-menu-panel" id="more-navigation">
             <a
               href="#plans"
               onClick={(event) => navigateToSection(event, "plans")}
             >
-              <strong>Plans</strong>
-              <small>Capacity for every team</small>
+              <strong>{t("navigation.plans")}</strong>
+              <small>{t("navigation.capacity")}</small>
             </a>
             <a
               href="#admin"
               onClick={(event) => navigateToSection(event, "admin")}
             >
-              <strong>Administration</strong>
-              <small>Workspace governance</small>
+              <strong>{t("navigation.administration")}</strong>
+              <small>{t("navigation.governance")}</small>
             </a>
             <a href="#faq" onClick={(event) => navigateToSection(event, "faq")}>
-              <strong>Common questions</strong>
-              <small>Product scope and answers</small>
+              <strong>{t("navigation.questions")}</strong>
+              <small>{t("navigation.answers")}</small>
             </a>
             <Link href="/admin/login" onClick={closeNavigation}>
-              <strong>Admin portal</strong>
-              <small>Administrator sign in</small>
+              <strong>{t("navigation.adminPortal")}</strong>
+              <small>{t("navigation.adminSignIn")}</small>
             </Link>
           </div>
         </div>
         <div className="mobile-nav-access">
-          <div>
+          <button type="button" className="mobile-language-trigger" aria-label={t("navigation.chooseLanguage", {language: selectedLanguage.nativeLabel})} onClick={() => {setMobileOpen(false); setOpenMenu("language");}}>
             <Globe2 size={15} />
             <span>
-              <strong>{selectedLanguage.label}</strong>
-              <small>English, हिन्दी, मराठी and ಕನ್ನಡ available</small>
+              <strong>{selectedLanguage.nativeLabel}</strong>
+              <small>{t("navigation.availableLanguages")}</small>
             </span>
-          </div>
+          </button>
           <Link href="/login" onClick={closeNavigation}>
-            {copy.login} <ArrowUpRight size={14} />
+            {t("navigation.login")} <ArrowUpRight size={14} />
           </Link>
           <a
             href="#support"
             onClick={(event) => navigateToSection(event, "support")}
           >
-            {copy.support} <HandHeart size={14} />
+            {t("navigation.support")} <HandHeart size={14} />
           </a>
         </div>
       </nav>
@@ -429,8 +356,8 @@ export default function PublicNavigation() {
           <button
             className="language-trigger"
             type="button"
-            aria-label={`Choose language. Current language: ${selectedLanguage.label}`}
-            title={`Language: ${selectedLanguage.label}`}
+            aria-label={t("navigation.chooseLanguage", {language: selectedLanguage.nativeLabel})}
+            title={t("navigation.chooseLanguage", {language: selectedLanguage.nativeLabel})}
             aria-expanded={openMenu === "language"}
             aria-controls="language-options"
             onClick={() => {
@@ -439,26 +366,27 @@ export default function PublicNavigation() {
             }}
           >
             <Globe2 size={17} />
-            <span className="language-current">{selectedLanguage.badge}</span>
+            <span className="language-current">{selectedLanguage.language.toUpperCase()}</span>
           </button>
           <div className="language-panel" id="language-options">
             {languages.map((language) => (
               <button
                 type="button"
-                className={locale === language.id ? "active" : ""}
-                aria-pressed={locale === language.id}
-                onClick={() => chooseLanguage(language.id)}
-                key={language.id}
+                className={locale === language.code ? "active" : ""}
+                aria-pressed={locale === language.code}
+                disabled={changingLanguage}
+                onClick={() => chooseLanguage(language.code)}
+                key={language.code}
               >
-                <span>{language.badge}</span>
-                {language.label}
-                <small>{locale === language.id ? "Selected" : "Choose"}</small>
+                <span>{language.language.toUpperCase()}</span>
+                {language.nativeLabel}
+                <small>{locale === language.code ? t("navigation.selected") : t("navigation.choose")}</small>
               </button>
             ))}
           </div>
         </div>
         <Link className="header-login-link" href="/login">
-          {copy.login}
+          {t("navigation.login")}
         </Link>
         <a
           className="marketing-support-button"
@@ -466,12 +394,13 @@ export default function PublicNavigation() {
           onClick={(event) => navigateToSection(event, "support")}
         >
           <HandHeart size={15} />
-          {copy.support}
+          {t("navigation.support")}
         </a>
         <button
           className="public-nav-toggle"
           type="button"
-          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+          aria-label={mobileOpen ? t("navigation.closeNavigation") : t("navigation.openNavigation")}
+          aria-controls="public-navigation"
           aria-expanded={mobileOpen}
           onClick={() => {
             setMobileOpen((open) => !open);

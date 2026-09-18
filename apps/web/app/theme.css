@@ -127,7 +127,7 @@ html[data-theme="dark"] .theme-toggle-icon .theme-toggle-track i { transform: tr
   transition: opacity .3s ease;
 }
 
-.marketing-site > :not(.marketing-progress, .marketing-spotlight) { position: relative; z-index: 1; }
+.marketing-site > :not(.marketing-progress, .marketing-spotlight, .marketing-header) { position: relative; z-index: 1; }
 .marketing-site.motion-ready .reveal-section { opacity: 0; transform: translateY(34px); transition: opacity .75s ease, transform .75s cubic-bezier(.2, .75, .2, 1); }
 .marketing-site.motion-ready .reveal-section.is-visible { opacity: 1; transform: translateY(0); }
 .marketing-site.motion-ready .marketing-hero { transition-delay: .05s; }

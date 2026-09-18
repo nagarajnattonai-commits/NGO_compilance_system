@@ -11,6 +11,7 @@ export type Organization = {
 
 export type Compliance = {
   id: string;
+  template_version_id?: string | null;
   organization_id: string;
   code: string;
   title: string;
@@ -57,6 +58,8 @@ export type Notification = {
   id: string;
   title: string;
   message: string;
+  template_key?: string | null;
+  template_variables?: { complianceName: string; names: Record<string, string>; dueDate: string; recipientRole: string; reminderText: string; reminderTexts: Record<string, string>; escalationLevel: number; templateVersionId: string };
   kind: string;
   is_read: boolean;
   created_at: string;
@@ -80,8 +83,8 @@ export type ComplianceDefinition = {
   legal_reference: string;
   applicable_legal_types: string;
   requires_fcra: boolean;
-  deadline_month: number;
-  deadline_day: number;
+  deadline_month: number | null;
+  deadline_day: number | null;
   internal_lead_days: number;
   priority: string;
   rule_version: number;

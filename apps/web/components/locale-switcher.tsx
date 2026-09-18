@@ -2,23 +2,29 @@
 
 import { Globe2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { supportedLocales, type AppLocale } from "@/i18n/config";
+import { useState } from "react";
+import { availableLocales, type AppLocale } from "@/i18n/config";
 import { useLocalization } from "@/i18n/client";
 
 export default function LocaleSwitcher({
   compact = false,
+  beforeChange,
 }: {
   compact?: boolean;
+  beforeChange?: () => boolean;
 }) {
   const t = useTranslations("Settings");
   const { locale, settings, loading, switchLocale } = useLocalization();
-  const enabledCodes = settings?.locales
-    .filter((item) => item.enabled)
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((item) => item.locale_code);
-  const options = supportedLocales.filter(
-    (item) => !enabledCodes || enabledCodes.includes(item.code),
-  );
+  const options = availableLocales(settings?.locales);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function choose(locale: AppLocale) {
+    if (beforeChange && !beforeChange()) return;
+    setBusy(true);
+    setError("");
+    try { await switchLocale(locale); }
+    catch { setBusy(false); setError(t("saveFailed")); }
+  }
   return (
     <label
       className={`locale-switcher ${compact ? "compact" : ""}`}
@@ -29,8 +35,8 @@ export default function LocaleSwitcher({
       <select
         aria-label={t("preferredLanguage")}
         value={locale}
-        disabled={loading}
-        onChange={(event) => void switchLocale(event.target.value as AppLocale)}
+        disabled={loading || busy}
+        onChange={(event) => void choose(event.target.value as AppLocale)}
       >
         {options.map((item) => (
           <option key={item.code} value={item.code}>
@@ -40,6 +46,7 @@ export default function LocaleSwitcher({
           </option>
         ))}
       </select>
+      {error && <span role="alert">{error}</span>}
     </label>
   );
 }

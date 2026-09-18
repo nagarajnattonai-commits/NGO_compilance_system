@@ -97,6 +97,7 @@ def current_user(request: Request, db: DB) -> User:
     request.state.actor_name = user.name
     request.state.user_id = user.id
     db.info["actor_name"] = user.name
+    db.info["actor_id"] = user.id
     return user
 
 

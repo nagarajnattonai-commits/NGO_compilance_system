@@ -92,6 +92,22 @@ The implementation coverage map is maintained in `docs/feature-coverage.md`. It 
 
 The UI uses `next-intl` with module-split dictionaries for `en-IN`, `hi-IN`, `kn-IN` and `mr-IN`. English is the safe fallback. Authenticated users can store locale, timezone and 12/24-hour preferences independently; administrators can configure enabled/default languages and order at `/settings/localization`, and can manage tenant-scoped translation overrides at `/settings/localization/translations`. Internal status, role, priority and workflow values remain language-neutral.
 
+The public website uses the same module-split dictionaries, including service
+cards, FAQs, navigation, accessibility labels and localized example dates/numbers.
+Languages render on the server before hydration. Public language selection saves
+the existing authenticated user's preference without changing timezone or time
+format, and respects tenant-enabled languages, display names and order. Tenant
+overrides are applied to request-local dictionary copies, never shared imports.
+Run `npm run test:white-label` in `apps/web` for the isolated public localization,
+menu layering, responsive and white-label regression tests.
+
+Translation edits preserve ICU variable names and plural formats. Invalid or
+unknown overrides are ignored by both server and client rendering with key-only
+warnings; the editor rejects malformed text before saving. Resetting an override
+refreshes the canonical active-language dictionary immediately. Disabled saved
+preferences cannot cause reload loops, and explicit language cookies still work
+when browser storage is blocked. All selectors share tenant ordering and names.
+
 ## Production roadmap
 
 ### White-label branding

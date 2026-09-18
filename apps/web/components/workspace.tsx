@@ -98,6 +98,10 @@ import {
 } from "@/i18n/format";
 import LocalizationAdmin from "@/components/localization-admin";
 import WhiteLabelSettings from "@/components/white-label-settings";
+import PlatformNavigation from "@/components/platform-navigation";
+import ComplianceTemplateRuntime from "@/components/compliance-template-runtime";
+import { ComplianceNotificationMessage, ComplianceNotificationTitle } from "@/components/compliance-notification";
+import OrganizationComplianceProfile from "@/components/organization-compliance-profile";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
 const UserContext = createContext<AuthUser | null>(null);
@@ -839,6 +843,7 @@ export default function ComplianceApp({
         {selectedCompliance && (
           <ComplianceDrawer
             item={selectedCompliance}
+            templateUpdated={(updated) => { setSelectedCompliance(updated); setCompliances((rows) => rows.map((row) => row.id === updated.id ? updated : row)); }}
             org={organizations.find(
               (o) => o.id === selectedCompliance.organization_id,
             )}
@@ -2370,6 +2375,8 @@ function AdministrationView({
         }
       />
       <UserManagement currentUser={useCurrentUser()} />
+      <PlatformNavigation />
+      <OrganizationComplianceProfile organizations={organizations} />
       <div className="admin-summary">
         <div>
           <span>Current plan</span>
@@ -2637,8 +2644,8 @@ function NotificationPanel({
             )}
           </span>
           <span>
-            <strong>{item.title}</strong>
-            <small>{item.message}</small>
+            <strong><ComplianceNotificationTitle item={item} /></strong>
+            <small><ComplianceNotificationMessage item={item} /></small>
             <em>{niceDate(item.created_at)}</em>
           </span>
           {!item.is_read && <i />}
@@ -2653,6 +2660,7 @@ function NotificationPanel({
 
 function ComplianceDrawer({
   item,
+  templateUpdated,
   org,
   relatedTasks,
   relatedDocs,
@@ -2663,6 +2671,7 @@ function ComplianceDrawer({
   showToast,
 }: {
   item: Compliance;
+  templateUpdated: (item: Compliance) => void;
   org?: Organization;
   relatedTasks: ComplianceTask[];
   relatedDocs: ComplianceDocument[];
@@ -2760,7 +2769,7 @@ function ComplianceDrawer({
       },
     },
   };
-  const action = actions[item.status];
+  const action = item.template_version_id ? undefined : actions[item.status];
   const selected: {
     status: string;
     label: string;
@@ -2827,6 +2836,7 @@ function ComplianceDrawer({
               {item.priority} priority
             </span>
           </div>
+          {item.template_version_id && <ComplianceTemplateRuntime item={item} updated={templateUpdated} />}
           <div className="progress-block">
             <div>
               <span>Preparation progress</span>
@@ -3394,8 +3404,8 @@ function NotificationCenter({
                 )}
               </span>
               <span>
-                <strong>{item.title}</strong>
-                <small>{item.message}</small>
+                <strong><ComplianceNotificationTitle item={item} /></strong>
+                <small><ComplianceNotificationMessage item={item} /></small>
                 <em>{niceDate(item.created_at)}</em>
               </span>
               {!item.is_read && <i />}

@@ -82,6 +82,7 @@ class ComplianceTransition(BaseModel):
 
 class ComplianceOut(ORMModel):
     id: str
+    template_version_id: str | None = None
     organization_id: str
     code: str
     title: str
@@ -175,8 +176,8 @@ class ComplianceDefinitionOut(ORMModel):
     legal_reference: str
     applicable_legal_types: str
     requires_fcra: bool
-    deadline_month: int
-    deadline_day: int
+    deadline_month: int | None
+    deadline_day: int | None
     internal_lead_days: int
     priority: str
     rule_version: int
@@ -289,6 +290,8 @@ class OrganizationOnboardingOut(BaseModel):
 
 class NotificationOut(ORMModel):
     id: str
+    template_key: str | None = None
+    template_variables: dict = Field(default_factory=dict)
     title: str
     message: str
     kind: str
