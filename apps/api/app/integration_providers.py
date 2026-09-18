@@ -155,6 +155,16 @@ class S3Adapter(BaseAdapter):
         return self._run("get_object",Key=self._key(key))["Body"]
     def delete(self,key):
         self._run("delete_object",Key=self._key(key))
+    def assert_private(self):
+        block=self._run("get_public_access_block")["PublicAccessBlockConfiguration"]
+        if not all(block.get(k) for k in ("BlockPublicAcls","IgnorePublicAcls","BlockPublicPolicy","RestrictPublicBuckets")):
+            raise IntegrationError("INVALID_CONFIGURATION")
+    def upload_private(self,key,data,mime):
+        import hashlib
+        return self._run("put_object",Key=self._key(key),Body=data,ContentType=mime,ServerSideEncryption="AES256",IfNoneMatch="*",Metadata={"sha256":hashlib.sha256(data).hexdigest()})
+    def head(self,key):
+        return self._run("head_object",Key=self._key(key))
+
 
 @dataclass(frozen=True)
 class ProviderDefinition:

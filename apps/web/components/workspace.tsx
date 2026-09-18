@@ -49,15 +49,12 @@ import {
   addComplianceComment,
   askAssistant,
   createCompliance,
-  createDocument,
-  createDocumentVersion,
   createOrganization,
   createPortfolioRecord,
   createTask,
   deletePortfolioRecord,
   inviteMember,
   loadComplianceComments,
-  loadDocumentVersions,
   loadWorkspace,
   markNotificationRead,
   patchIntegration,
@@ -68,6 +65,8 @@ import {
 } from "@/lib/api";
 import Link from "next/link";
 import OnboardingBanner from "./onboarding-banner";
+import {DocumentUploadForm,DocumentFileDetail} from "./document-library";
+import {contentUrl} from "@/lib/evidence";
 import { apiRequest } from "@/lib/http";
 import { roleLabel, type AuthUser } from "@/lib/auth-types";
 import UserManagement from "@/components/user-management";
@@ -79,7 +78,6 @@ import type {
   ComplianceDefinition,
   ComplianceDocument,
   ComplianceTask,
-  DocumentVersion,
   IntegrationConnection,
   Membership,
   Notification,
@@ -199,11 +197,7 @@ function dateInput(daysFromToday: number) {
 }
 
 function documentReceipt(doc: ComplianceDocument) {
-  downloadText(
-    `${doc.name.replace(/\.[^.]+$/, "")}-record.json`,
-    JSON.stringify(doc, null, 2),
-    "application/json",
-  );
+  if (doc.current_version_id && doc.storage_status === "AVAILABLE") window.location.assign(contentUrl(doc.id));
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -3491,158 +3485,9 @@ function TaskDetailsModal({
   );
 }
 
-function DocumentDetailsModal({
-  doc,
-  organization,
-  close,
-  download,
-  onVersion,
-}: {
-  doc: ComplianceDocument;
-  organization?: Organization;
-  close: () => void;
-  download: () => void;
-  onVersion: (document: ComplianceDocument) => void;
-}) {
-  const currentUser = useCurrentUser();
-  const [versions, setVersions] = useState<DocumentVersion[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    void loadDocumentVersions(doc.id).then(setVersions);
-  }, [doc.id, doc.version]);
-
-  async function addVersion() {
-    if (!file || saving) return;
-    if (file.size > 25 * 1024 * 1024) {
-      setError("The selected file is larger than 25 MB.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const updated = await createDocumentVersion(doc.id, {
-        file_type: file.name.split(".").pop()?.toUpperCase() || "FILE",
-        size_label:
-          file.size >= 1024 * 1024
-            ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-            : `${Math.max(1, Math.round(file.size / 1024))} KB`,
-        uploaded_by: currentUser.name,
-      });
-      onVersion(updated);
-      setFile(null);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Could not add this version.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal
-      title={doc.name}
-      text="Stored document metadata, immutable versions and evidence ownership."
-      close={close}
-    >
-      <div className="modal-content">
-        <div className="detail-grid modal-detail-grid">
-          <div>
-            <span>Organization</span>
-            <strong>{organization?.name || doc.organization_id}</strong>
-          </div>
-          <div>
-            <span>Category</span>
-            <strong>{doc.category}</strong>
-          </div>
-          <div>
-            <span>File type</span>
-            <strong>{doc.file_type}</strong>
-          </div>
-          <div>
-            <span>Active version</span>
-            <strong>v{doc.version}</strong>
-          </div>
-          <div>
-            <span>Size</span>
-            <strong>{doc.size_label}</strong>
-          </div>
-          <div>
-            <span>Expiry</span>
-            <strong>{niceDate(doc.expiry_at)}</strong>
-          </div>
-        </div>
-        <section className="version-section">
-          <div className="section-title">
-            <h3>Version history</h3>
-            <span>{versions.length || doc.version} recorded</span>
-          </div>
-          <div className="version-list">
-            {versions.map((version) => (
-              <div key={version.id}>
-                <span>v{version.version}</span>
-                <div>
-                  <strong>
-                    {version.file_type} · {version.size_label}
-                  </strong>
-                  <small>
-                    {version.uploaded_by} · {niceDate(version.created_at)}
-                  </small>
-                </div>
-                <ShieldCheck size={16} />
-              </div>
-            ))}
-          </div>
-          <div className="version-upload">
-            <label>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                onChange={(event) => {
-                  setFile(event.target.files?.[0] || null);
-                  setError("");
-                }}
-              />
-              <Upload size={17} />
-              {file?.name || "Choose replacement file"}
-            </label>
-            <button
-              className="button secondary small"
-              type="button"
-              disabled={!file || saving}
-              onClick={addVersion}
-            >
-              {saving ? "Adding..." : "Add version"}
-            </button>
-          </div>
-          {error && (
-            <div className="form-error" role="alert">
-              <AlertTriangle size={16} />
-              {error}
-            </div>
-          )}
-        </section>
-        <div className="form-info">
-          <ShieldCheck size={17} />
-          Each replacement creates a new immutable version record. Binary object
-          storage remains the production integration boundary.
-        </div>
-        <div className="modal-actions">
-          <button className="button secondary" onClick={close}>
-            Close
-          </button>
-          <button className="button primary" onClick={download}>
-            <Download size={16} />
-            Download record
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
+function DocumentDetailsModal({doc,organization,close,onVersion}:{doc:ComplianceDocument;organization?:Organization;close:()=>void;download:()=>void;onVersion:(document:ComplianceDocument)=>void}) {
+  const t=useTranslations("Evidence");const user=useCurrentUser();
+  return <Modal title={doc.name} text={t("private")} close={close}><div className="modal-content"><DocumentFileDetail doc={doc} organization={organization} canUpload={user.role!=="VIEWER"} canManage={user.role==="ADMIN"} onUpdate={onVersion}/></div></Modal>;
 }
 
 function NewTaskModal({
@@ -3965,163 +3810,9 @@ function NewComplianceModal({
   );
 }
 
-function UploadModal({
-  organizations,
-  compliances,
-  currentOrg,
-  initialComplianceId,
-  close,
-  onUpload,
-}: {
-  organizations: Organization[];
-  compliances: Compliance[];
-  currentOrg: string;
-  initialComplianceId: string | null;
-  close: () => void;
-  onUpload: (doc: ComplianceDocument) => void;
-}) {
-  const currentUser = useCurrentUser();
-  const [file, setFile] = useState<File | null>(null);
-  const [org, setOrg] = useState(
-    currentOrg === "all" ? organizations[0]?.id : currentOrg,
-  );
-  const [complianceId, setComplianceId] = useState(initialComplianceId || "");
-  const [category, setCategory] = useState("Evidence");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!file || !org || saving) return;
-    if (file.size > 25 * 1024 * 1024) {
-      setError("The selected file is larger than 25 MB.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const doc = await createDocument({
-        organization_id: org,
-        compliance_id: complianceId || null,
-        name: file.name,
-        category,
-        file_type: file.name.split(".").pop()?.toUpperCase() || "FILE",
-        size_label:
-          file.size >= 1024 * 1024
-            ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-            : `${Math.max(1, Math.round(file.size / 1024))} KB`,
-        expiry_at: null,
-        uploaded_by: currentUser.name,
-      });
-      onUpload(doc);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Could not add this document.",
-      );
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal
-      title="Upload evidence"
-      text="Add a document to the secure, versioned evidence library."
-      close={close}
-    >
-      <form onSubmit={submit} className="form">
-        <label className="dropzone">
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
-              setError("");
-            }}
-          />
-          <Upload size={24} />
-          <strong>{file?.name || "Choose a file or drag it here"}</strong>
-          <span>PDF, DOCX, XLSX, JPG or PNG · up to 25 MB</span>
-        </label>
-        <div className="form-row">
-          <label>
-            <span>Organization</span>
-            <select
-              required
-              value={org}
-              onChange={(e) => {
-                setOrg(e.target.value);
-                setComplianceId("");
-              }}
-            >
-              {organizations.map((o) => (
-                <option value={o.id} key={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Category</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option>Evidence</option>
-              <option>Registration</option>
-              <option>Financial</option>
-              <option>Tax Registration</option>
-            </select>
-          </label>
-        </div>
-        <label>
-          <span>Linked compliance</span>
-          <select
-            value={complianceId}
-            onChange={(e) => setComplianceId(e.target.value)}
-          >
-            <option value="">General organization document</option>
-            {compliances
-              .filter((item) => item.organization_id === org)
-              .map((item) => (
-                <option value={item.id} key={item.id}>
-                  {item.title}
-                </option>
-              ))}
-          </select>
-        </label>
-        {error && (
-          <div className="form-error" role="alert">
-            <AlertTriangle size={16} />
-            {error}
-          </div>
-        )}
-        <div className="form-info">
-          <ShieldCheck size={17} />
-          Document metadata is private and access-controlled. New versions never
-          overwrite history.
-        </div>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="button secondary"
-            onClick={close}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            className="button primary"
-            type="submit"
-            disabled={!file || saving}
-          >
-            {saving ? "Uploading..." : "Upload securely"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
+function UploadModal({organizations,compliances,currentOrg,initialComplianceId,close,onUpload}:{organizations:Organization[];compliances:Compliance[];currentOrg:string;initialComplianceId:string|null;close:()=>void;onUpload:(doc:ComplianceDocument)=>void}) {
+ const t=useTranslations("Evidence"),user=useCurrentUser();
+ return <Modal title={t("upload")} text={t("private")} close={close}><div className="modal-content"><DocumentUploadForm organizations={organizations} compliances={compliances} initialOrg={currentOrg==="all"?undefined:currentOrg} initialCompliance={initialComplianceId||undefined} onUpload={onUpload} disabled={user.role==="VIEWER"}/></div></Modal>;
 }
 
 function NewOrganizationModal({

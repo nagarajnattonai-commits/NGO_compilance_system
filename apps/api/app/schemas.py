@@ -176,6 +176,10 @@ class DocumentCreate(BaseModel):
 
 
 class DocumentOut(ORMModel):
+    storage_status: str = "METADATA_ONLY"
+    current_version_id: str | None = None
+    effective_at: date | None = None
+    expiry_status: str = "METADATA_ONLY"
     id: str
     organization_id: str
     compliance_id: str | None

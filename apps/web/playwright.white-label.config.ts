@@ -39,6 +39,7 @@ export default defineConfig({
         ...common,
         DATABASE_URL: `sqlite:///${path.join(temporary, "qa.db").replaceAll("\\", "/")}`,
         BRAND_ASSET_DIR: path.join(temporary, "assets"),
+        DOCUMENT_FILE_DIR: path.join(temporary,"private-documents"),
       },
     },
     {

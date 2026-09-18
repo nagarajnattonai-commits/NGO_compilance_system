@@ -143,7 +143,8 @@ def test_runtime_snapshot_tasks_documents_reminders_and_tenant_boundary(monkeypa
         assert client.post(f"/api/v1/compliances/{instance['id']}/transitions", json={"target_status": "COMPLETED"}).status_code == 422
         task = snapshot["checklist_tasks"][0]["task_id"]
         assert client.patch(f"/api/v1/tasks/{task}", json={"status": "DONE"}).status_code == 200
-        proof = client.post("/api/v1/documents", json={"organization_id": "org-udaan", "name": "Existing sample evidence.pdf", "category": "Sample evidence", "uploaded_by": "Master Admin"})
+        from test_documents import upload_original
+        proof = upload_original(client)
         assert proof.status_code == 201, proof.text
         assert client.post(f"/api/v1/compliances/{instance['id']}/transitions", json={"target_status": "COMPLETED"}).status_code == 200
         # No re-upload required: the existing organization repository satisfies this requirement.

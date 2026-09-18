@@ -106,6 +106,23 @@ class Document(Base):
     uploaded_by: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+    @property
+    def storage_status(self):
+        from .document_service import document_summary
+        return document_summary(self)["storage_status"]
+    @property
+    def current_version_id(self):
+        from .document_service import document_summary
+        return document_summary(self)["current_version_id"]
+    @property
+    def effective_at(self):
+        from .document_service import document_summary
+        return document_summary(self)["effective_at"]
+    @property
+    def expiry_status(self):
+        from .document_service import document_summary
+        return document_summary(self)["expiry_status"]
+
 
 class Notification(Base):
     __tablename__ = "notifications"

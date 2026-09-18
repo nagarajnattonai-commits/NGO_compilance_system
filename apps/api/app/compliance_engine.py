@@ -296,10 +296,11 @@ def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: 
 
 
 def document_coverage(db, snapshot: ComplianceSnapshot, deadline: date):
+    from .document_service import genuine_file
     config = TemplateConfiguration.model_validate_json(snapshot.configuration)
     documents = db.scalars(select(Document).where(Document.tenant_id == snapshot.tenant_id, Document.organization_id == snapshot.organization_id)).all()
     return [{"id": requirement.id, "document_type": requirement.document_type, "required": requirement.required, "minimum_count": requirement.minimum_count,
-        "document_ids": [doc.id for doc in documents if doc.category == requirement.document_type and (not requirement.must_be_valid or not doc.expiry_at or doc.expiry_at >= deadline)]}
+        "document_ids": [doc.id for doc in documents if doc.category == requirement.document_type and genuine_file(db, doc, deadline, requirement.must_be_valid)]}
         for requirement in config.documents]
 
 

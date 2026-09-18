@@ -41,6 +41,10 @@ export type ComplianceTask = {
 };
 
 export type ComplianceDocument = {
+  storage_status?:string;
+  current_version_id?:string|null;
+  effective_at?:string|null;
+  expiry_status?:string;
   id: string;
   organization_id: string;
   compliance_id: string | null;

@@ -13,7 +13,7 @@ export default function ComplianceTemplateRuntime({ item, updated }: { item: Com
   const [proof, setProof] = useState(""); const [reference, setReference] = useState(""); const [reason, setReason] = useState("");
   const [error, setError] = useState(false); const [busy, setBusy] = useState(false);
   useEffect(() => { let active = true; Promise.all([apiRequest<Snapshot>(`/compliances/${item.id}/template-snapshot`), apiRequest<ComplianceDocument[]>(`/documents?organization_id=${item.organization_id}`)])
-    .then(([config, docs]) => { if (active) { setSnapshot(config); setDocuments(docs); setError(false); } }).catch(() => { if (active) setError(true); }); return () => { active = false; }; }, [item.id, item.status, item.organization_id]);
+    .then(([config, docs]) => { if (active) { setSnapshot(config); setDocuments(docs.filter(d=>d.storage_status==="AVAILABLE"&&!!d.current_version_id)); setError(false); } }).catch(() => { if (active) setError(true); }); return () => { active = false; }; }, [item.id, item.status, item.organization_id]);
   async function transition(edge: WorkflowTransition) {
     setBusy(true); setError(false);
     try { const result = await apiRequest<Compliance>(`/compliances/${item.id}/transitions`, "POST", { target_status: edge.to_state, ...(proof ? { proof_document_id: proof } : {}), ...(reference ? { submission_reference: reference } : {}), ...(reason ? { reason } : {}) }); updated(result); }

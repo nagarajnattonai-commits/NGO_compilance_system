@@ -152,13 +152,15 @@ def profile_data(db, org):
 
 def completeness(db, org):
     data = profile_data(db, org); d = data["details"]; regs = data["registrations"]
+    from .document_service import genuine_file
+    stored_documents = db.scalars(select(Document).where(Document.tenant_id == org.tenant_id, Document.organization_id == org.id)).all()
     checks = {"basic": (30, [bool(org.name), bool(org.legal_type), bool(org.city)]),
         "registration": (15, [bool(org.registration_number), bool(d["registration_date"]), bool(d["registration_authority"])]),
         "tax": (10, [bool(org.pan)]),
         "registrations": (15, [r["status"] != "UNKNOWN" for r in regs]),
         "contact": (15, [bool(d["contact_name"]), bool(d["contact_email"]), bool(d["address_line_1"]), bool(d["state"]), bool(d["postal_code"])]),
         "financial": (10, [data["financial"]["annual_revenue"] is not None, bool(data["financial"]["revenue_period"])]),
-        "documents": (5, [bool(db.scalar(select(Document.id).where(Document.tenant_id == org.tenant_id, Document.organization_id == org.id).limit(1)))])}
+        "documents": (5, [any(genuine_file(db, doc) for doc in stored_documents)])}
     sections = {key: {"percentage": round(sum(values)/len(values)*100), "status": "COMPLETE" if all(values) else "IN_PROGRESS" if any(values) else "NOT_STARTED"} for key, (_, values) in checks.items()}
     missing = [key for key in ("name", "legal_type", "registration_number", "city") if not getattr(org, key)]
     return {"percentage": round(sum(weight * sum(values)/len(values) for weight, values in checks.values())), "sections": sections,

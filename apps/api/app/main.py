@@ -77,6 +77,8 @@ from .auth_experience import router as auth_experience_router
 from .auth_oauth import router as auth_oauth_router
 from .integration_api import router as integration_router
 from .developer_api import router as developer_router
+from .document_api import router as document_router
+from .document_limits import DocumentUploadLimit
 from .onboarding import router as onboarding_router
 from .organization_profile import router as organization_profile_router
 from .seed import seed_demo_data
@@ -125,6 +127,8 @@ app.include_router(integration_router)
 app.include_router(developer_router)
 app.include_router(organization_profile_router)
 app.include_router(onboarding_router)
+app.include_router(document_router)
+app.add_middleware(DocumentUploadLimit)
 
 
 @app.exception_handler(RequestValidationError)
@@ -266,22 +270,20 @@ def apply_compliance_transition(
         if not reason or len(reason.strip()) < 3:
             raise HTTPException(status_code=422, detail="A reason is required for this transition")
     if proof_document_id:
-        proof = db.scalar(select(Document.id).where(
-            Document.id == proof_document_id,
-            Document.tenant_id == tenant_id,
-            Document.organization_id == item.organization_id,
-        ))
-        if not proof:
-            raise HTTPException(status_code=404, detail="Proof document not found for this organization")
+        from .document_service import genuine_file, attach_link
+        from .models import User
+        proof = db.scalar(select(Document).where(Document.id == proof_document_id, Document.tenant_id == tenant_id, Document.organization_id == item.organization_id))
+        if not proof: raise HTTPException(404, "Proof document not found for this organization")
+        proof_blob = genuine_file(db, proof)
+        if not proof_blob: raise HTTPException(422, "Filing evidence requires an available original file")
+        actor = db.get(User, db.info["actor_id"])
+        attach_link(db, tenant_id, item.organization_id, proof, proof_blob, actor, "compliance", item.id)
     if target_status == "FILED":
         if not submission_reference and not proof_document_id:
             raise HTTPException(status_code=422, detail="A submission reference or proof document is required to mark this compliance filed")
-        db.add(Submission(
-            tenant_id=tenant_id,
-            compliance_id=item.id,
-            acknowledgement_ref=submission_reference or "Proof document attached",
-            proof_document_id=proof_document_id,
-        ))
+        submission = Submission(tenant_id=tenant_id, compliance_id=item.id, acknowledgement_ref=submission_reference or "Proof document attached", proof_document_id=proof_document_id)
+        db.add(submission); db.flush()
+        if proof_document_id: attach_link(db, tenant_id, item.organization_id, proof, proof_blob, actor, "submission", submission.id)
     requires_filing = configured_edge is None or any(stage.state == "FILED" for stage in TemplateConfiguration.model_validate_json(db.get(ComplianceSnapshot, item.id).configuration).workflow.stages)
     if target_status == "COMPLETED" and requires_filing and not db.scalar(select(Submission.id).where(
         Submission.tenant_id == tenant_id,
@@ -598,6 +600,9 @@ def document_versions(document_id: str, db: DB, tenant_id: Tenant):
 
 @app.post("/api/v1/documents/{document_id}/versions", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 def create_document_version(document_id: str, payload: DocumentVersionCreate, db: DB, tenant_id: Tenant):
+    from .document_models import DocumentBlob
+    if db.scalar(select(DocumentBlob.version_id).where(DocumentBlob.document_id == document_id, DocumentBlob.tenant_id == tenant_id)):
+        raise HTTPException(409, "Upload a real file to add a version to this evidence document")
     document = db.scalar(select(Document).where(Document.id == document_id, Document.tenant_id == tenant_id))
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")

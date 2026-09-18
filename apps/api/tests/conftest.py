@@ -15,3 +15,12 @@ def isolated_database():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
+
+
+@pytest.fixture(autouse=True)
+def isolated_document_storage(monkeypatch,tmp_path):
+    monkeypatch.setenv("DOCUMENT_FILE_DIR",str(tmp_path/"private-files"))
+    from app.document_service import configure_scanner
+    configure_scanner(None)
+    yield
+    configure_scanner(None)
