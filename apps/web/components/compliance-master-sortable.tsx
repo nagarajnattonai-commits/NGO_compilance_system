@@ -8,9 +8,9 @@ import type { ReactNode } from "react";
 
 function SortableItem({ id, index, size, disabled, move, children }: { id: string; index: number; size: number; disabled: boolean; move: (direction: number) => void; children: ReactNode }) {
   const t = useTranslations("ComplianceMaster");
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } = useSortable({ id, disabled });
   return <article className="master-sortable-card" ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
-    <div className="master-reorder"><button type="button" className="master-drag" disabled={disabled} aria-label={t("reorder", { index: index + 1 })} {...attributes} {...listeners}><GripVertical size={18} /></button>
+    <div className="master-reorder"><button ref={setActivatorNodeRef} type="button" className="master-drag" disabled={disabled} aria-label={t("reorder", { index: index + 1 })} {...attributes} {...listeners}><GripVertical size={18} /></button>
       <button type="button" disabled={disabled || index === 0} onClick={() => move(-1)} aria-label={t("moveUp", { index: index + 1 })}><ArrowUp size={16} /></button>
       <button type="button" disabled={disabled || index === size - 1} onClick={() => move(1)} aria-label={t("moveDown", { index: index + 1 })}><ArrowDown size={16} /></button></div><div className="master-sortable-content">{children}</div>
   </article>;

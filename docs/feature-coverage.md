@@ -23,7 +23,7 @@ This map follows the priority groups in the approved requirement analysis. “Im
 
 | Capability | Coverage |
 | --- | --- |
-| Configurable workflow | Controlled state machine implemented; visual workflow builder remains planned |
+| Configurable workflow | Platform Compliance Master configures template stages, transitions, role/evidence/approval guards and immutable instance snapshots |
 | OCR and structured extraction | Provider-neutral integration foundation |
 | WhatsApp and advanced email automation | Provider-neutral integration foundation |
 | Drive, OneDrive and Dropbox | Provider-neutral integration foundation |
@@ -76,3 +76,7 @@ The operations centre uses a consistent secure record contract rather than dupli
 Automated continuous integration is implemented for API tests, frontend type/build validation and Docker Compose configuration on every push and pull request to `main`.
 
 PostgreSQL migrations, Redis workers and scheduler, private S3-compatible storage, malware scanning, managed OIDC/SSO, transactional email, official WhatsApp, cloud calendar/storage providers, digital signatures, OCR/AI providers, observability, encrypted backups, deployment automation, infrastructure as code and security-edge controls require deployment choices and credentials. The application keeps these behind explicit domain or provider boundaries so they can be connected without changing the compliance model.
+
+## Configurable Compliance Master
+
+The existing platform-only builder is reviewed and hardened in [Compliance Master review and implementation](COMPLIANCE_MASTER_REVIEW.md). It provides configurable global categories/templates, structured applicability, deadlines, workflow/checklist/document/responsibility/reminder rules, risk, translations, review/approval/publication, versions and instance snapshots. Incomplete drafts remain unpublishable. Platform APIs enforce permissions independently of navigation. External delivery, PostgreSQL migration management and durable scheduled workers retain the production-only status above.

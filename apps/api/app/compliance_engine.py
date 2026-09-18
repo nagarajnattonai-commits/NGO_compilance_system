@@ -25,6 +25,10 @@ def validate_publish(config: TemplateConfiguration) -> list[str]:
         errors.append("applicability: explicitly select all organizations or configure nonempty rule groups")
     if rule.match_all and rule.groups:
         errors.append("applicability: match-all cannot also contain conditions")
+    for group in rule.groups:
+        for condition in group.conditions:
+            if condition.operator not in {"IS_EMPTY", "IS_NOT_EMPTY", "IS_TRUE", "IS_FALSE"} and condition.value in (None, "", []):
+                errors.append(f"applicability: condition {condition.id} requires a value")
     if config.deadline.strategy == "FIXED_DATE" and not config.deadline.fixed_date:
         errors.append("deadline: fixed date required")
     if config.deadline.strategy == "CERTIFICATE_EXPIRY_MINUS_DAYS" and not config.deadline.document_type:
@@ -65,7 +69,10 @@ def validate_publish(config: TemplateConfiguration) -> list[str]:
         errors.append("checklist: all items require a title")
     if any(not item.document_type for item in config.documents):
         errors.append("documents: all requirements need a document type")
-    known = {"checklist": {x.id for x in config.checklist}, "document_instructions": {x.id for x in config.documents}, "reminder_text": {x.id for x in config.reminders}}
+    checklist_ids = {item.id for item in config.checklist}
+    known = {"checklist": checklist_ids, "checklist_descriptions": checklist_ids,
+        "checklist_instructions": checklist_ids, "document_instructions": {item.id for item in config.documents},
+        "reminder_text": {item.id for item in config.reminders}}
     for translation in config.translations.values():
         if any(set(getattr(translation, field)) - ids for field, ids in known.items()):
             errors.append("translations: translation references a missing configuration item")
@@ -98,11 +105,12 @@ def evaluate_rules(config: TemplateConfiguration, organization: Organization, fa
             op = rule.operator
             if isinstance(actual, datetime):
                 actual = actual.date()
-            if FIELDS[rule.field] == "date" and isinstance(expected, str):
+            incomplete = op not in {"IS_EMPTY", "IS_NOT_EMPTY", "IS_TRUE", "IS_FALSE"} and expected in (None, "", [])
+            if FIELDS[rule.field] == "date" and isinstance(expected, str) and expected:
                 expected = date.fromisoformat(expected)
             if FIELDS[rule.field] == "number" and isinstance(expected, (int, float)):
                 expected = Decimal(str(expected))
-            if actual is None and op not in {"IS_EMPTY", "IS_NOT_EMPTY"}:
+            if incomplete or (actual is None and op not in {"IS_EMPTY", "IS_NOT_EMPTY"}):
                 result = None
             elif op == "EQUALS":
                 result = actual == expected

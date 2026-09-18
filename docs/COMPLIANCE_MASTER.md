@@ -107,3 +107,7 @@ This is a tested configurable core, not a claim that all production infrastructu
 9. Audit endpoint is paginated; the builder initially displays the latest fifty audit entries. Sample organization picker searches the first thirty matches. Future tenant-owned custom definitions/inheritance are not implemented; existing tenant catalogue/instances remain distinguishable from global scope.
 
 Recommended next implementation: reviewed database migrations plus durable, idempotent applicability/recurrence/reminder jobs, followed by controlled active-instance migration and private recipient delivery.
+
+## Follow-up review
+
+See [Compliance Master review and implementation](COMPLIANCE_MASTER_REVIEW.md) for the current draft-safety, checklist-localization, permission, accessibility, and browser-regression updates, including local platform access setup and production limitations.

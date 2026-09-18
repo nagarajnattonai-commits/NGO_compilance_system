@@ -43,21 +43,27 @@ class Condition(StrictModel):
         if self.field not in FIELDS or self.operator not in OPERATORS[FIELDS[self.field]]:
             raise ValueError("Unsupported applicability field or operator")
         if self.operator in {"IS_EMPTY", "IS_NOT_EMPTY", "IS_TRUE", "IS_FALSE"}:
+            self.value = None
+            return self
+        # Incomplete typed conditions are safe drafts, never publishable.
+        if self.value is None:
             return self
         if FIELDS[self.field] == "boolean" and not isinstance(self.value, bool):
             raise ValueError("Boolean fields require a boolean value")
         if FIELDS[self.field] == "number" and (isinstance(self.value, bool) or not isinstance(self.value, (int, float)) or abs(self.value) > 1e18 or not math.isfinite(self.value)):
             raise ValueError("Numeric fields require a finite numeric value")
         if FIELDS[self.field] == "date":
+            if self.value == "":
+                return self
             if not isinstance(self.value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", self.value):
                 raise ValueError("Date fields require an ISO date")
             date.fromisoformat(self.value)
         if FIELDS[self.field] == "text":
             if self.operator in {"IN", "NOT_IN"}:
-                if not isinstance(self.value, list) or not self.value or len(self.value) > 50 or any(not x or len(x) > 200 for x in self.value):
-                    raise ValueError("In/Not In requires a nonempty bounded list")
-            elif not isinstance(self.value, str) or not self.value or len(self.value) > 200:
-                raise ValueError("Text operators require a nonempty text value")
+                if not isinstance(self.value, list) or len(self.value) > 50 or any(not x or len(x) > 200 for x in self.value):
+                    raise ValueError("In/Not In requires a bounded list of nonempty text values")
+            elif not isinstance(self.value, str) or len(self.value) > 200:
+                raise ValueError("Text operators require a bounded text value")
         return self
 
 
@@ -168,12 +174,14 @@ class TemplateTranslation(StrictModel):
     description: str = Field(default="", max_length=4000)
     instructions: str = Field(default="", max_length=4000)
     checklist: dict[str, str] = Field(default_factory=dict, max_length=100)
+    checklist_descriptions: dict[str, str] = Field(default_factory=dict, max_length=100)
+    checklist_instructions: dict[str, str] = Field(default_factory=dict, max_length=100)
     document_instructions: dict[str, str] = Field(default_factory=dict, max_length=100)
     reminder_text: dict[str, str] = Field(default_factory=dict, max_length=100)
 
     @model_validator(mode="after")
     def bounded_text(self):
-        for mapping in (self.checklist, self.document_instructions, self.reminder_text):
+        for mapping in (self.checklist, self.checklist_descriptions, self.checklist_instructions, self.document_instructions, self.reminder_text):
             if any(len(key) > 40 or len(value) > 4000 for key, value in mapping.items()):
                 raise ValueError("Translation is too long")
         return self

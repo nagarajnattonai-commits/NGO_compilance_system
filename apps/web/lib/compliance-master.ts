@@ -7,7 +7,7 @@ export type WorkflowTransition = { from_state: string; to_state: string; allowed
 export type ChecklistItem = { id: string; title: string; description: string; instructions: string; required: boolean; responsible_role: string; relative_due_days: number };
 export type DocumentRequirement = { id: string; document_type: string; required: boolean; minimum_count: number; must_be_valid: boolean; instructions: string };
 export type ReminderRule = { id: string; offset_days: number; channel: "IN_APP"; recipient_role: string; escalation_level: number; enabled: boolean; text: string };
-export type TemplateTranslation = { name: string; description: string; instructions: string; checklist: Record<string, string>; document_instructions: Record<string, string>; reminder_text: Record<string, string> };
+export type TemplateTranslation = { name: string; description: string; instructions: string; checklist: Record<string, string>; checklist_descriptions: Record<string, string>; checklist_instructions: Record<string, string>; document_instructions: Record<string, string>; reminder_text: Record<string, string> };
 export type TemplateConfiguration = {
   name: string; category_id: string; subcategory: string; jurisdiction: string; description: string; purpose: string;
   instructions: string; legal_reference: string; authority: string; portal_url: string; tags: string[]; internal_notes: string;
@@ -28,11 +28,11 @@ export type ComplianceTemplate = {
 };
 export type TemplateList = { items: ComplianceTemplate[]; total: number; page: number; page_size: number; counts: Record<string, number> };
 export type ComplianceCategory = { id: string; name: string; sort_order: number; enabled: boolean };
-export type MasterMetadata = { fields: Record<string, string>; operators: Record<string, string[]>; roles: string[]; states: string[]; channels: string[] };
+export type MasterMetadata = { fields: Record<string, string>; operators: Record<string, string[]>; roles: string[]; states: string[]; channels: string[]; permissions: string[] };
 export type ApplicabilityPreview = {
   applicable: boolean; requires_review?: string;
   schedule?: { statutory_deadline: string; internal_target: string; cycle: string };
-  groups: { id: string; operator: string; satisfied: boolean; conditions: { id: string; field: string; operator: string; actual: unknown; expected: unknown; satisfied: boolean }[] }[];
+  groups: { id: string; operator: string; satisfied: boolean | null; conditions: { id: string; field: string; operator: string; actual: unknown; expected: unknown; satisfied: boolean | null }[] }[];
 };
 export const templatePath = "/admin/compliance-templates";
 export const getTemplate = (id: string, version?: number) => apiRequest<ComplianceTemplate>(`${templatePath}/${encodeURIComponent(id)}${version ? `?version=${version}` : ""}`);
@@ -51,6 +51,22 @@ export function newConfiguration(): TemplateConfiguration {
     reminders: [], risk_level: "MEDIUM", priority: "MEDIUM", translations: {},
   };
 }
+export function pruneTemplateTranslations(configuration: TemplateConfiguration): TemplateConfiguration {
+  const ids = {
+    checklist: new Set(configuration.checklist.map((item) => item.id)),
+    checklist_descriptions: new Set(configuration.checklist.map((item) => item.id)),
+    checklist_instructions: new Set(configuration.checklist.map((item) => item.id)),
+    document_instructions: new Set(configuration.documents.map((item) => item.id)),
+    reminder_text: new Set(configuration.reminders.map((item) => item.id)),
+  };
+  return { ...configuration, translations: Object.fromEntries(Object.entries(configuration.translations).map(([locale, translation]) => {
+    const cleaned = { ...emptyTranslation(), ...translation };
+    for (const key of Object.keys(ids) as (keyof typeof ids)[]) {
+      cleaned[key] = Object.fromEntries(Object.entries(cleaned[key]).filter(([id]) => ids[key].has(id)));
+    }
+    return [locale, cleaned];
+  })) };
+}
 export function emptyTranslation(): TemplateTranslation {
-  return { name: "", description: "", instructions: "", checklist: {}, document_instructions: {}, reminder_text: {} };
+  return { name: "", description: "", instructions: "", checklist: {}, checklist_descriptions: {}, checklist_instructions: {}, document_instructions: {}, reminder_text: {} };
 }

@@ -196,7 +196,7 @@ def test_and_or_rule_groups(operator, values, expected):
     {"field": "__class__", "operator": "EQUALS", "value": "x"},
     {"field": "fcra_active", "operator": "EQUALS", "value": "true"},
     {"field": "legal_type", "operator": "IN", "value": "TRUST"},
-    {"field": "legal_type", "operator": "IN", "value": []},
+    {"field": "legal_type", "operator": "IN", "value": [123]},
     {"field": "legal_type", "operator": "RUN_JAVASCRIPT", "value": "eval()"},
 ])
 def test_unsafe_rules_rejected(condition):
@@ -285,3 +285,103 @@ def test_archive_with_pending_draft_stops_generation_and_retains_published_histo
 def test_invalid_numeric_rule_values_rejected(value):
     with pytest.raises(ValidationError):
         TemplateConfiguration.model_validate({"applicability": {"groups": [{"id": "g", "conditions": [{"id": "r", "field": "annual_revenue", "operator": "GREATER_THAN", "value": value}]}]}})
+
+
+@pytest.mark.parametrize("condition", [
+    {"field": "legal_type", "operator": "EQUALS", "value": ""},
+    {"field": "legal_type", "operator": "IN", "value": []},
+    {"field": "annual_revenue", "operator": "GREATER_THAN", "value": None},
+    {"field": "created_at", "operator": "LESS_THAN", "value": ""},
+    {"field": "fcra_active", "operator": "EQUALS", "value": None},
+])
+def test_incomplete_rules_save_as_drafts_but_cannot_be_published(monkeypatch, condition):
+    with platform_client(monkeypatch) as client:
+        row = create(client)
+        configuration = row["configuration"]
+        configuration["applicability"] = {"groups": [{"id": "g", "conditions": [{"id": "unfinished", **condition}]}]}
+        saved = client.patch(f"/api/v1/admin/compliance-templates/{row['id']}", json={
+            "expected_revision": row["revision"], "configuration": configuration, "change_summary": "Unfinished safe draft"})
+        assert saved.status_code == 200, saved.text
+        validation = client.post(f"/api/v1/admin/compliance-templates/{row['id']}/validate").json()
+        assert not validation["valid"]
+        assert any("unfinished requires a value" in message for message in validation["errors"])
+        assert client.post(f"/api/v1/admin/compliance-templates/{row['id']}/submit-review",
+            json={"expected_revision": saved.json()["revision"]}).status_code == 422
+        preview = client.post(f"/api/v1/admin/compliance-templates/{row['id']}/test-applicability",
+            json={"organization_id": "org-udaan"})
+        assert preview.status_code == 200, preview.text
+        assert not preview.json()["applicable"] and preview.json()["requires_review"]
+        assert preview.json()["groups"][0]["conditions"][0]["satisfied"] is None
+
+
+def test_request_changes_clears_approval_and_requires_fresh_review(monkeypatch):
+    with platform_client(monkeypatch) as client:
+        row = create(client)
+        for action in ("submit-review", "approve"):
+            row = client.post(f"/api/v1/admin/compliance-templates/{row['id']}/{action}",
+                json={"expected_revision": row["revision"]}).json()
+        assert row["reviewed_by"] == "Master Admin"
+        returned = client.post(f"/api/v1/admin/compliance-templates/{row['id']}/request-changes",
+            json={"expected_revision": row["revision"], "change_summary": "Revise the sample checklist"}).json()
+        assert returned["status"] == "DRAFT" and returned["reviewed_by"] is None
+        assert client.post(f"/api/v1/admin/compliance-templates/{row['id']}/publish",
+            json={"expected_revision": returned["revision"]}).status_code == 409
+        events = client.get(f"/api/v1/admin/compliance-templates/{row['id']}/audit").json()
+        assert any(event["action"] == "COMPLIANCE_MASTER_CHANGES_REQUESTED" and "Revise the sample checklist" in event["summary"] for event in events)
+        assert publish(client, returned)["reviewed_by"] == "Master Admin"
+
+
+def test_permission_metadata_matches_server_authorization(monkeypatch):
+    from app.permissions import ROLE_PERMISSIONS
+    with platform_client(monkeypatch) as client:
+        monkeypatch.setitem(ROLE_PERMISSIONS, "ADMIN", {"compliance_master.view"})
+        access = client.get("/api/v1/admin/compliance-master/access").json()
+        assert access == {"allowed": True, "permissions": ["compliance_master.view"]}
+        assert client.get("/api/v1/admin/compliance-master/metadata").json()["permissions"] == access["permissions"]
+        assert client.post("/api/v1/admin/compliance-categories", json={"name": "Denied"}).status_code == 403
+        monkeypatch.setitem(ROLE_PERMISSIONS, "ADMIN", set())
+        assert client.get("/api/v1/admin/compliance-master/access").json() == {"allowed": False, "permissions": []}
+        assert client.get("/api/v1/admin/compliance-master/metadata").status_code == 403
+
+
+def test_checklist_translation_snapshot_and_old_configuration_defaults(monkeypatch):
+    from app.models import ComplianceTemplateVersion
+    with platform_client(monkeypatch) as client:
+        row = create(client)
+        row["configuration"]["checklist"][0].update(description="English description", instructions="English instructions")
+        translation = row["configuration"]["translations"]["kn-IN"]
+        translation["checklist_descriptions"] = {"collect": "Translated description"}
+        translation["checklist_instructions"] = {"collect": "Translated instructions"}
+        saved = client.patch(f"/api/v1/admin/compliance-templates/{row['id']}", json={
+            "expected_revision": 0, "configuration": row["configuration"], "change_summary": "Translate checklist guidance"}).json()
+        row = publish(client, saved)
+        generated = client.post("/api/v1/organizations/org-udaan/generate-plan").json()
+        instance = next(item for item in generated if item["code"] == row["code"])
+        snapshot = client.get(f"/api/v1/compliances/{instance['id']}/template-snapshot").json()
+        assert snapshot["configuration"]["translations"]["kn-IN"]["checklist_instructions"]["collect"] == "Translated instructions"
+        # A new editable version may remove translated items only after removing their translations.
+        draft = client.post(f"/api/v1/admin/compliance-templates/{row['id']}/new-version", json={
+            "expected_revision": row["revision"], "change_summary": "Remove obsolete sample checklist"}).json()
+        draft["configuration"]["checklist"] = []
+        response = client.patch(f"/api/v1/admin/compliance-templates/{row['id']}", json={
+            "expected_revision": 0, "configuration": draft["configuration"], "change_summary": "Remove sample checklist"})
+        assert response.status_code == 200
+        assert not client.post(f"/api/v1/admin/compliance-templates/{row['id']}/validate").json()["valid"]
+        # Older stored versions receive new optional defaults when read, with no database rewrite.
+        import json
+        with SessionLocal() as db:
+            old = db.get(ComplianceTemplateVersion, row["version_id"])
+            configuration = json.loads(old.configuration)
+            configuration["translations"]["kn-IN"].pop("checklist_descriptions")
+            configuration["translations"]["kn-IN"].pop("checklist_instructions")
+            old.configuration = json.dumps(configuration)
+            db.commit()
+        restored = client.get(f"/api/v1/admin/compliance-templates/{row['id']}", params={"version": 1}).json()
+        assert restored["configuration"]["translations"]["kn-IN"]["checklist_descriptions"] == {}
+
+
+def test_reversed_update_date_filter_returns_clear_validation(monkeypatch):
+    with platform_client(monkeypatch) as client:
+        response = client.get("/api/v1/admin/compliance-templates",
+            params={"updated_from": "2026-09-18", "updated_to": "2026-09-17"})
+        assert response.status_code == 422 and "Updated from" in response.json()["detail"]

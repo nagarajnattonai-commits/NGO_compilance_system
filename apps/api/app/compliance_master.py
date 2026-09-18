@@ -83,7 +83,7 @@ def serialize(db, master, version, details=True):
         "created_by": version.created_by, "updated_by": version.updated_by, "reviewed_by": version.reviewed_by, "published_by": version.published_by,
         "created_at": version.created_at, "updated_at": version.updated_at, "published_at": version.published_at}
     if details:
-        result["configuration"] = json.loads(version.configuration)
+        result["configuration"] = TemplateConfiguration.model_validate_json(version.configuration).model_dump(mode="json")
     return result
 
 
@@ -108,13 +108,14 @@ def require_valid(db, version):
 @router.get("/admin/compliance-master/access")
 def access(user: CurrentUser):
     allowed = {email.strip().lower() for email in os.getenv("PLATFORM_ADMIN_EMAILS", "").split(",") if email.strip()}
-    return {"allowed": user.role == "ADMIN" and user.email.lower() in allowed,
-        "permissions": sorted(COMPLIANCE_MASTER_PERMISSIONS) if user.role == "ADMIN" and user.email.lower() in allowed else []}
+    permissions = sorted(item for item in COMPLIANCE_MASTER_PERMISSIONS if has_permission(user, item)) if user.role == "ADMIN" and user.email.lower() in allowed else []
+    return {"allowed": "compliance_master.view" in permissions, "permissions": permissions}
 
 
 @router.get("/admin/compliance-master/metadata")
-def metadata(_: View):
-    return {"fields": FIELDS, "operators": OPERATORS, "roles": sorted(ROLES), "states": sorted(STATES), "channels": ["IN_APP"]}
+def metadata(user: View):
+    return {"fields": FIELDS, "operators": OPERATORS, "roles": sorted(ROLES), "states": sorted(STATES), "channels": ["IN_APP"],
+        "permissions": sorted(item for item in COMPLIANCE_MASTER_PERMISSIONS if has_permission(user, item))}
 
 
 @router.get("/admin/compliance-categories")
@@ -174,6 +175,8 @@ def list_templates(db: DB, _: View, search: str = Query(default="", max_length=2
         query = query.where(func.date(ComplianceTemplateVersion.updated_at) <= updated_to.isoformat())
     sort_columns = {"name": ComplianceTemplateVersion.name, "code": ComplianceMaster.code, "category": ComplianceCategory.name,
         "updated_at": ComplianceTemplateVersion.updated_at, "version": ComplianceTemplateVersion.version, "status": ComplianceTemplateVersion.status}
+    if updated_from and updated_to and updated_from > updated_to:
+        raise HTTPException(422, "Updated from must be on or before updated through")
     if sort not in sort_columns or order not in {"asc", "desc"}:
         raise HTTPException(422, "Invalid sorting option")
     total = db.scalar(select(func.count()).select_from(query.subquery()))
@@ -251,6 +254,8 @@ def lifecycle(db, user, definition_id, payload, source, target, action):
     if target in {"UNDER_REVIEW", "APPROVED", "PUBLISHED"}:
         require_valid(db, row)
     values = {"status": target, "updated_by": user.name}
+    if target == "DRAFT":
+        values["reviewed_by"] = None
     if target == "APPROVED":
         values["reviewed_by"] = user.name
     if target == "PUBLISHED":
@@ -437,9 +442,9 @@ def snapshot(compliance_id: str, db: DB, tenant_id: Tenant):
         raise HTTPException(404, "Template snapshot not found in this tenant")
     item = db.get(Compliance, compliance_id)
     version = db.get(ComplianceTemplateVersion, row.version_id)
-    configuration = json.loads(row.configuration)
-    configuration.pop("internal_notes", None)
     config = TemplateConfiguration.model_validate_json(row.configuration)
+    configuration = config.model_dump(mode="json")
+    configuration.pop("internal_notes", None)
     roles = actor_roles(db, tenant_id, item.organization_id)
     source = "IN_PROGRESS" if item.status == "OVERDUE" else item.status
     available = [edge.model_dump() for edge in config.workflow.transitions if edge.from_state == source and roles.intersection(edge.allowed_roles)

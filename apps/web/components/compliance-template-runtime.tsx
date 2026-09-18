@@ -23,7 +23,10 @@ export default function ComplianceTemplateRuntime({ item, updated }: { item: Com
   return <section className="detail-section template-runtime"><h3>{t("publishedVersion", { version: snapshot?.version || 1 })}</h3>{error && <p className="auth-alert error" role="alert">{t("actionFailed")}</p>}
     {snapshot && <><h3>{translation?.name || snapshot.configuration.name}</h3><p>{translation?.description || snapshot.configuration.description}</p><p>{translation?.instructions || snapshot.configuration.instructions}</p>
       {snapshot.owner_required && <p>{t("ownerRequired")}</p>}
-      <ul>{snapshot.configuration.checklist.map((item) => <li key={item.id}>{translation?.checklist[item.id] || item.title}</li>)}</ul>
+      <ul>{snapshot.configuration.checklist.map((item) => <li key={item.id}>{translation?.checklist[item.id] || item.title}
+        <p>{translation?.checklist_descriptions?.[item.id] || item.description}</p>
+        <p>{translation?.checklist_instructions?.[item.id] || item.instructions}</p>
+      </li>)}</ul>
       <h4>{t("documents")}</h4>{snapshot.documents.map((requirement) => <p key={requirement.id}>{requirement.document_ids.length >= requirement.minimum_count ? "✓" : "✕"} {requirement.document_type}: {requirement.document_ids.length} / {requirement.minimum_count} {requirement.required && t("required")}<small>{translation?.document_instructions[requirement.id] || snapshot.configuration.documents.find((d) => d.id === requirement.id)?.instructions}</small></p>)}
       {snapshot.available_transitions.length > 0 && <div className="form"><label>{t("existingEvidence")}<select value={proof} onChange={(e) => setProof(e.target.value)}><option value="">{t("select")}</option>{documents.map((document) => <option value={document.id} key={document.id}>{document.name}</option>)}</select></label>
         <label>{t("filingReference")}<input maxLength={160} value={reference} onChange={(e) => setReference(e.target.value)} /></label><label>{t("reason")}<textarea maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
