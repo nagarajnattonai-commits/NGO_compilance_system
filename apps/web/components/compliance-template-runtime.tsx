@@ -11,16 +11,16 @@ export default function ComplianceTemplateRuntime({ item, updated }: { item: Com
   const locale = useLocale(); const t = useTranslations("ComplianceMaster"); const common = useTranslations("Common");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null); const [documents, setDocuments] = useState<ComplianceDocument[]>([]);
   const [proof, setProof] = useState(""); const [reference, setReference] = useState(""); const [reason, setReason] = useState("");
-  const [error, setError] = useState(false); const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { let active = true; Promise.all([apiRequest<Snapshot>(`/compliances/${item.id}/template-snapshot`), apiRequest<ComplianceDocument[]>(`/documents?organization_id=${item.organization_id}`)])
-    .then(([config, docs]) => { if (active) { setSnapshot(config); setDocuments(docs.filter(d=>d.storage_status==="AVAILABLE"&&!!d.current_version_id)); setError(false); } }).catch(() => { if (active) setError(true); }); return () => { active = false; }; }, [item.id, item.status, item.organization_id]);
+    .then(([config, docs]) => { if (active) { setSnapshot(config); setDocuments(docs.filter(d=>d.storage_status==="AVAILABLE"&&!!d.current_version_id)); setError(""); } }).catch(() => { if (active) setError(t("actionFailed")); }); return () => { active = false; }; }, [item.id, item.status, item.organization_id]);
   async function transition(edge: WorkflowTransition) {
-    setBusy(true); setError(false);
+    setBusy(true); setError("");
     try { const result = await apiRequest<Compliance>(`/compliances/${item.id}/transitions`, "POST", { target_status: edge.to_state, ...(proof ? { proof_document_id: proof } : {}), ...(reference ? { submission_reference: reference } : {}), ...(reason ? { reason } : {}) }); updated(result); }
-    catch { setError(true); } finally { setBusy(false); }
+    catch (e) { setError(e instanceof Error ? e.message : t("actionFailed")); } finally { setBusy(false); }
   }
   const translation = snapshot?.configuration.translations[locale];
-  return <section className="detail-section template-runtime"><h3>{t("publishedVersion", { version: snapshot?.version || 1 })}</h3>{error && <p className="auth-alert error" role="alert">{t("actionFailed")}</p>}
+  return <section className="detail-section template-runtime"><h3>{t("publishedVersion", { version: snapshot?.version || 1 })}</h3>{error && <p className="auth-alert error" role="alert">{error}</p>}
     {snapshot && <><h3>{translation?.name || snapshot.configuration.name}</h3><p>{translation?.description || snapshot.configuration.description}</p><p>{translation?.instructions || snapshot.configuration.instructions}</p>
       {snapshot.owner_required && <p>{t("ownerRequired")}</p>}
       <ul>{snapshot.configuration.checklist.map((item) => <li key={item.id}>{translation?.checklist[item.id] || item.title}

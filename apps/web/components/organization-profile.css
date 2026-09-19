@@ -14,3 +14,12 @@
 .organization-progress { width: 100%; accent-color: var(--forest-2); }
 .organization-panel h2 { margin-top: 0; }
 @media(max-width:767px) { .organization-page .account-content {padding:16px;} .organization-panel {padding:16px;} .organization-form {grid-template-columns:1fr;} .organization-header h1 {font-size:24px;} }
+
+.runtime-facts {display:grid;grid-template-columns:minmax(100px,1fr) minmax(0,2fr);gap:12px;}
+.runtime-facts dd {margin:0;overflow-wrap:anywhere;}
+.organization-page .organization-panel + .organization-panel {margin-top:20px;}
+.organization-panel details {overflow-wrap:anywhere;}
+.organization-page .template-runtime .form {display:grid;gap:12px;}
+.organization-page .template-runtime .form input,.organization-page .template-runtime .form select,.organization-page .template-runtime .form textarea {width:100%;max-width:100%;}
+.organization-page .heading-actions {display:flex;flex-wrap:wrap;gap:8px;}
+@media(max-width:767px){.runtime-facts{grid-template-columns:1fr;gap:8px;}}

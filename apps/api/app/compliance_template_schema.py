@@ -95,6 +95,7 @@ class Deadline(StrictModel):
     offset_days: int = Field(default=0, ge=0, le=3660)
     internal_lead_days: int = Field(default=0, ge=0, le=3660)
     document_type: str = Field(default="", max_length=80)
+    event_key: str = Field(default="", max_length=80, pattern=r"^[A-Za-z0-9_.:-]*$")
 
 
 class Stage(StrictModel):

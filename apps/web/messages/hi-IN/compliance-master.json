@@ -245,7 +245,41 @@
       "status": "स्थिति",
       "city": "शहर",
       "pan": "PAN",
-      "registration_number": "पंजीकरण संख्या"
+      "registration_number": "पंजीकरण संख्या",
+      "organization": {
+        "legal_type": "Organization legal type",
+        "registration_date": "Organization registration date",
+        "pan_present": "PAN provided",
+        "tan_present": "TAN provided",
+        "gst": {
+          "registered": "GST registration declared",
+          "status": "GST status",
+          "expiry_date": "GST expiry date"
+        },
+        "12a": {
+          "status": "12A registration status",
+          "expiry_date": "12A expiry date"
+        },
+        "12ab": {
+          "status": "12AB registration status",
+          "expiry_date": "12AB expiry date"
+        },
+        "80g": {
+          "status": "80G registration status",
+          "expiry_date": "80G expiry date"
+        },
+        "fcra": {
+          "status": "FCRA registration status",
+          "expiry_date": "FCRA expiry date"
+        },
+        "csr": {
+          "status": "CSR registration status",
+          "expiry_date": "CSR expiry date"
+        }
+      },
+      "financial": {
+        "annual_revenue": "Financial annual revenue"
+      }
     },
     "operators": {
       "GREATER_THAN": "से अधिक",

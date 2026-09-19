@@ -1,0 +1,23 @@
+"use client";
+import {useEffect,useState} from "react";
+import {useTranslations} from "next-intl";
+import {apiRequest} from "@/lib/http";
+import type {ComplianceTemplate} from "@/lib/compliance-master";
+import type {Decision,Evaluation,EventFact} from "@/lib/runtime";
+
+export default function OrganizationRuntime({id,allowed}:{id:string;allowed:boolean}) {
+ const t=useTranslations("Runtime");
+ const [templates,setTemplates]=useState<ComplianceTemplate[]>([]),[events,setEvents]=useState<EventFact[]>([]),[history,setHistory]=useState<Decision[]>([]),[results,setResults]=useState<Evaluation[]>([]);
+ const [selected,setSelected]=useState(""),[date,setDate]=useState(""),[source,setSource]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);
+ async function load(){try{const [m,e,h]=await Promise.all([apiRequest<ComplianceTemplate[]>("/compliance-templates"),apiRequest<EventFact[]>(`/organizations/${id}/events`),apiRequest<Decision[]>(`/organizations/${id}/applicability-history`)]);setTemplates(m);setEvents(e);setHistory(h);}catch(e){setError(e instanceof Error?e.message:t("error"));}}
+ useEffect(()=>{void load();},[id]);
+ async function act(action:()=>Promise<unknown>,success="saved"){setBusy(true);setError("");setMessage("");try{await action();await load();setMessage(t(success));}catch(e){setError(e instanceof Error?e.message:t("error"));}finally{setBusy(false);}}
+ const eventTemplates=templates.filter(m=>m.configuration.deadline.strategy==="EVENT_DATE_PLUS_DAYS"),template=eventTemplates.find(m=>m.id===selected);
+ const latest=history.filter((d,i,rows)=>rows.findIndex(r=>r.template_id===d.template_id)===i);
+ return <section className="runtime-setup"><h3>{t("applicability")}</h3><p>{t("historySafety")}</p>{error&&<p role="alert" className="auth-alert error">{error}<button type="button" className="text-button" onClick={()=>void load()}>{t("retry")}</button></p>}{message&&<p role="status">{message}</p>}
+ {allowed&&<div className="organization-actions"><button type="button" className="button secondary" disabled={busy} onClick={()=>void act(async()=>{const r=await apiRequest<{results:Evaluation[]}>(`/organizations/${id}/evaluate-compliance`,"POST");setResults(r.results);})}>{t("reevaluate")}</button><button type="button" className="button secondary" disabled={busy} onClick={()=>void act(()=>apiRequest(`/organizations/${id}/generate-plan`,"POST"),"generated")}>{t("generatePlan")}</button></div>}
+ <ul className="organization-records">{(results.length?results:latest.map(d=>({id:d.template_id,name:templates.find(m=>m.id===d.template_id)?.name||d.template_id,rule_result:d.rule_result,effective_result:d.effective_result,comparison:d.comparison,override:null,override_reason:d.reason}))).map(r=><li key={r.id}>{r.name}<p>{t("rule")}: {t(r.rule_result)} ? {t("override")}: {r.override?t(r.override):t("noOverride")} ? {t("effective")}: {t(r.effective_result)} ? {t(r.comparison)}</p><p>{r.override_reason}</p></li>)}</ul>
+ <h3>{t("events")}</h3><p>{t("eventHelp")}</p>{!eventTemplates.length?<p>{t("noEvents")}</p>:allowed&&<form className="organization-form" onSubmit={e=>{e.preventDefault();if(template)void act(()=>apiRequest(`/organizations/${id}/events`,"POST",{template_id:template.id,event_key:template.configuration.deadline.event_key||template.code,event_date:date,source}),"captured");}}><label>{t("template")}<select required value={selected} onChange={e=>setSelected(e.target.value)}><option value="">{t("select")}</option>{eventTemplates.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><label>{t("eventKey")}<input readOnly value={template?.configuration.deadline.event_key||template?.code||""}/></label><label>{t("eventDate")}<input required type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>{t("source")}<input required minLength={3} maxLength={500} value={source} onChange={e=>setSource(e.target.value)}/></label><button className="button primary" disabled={busy}>{t("captureEvent")}</button></form>}
+ <ul className="organization-records">{events.map(e=><li key={e.id}>{templates.find(m=>m.id===e.template_id)?.name} ? {e.event_key} ? {e.event_date}<p>{e.source} ? {e.created_at}</p>{allowed&&<button type="button" className="button secondary" disabled={busy} onClick={()=>void act(async()=>{const r=await apiRequest<{requires_review:{reason:string}[]}>(`/organizations/${id}/events/${e.id}/generate`,"POST");if(r.requires_review.length)throw new Error(r.requires_review.map(x=>x.reason).join("; "));})}>{t("generateEvent")}</button>}</li>)}</ul>
+ </section>;
+}

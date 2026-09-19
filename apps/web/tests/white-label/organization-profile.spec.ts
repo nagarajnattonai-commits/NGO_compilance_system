@@ -1,7 +1,9 @@
 import {test,expect} from "@playwright/test";
+import {cleanSignupFixtureQuota} from "./platform-operator";
+test.afterAll(()=>cleanSignupFixtureQuota());
 const headers={"X-Setu-Request":"1"};
 test("organization profile edits persist, cancel protects drafts and branded layouts fit all viewports",async({page,request,context})=>{
- const email="profile-browser@example.test",password="Profile-browser-QA-2026!";
+ cleanSignupFixtureQuota();const email="profile-browser@example.test",password="Profile-browser-QA-2026!";
  expect((await request.post("/api/v1/auth/signup",{headers,data:{name:"Profile tester",workspace_name:"Profile QA",email,password}})).status()).toBe(201);
  expect((await request.post("/api/v1/auth/login",{headers,data:{email,password}})).ok()).toBeTruthy();
  const created=await request.post("/api/v1/organizations",{headers,data:{name:"Sample Profile NGO",legal_type:"TRUST",registration_number:"PROFILE-QA",city:"Sample City",generate_compliance_plan:false}});expect(created.status()).toBe(201);

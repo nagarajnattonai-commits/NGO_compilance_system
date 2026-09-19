@@ -68,8 +68,8 @@ test("verification and reset use single-use links, clear fragments and show succ
  await expect(page).toHaveURL(/\/verify-email$/);await page.getByRole("button",{name:"Verify email",exact:true}).click();
  await expect(page.getByRole("status")).toContainText("Email verified");await expect(page.getByRole("link",{name:"Continue to sign in",exact:true})).toBeVisible();
  const reset=fixtureToken(email,"RESET");
- await page.goto("/reset-password#token="+reset);
- await page.getByLabel("New password",{exact:true}).fill(password+"new");await page.getByLabel("Confirm password",{exact:true}).fill(password+"new");
+ await page.goto("/reset-password#token="+reset);await expect(page).toHaveURL(/\/reset-password$/);
+ await page.getByLabel("New password",{exact:true}).fill(password+"new");await expect(page.getByLabel("New password",{exact:true})).toHaveValue(password+"new");await page.getByLabel("Confirm password",{exact:true}).fill(password+"new");
  await page.getByRole("button",{name:"Reset password",exact:true}).click();await expect(page.getByRole("status")).toContainText("Password updated");
  await page.goto("/reset-password#token="+reset);
  await page.getByLabel("New password",{exact:true}).fill(password+"newer");await page.getByLabel("Confirm password",{exact:true}).fill(password+"newer");

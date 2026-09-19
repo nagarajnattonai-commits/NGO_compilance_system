@@ -21,6 +21,7 @@ function Field({ label, value, onChange, type = "text", multiline = false, min, 
 function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className="master-checkbox"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{label}</label>; }
 
 export default function ComplianceTemplateBuilder({ id }: { id?: string }) {
+  const runtime = useTranslations("Runtime");
   const t = useTranslations("ComplianceMaster");
   const common = useTranslations("Common");
   const locale = useLocale();
@@ -157,6 +158,7 @@ export default function ComplianceTemplateBuilder({ id }: { id?: string }) {
             <Field label={t("fiscalStartMonth")} type="number" min={1} max={12} value={configuration.recurrence.fiscal_start_month} onChange={(value) => update({ recurrence: { ...configuration.recurrence, fiscal_start_month: Number(value) } })} />
             <label>{t("deadlineStrategy")}<select aria-label={t("deadlineStrategy")} value={configuration.deadline.strategy} onChange={(e) => update({ deadline: { ...configuration.deadline, strategy: e.target.value } })}>{deadlineStrategies.map((value) => <option key={value} value={value}>{t(`deadlines.${value}`)}</option>)}</select></label>
             {configuration.deadline.strategy === "FIXED_DATE" ? <Field label={t("statutoryDeadline")} type="date" value={configuration.deadline.fixed_date || ""} onChange={(value) => update({ deadline: { ...configuration.deadline, fixed_date: value || null } })} /> : <Field label={t("offsetDays")} type="number" min={0} max={3660} value={configuration.deadline.offset_days} onChange={(value) => update({ deadline: { ...configuration.deadline, offset_days: Number(value) } })} />}
+            {configuration.deadline.strategy === "EVENT_DATE_PLUS_DAYS" && <Field label={runtime("eventKey")} maxLength={80} value={configuration.deadline.event_key || ""} onChange={(event_key) => update({deadline:{...configuration.deadline,event_key}})} />}
             {configuration.deadline.strategy === "CERTIFICATE_EXPIRY_MINUS_DAYS" && <Field label={t("documentType")} maxLength={80} value={configuration.deadline.document_type} onChange={(document_type) => update({ deadline: { ...configuration.deadline, document_type } })} />}
             <Field label={t("internalLead")} type="number" min={0} max={3660} value={configuration.deadline.internal_lead_days} onChange={(value) => update({ deadline: { ...configuration.deadline, internal_lead_days: Number(value) } })} />
             <p className="master-wide">{t("deadlineHelp")}</p>

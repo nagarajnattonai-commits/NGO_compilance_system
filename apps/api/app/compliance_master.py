@@ -408,7 +408,9 @@ def evaluate_organization(organization_id: str, db: DB, tenant_id: Tenant):
     organization = db.scalar(select(Organization).where(Organization.id == organization_id, Organization.tenant_id == tenant_id))
     if not organization:
         raise HTTPException(404, "Organization not found in this tenant")
-    results = [{"id": master.id, "code": master.code, "version": row.version, **evaluate_rules(TemplateConfiguration.model_validate_json(row.configuration), organization, organization_facts(db, organization))} for master, row in published_templates(db)]
+    from .runtime_decisions import evaluate_organization as evaluate_saved
+    results = evaluate_saved(db, tenant_id, organization)
+    db.commit()
     return {"results": results, "policy": "PREVIEW_ONLY_EXISTING_INSTANCES_UNCHANGED"}
 
 

@@ -33,7 +33,8 @@ def owned_state(db,tenant,id):
     if not row:raise HTTPException(404,"Onboarding has not been started for this organization")
     return row
 def evaluate(db,org):
-    return [{"id":master.id,"code":master.code,"name":TemplateConfiguration.model_validate_json(version.configuration).name,"version":version.version,**evaluate_rules(TemplateConfiguration.model_validate_json(version.configuration),org,organization_facts(db,org))} for master,version in published_templates(db)]
+    from .runtime_decisions import evaluate_organization
+    return evaluate_organization(db, org.tenant_id, org)
 
 @router.get("/onboarding")
 def list_progress(db:DB,tenant:Tenant):
@@ -74,7 +75,7 @@ def update_progress(organization_id:str,payload:ProgressInput,db:DB,tenant:Tenan
 @router.post("/organizations/{organization_id}/onboarding/evaluate")
 def evaluation(organization_id:str,db:DB,tenant:Tenant,actor:CurrentUser):
     admin(actor);org=owned_org(db,tenant,organization_id);owned_state(db,tenant,organization_id)
-    return {"results":evaluate(db,org)}
+    results=evaluate(db,org);db.commit();return {"results":results}
 @router.post("/organizations/{organization_id}/onboarding/complete")
 def complete(organization_id:str,payload:RevisionInput,db:DB,tenant:Tenant,actor:CurrentUser):
     admin(actor);org=owned_org(db,tenant,organization_id);row=owned_state(db,tenant,organization_id)

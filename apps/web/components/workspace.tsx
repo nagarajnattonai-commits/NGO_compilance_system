@@ -2689,6 +2689,7 @@ function ComplianceDrawer({
   attachEvidence: () => void;
   showToast: (message: string) => void;
 }) {
+  const runtimeLabel = useTranslations("Runtime")("open");
   const cancelLabel = useTranslations("Common")("status.CANCELLED");
   const [transition, setTransition] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -2840,6 +2841,7 @@ function ComplianceDrawer({
               {item.priority} priority
             </span>
           </div>
+          <Link className="button secondary" href={`/compliances/${item.id}`}>{runtimeLabel}</Link>
           {item.template_version_id && <ComplianceTemplateRuntime item={item} updated={templateUpdated} />}
           <div className="progress-block">
             <div>

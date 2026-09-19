@@ -13,7 +13,7 @@ export type TemplateConfiguration = {
   instructions: string; legal_reference: string; authority: string; portal_url: string; tags: string[]; internal_notes: string;
   applicability: { match_all: boolean; operator: "AND" | "OR"; groups: RuleGroup[] };
   recurrence: { frequency: string; anchor_date: string | null; interval_months: number; fiscal_start_month: number };
-  deadline: { strategy: string; fixed_date: string | null; offset_days: number; internal_lead_days: number; document_type: string };
+  deadline: { strategy: string; fixed_date: string | null; offset_days: number; internal_lead_days: number; document_type: string; event_key?: string };
   workflow: { stages: WorkflowStage[]; transitions: WorkflowTransition[] };
   checklist: ChecklistItem[]; documents: DocumentRequirement[];
   responsibility: { owner_role: string; fallback_role: string; reviewer_role: string; approver_role: string };

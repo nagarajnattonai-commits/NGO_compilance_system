@@ -6,14 +6,14 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from .compliance_states import CLOSED_STATES
 from .compliance_template_schema import FIELDS, TemplateConfiguration
 from .models import (AuditEvent, AutomationReceipt, Compliance, ComplianceCategory, ComplianceMaster, ComplianceNotificationTemplate,
                      ComplianceReminder, ComplianceSnapshot, ComplianceTemplateVersion, Document,
-                     Membership, Notification, Organization, OrganizationComplianceProfile, Task, User, utcnow)
+                     Notification, Organization, OrganizationComplianceProfile, Task, utcnow)
 
 
 def validate_publish(config: TemplateConfiguration) -> list[str]:
@@ -205,24 +205,14 @@ def calculate_deadline(config: TemplateConfiguration, as_of: date, event_date: d
     return {"statutory_deadline": deadline, "internal_target": deadline - timedelta(days=rule.internal_lead_days), "cycle": cycle}
 
 
-def organization_expiry(db, tenant_id: str, organization_id: str, config: TemplateConfiguration):
-    if config.deadline.strategy != "CERTIFICATE_EXPIRY_MINUS_DAYS":
-        return None
-    return db.scalar(select(Document.expiry_at).where(Document.tenant_id == tenant_id, Document.organization_id == organization_id,
-        Document.category == config.deadline.document_type, Document.expiry_at.is_not(None)).order_by(Document.expiry_at.desc()).limit(1))
+def organization_expiry(db, tenant_id, organization_id, config):
+    from .runtime_cycles import certificate_expiry
+    return certificate_expiry(db, tenant_id, organization_id, config)
 
 
-def resolve_role(db, organization: Organization, role: str):
-    # Memberships are assignments, not auth accounts: only an active matched account resolves an owner.
-    members = db.scalars(select(Membership).where(Membership.tenant_id == organization.tenant_id, Membership.role == role,
-        Membership.status == "ACTIVE", or_(Membership.organization_id == organization.id, Membership.organization_id.is_(None))).order_by(Membership.organization_id.desc(), Membership.id)).all()
-    for member in members:
-        user = db.scalar(select(User).where(User.tenant_id == organization.tenant_id, User.email == member.email, User.status == "ACTIVE", User.role != "VIEWER"))
-        if user:
-            return user
-    if role == "TENANT_ADMIN":
-        return db.scalar(select(User).where(User.tenant_id == organization.tenant_id, User.role == "ADMIN", User.status == "ACTIVE").order_by(User.id).limit(1))
-    return None
+def resolve_role(db, organization, role):
+    from .runtime_membership import resolve_role as resolve
+    return resolve(db, organization, role)
 
 
 def published_templates(db):
@@ -231,7 +221,10 @@ def published_templates(db):
     ).where(ComplianceTemplateVersion.status == "PUBLISHED")).all()
 
 
-def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: date | None = None, event_date: date | None = None):
+def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: date | None = None, event_date: date | None = None, template_ids: set[str] | None = None):
+    if template_ids is None:
+        from .runtime_cycles import generate_due_instances
+        return generate_due_instances(db, tenant_id, organization, as_of, event_date)
     if organization.tenant_id != tenant_id:
         raise HTTPException(403, "Organization is not owned by this tenant")
     as_of = as_of or date.today()
@@ -239,8 +232,10 @@ def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: 
     # Serializes callers generating a plan for this organization on PostgreSQL.
     db.execute(select(Organization.id).where(Organization.id == organization.id, Organization.tenant_id == tenant_id).with_for_update()).first()
     for master, version in published_templates(db):
+        if master.id not in template_ids: continue
         config = TemplateConfiguration.model_validate_json(version.configuration)
-        applicability = evaluate_rules(config, organization, organization_facts(db, organization))
+        from .runtime_decisions import evaluate_decision
+        applicability = evaluate_decision(db, organization, master, version)
         if applicability.get("requires_review"):
             review.append({"code": master.code, "reason": applicability["requires_review"]})
         if not applicability["applicable"]:
@@ -268,6 +263,9 @@ def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: 
                     progress=0, legal_reference=config.legal_reference, risk_note=f"Template v{version.version}; risk {config.risk_level}" + ("; Owner Required" if not owner else ""))
                 db.add(item)
                 db.flush()
+                if owner:
+                    from .runtime_models import ComplianceOwnership
+                    db.add(ComplianceOwnership(compliance_id=item.id, tenant_id=tenant_id, owner_id=owner.id, assigned_by=db.info.get("actor_id")))
                 task_ids = []
                 for checklist in config.checklist:
                     assignee = resolve_role(db, organization, checklist.responsible_role) or owner
@@ -305,12 +303,8 @@ def document_coverage(db, snapshot: ComplianceSnapshot, deadline: date):
 
 
 def actor_roles(db, tenant_id, organization_id):
-    user = db.get(User, db.info.get("actor_id"))
-    roles = {"TENANT_ADMIN"} if user and user.role == "ADMIN" else set()
-    if user and user.role != "VIEWER":
-        roles.update(db.scalars(select(Membership.role).where(Membership.tenant_id == tenant_id, Membership.email == user.email,
-            Membership.status == "ACTIVE", or_(Membership.organization_id == organization_id, Membership.organization_id.is_(None)))).all())
-    return roles
+    from .runtime_membership import actor_roles as roles
+    return roles(db, tenant_id, organization_id)
 
 
 def enforce_snapshot_transition(db, tenant_id, item, target_status, proof_document_id):
@@ -329,6 +323,10 @@ def enforce_snapshot_transition(db, tenant_id, item, target_status, proof_docume
         raise HTTPException(403, "The configured reviewer or approver must approve this transition")
     if edge.required_evidence and not proof_document_id:
         raise HTTPException(422, "This workflow transition requires organization evidence")
+    if edge.required_evidence or target_status == "COMPLETED":
+        missing = [entry for entry in document_coverage(db, snapshot, item.statutory_deadline) if entry["required"] and len(entry["document_ids"]) < entry["minimum_count"]]
+        if missing:
+            raise HTTPException(422, "Missing valid stored evidence: " + "; ".join(f"{entry['document_type']} ({len(entry['document_ids'])}/{entry['minimum_count']})" for entry in missing))
     if target_status == "COMPLETED":
         required_ids = [entry["task_id"] for entry in json.loads(snapshot.checklist_tasks) if entry["required"]]
         if required_ids and db.scalar(select(Task.id).where(Task.tenant_id == tenant_id, Task.id.in_(required_ids), Task.status != "DONE")):

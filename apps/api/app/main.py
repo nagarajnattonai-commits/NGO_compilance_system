@@ -128,6 +128,8 @@ app.include_router(developer_router)
 app.include_router(organization_profile_router)
 app.include_router(onboarding_router)
 app.include_router(document_router)
+from .runtime_api import router as runtime_router
+app.include_router(runtime_router)
 app.add_middleware(DocumentUploadLimit)
 
 
