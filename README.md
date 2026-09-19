@@ -58,12 +58,14 @@ After applying the additive automation migration, run the scheduler and worker i
 ```powershell
 cd apps/api
 .venv\Scripts\python.exe -m app.migrate_automation --apply
+.venv\Scripts\python.exe -m app.migrate_notifications --apply
 .venv\Scripts\python.exe -m app.runtime_scheduler --loop --interval 60
 .venv\Scripts\python.exe -m app.automation_worker --loop
 .venv\Scripts\python.exe -m app.integration_worker --loop
 ```
 
 See [the automation runbook](docs/AUTOMATION_RUNBOOK.md) for retry, dead-letter, recovery, and deployment guidance.
+See [the notification automation runbook](docs/NOTIFICATION_AUTOMATION_RUNBOOK.md) for recipient rules, preferences, channel delivery, and provider recovery.
 
 The root route is a public pre-login website explaining the platform, compliance workflow, Donor and Donation (D&D) services, audiences, security model, plans and provider-dependent capabilities. Authenticated application work is available at `/dashboard`; administrators can also use `/admin`.
 

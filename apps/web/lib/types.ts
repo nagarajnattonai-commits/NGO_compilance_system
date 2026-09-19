@@ -186,6 +186,18 @@ export type UserPreference = {
   updated_at: string;
 };
 
+export type NotificationPreference = {
+  user_id: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+  whatsapp_enabled: boolean;
+  compliance_enabled: boolean;
+  task_enabled: boolean;
+  document_enabled: boolean;
+  system_enabled: boolean;
+  updated_at: string;
+};
+
 export type LocalizationSettings = {
   locales: TenantLocale[];
   preference: UserPreference;

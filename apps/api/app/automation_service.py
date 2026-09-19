@@ -150,8 +150,13 @@ def emit_notice(db, tenant_id: str, event_key: str, event_type: str, title: str,
     try:
         with db.begin_nested():
             db.add(AutomationReceipt(tenant_id=tenant_id, event_key=scoped_key, event_type=event_type))
-            db.add(Notification(tenant_id=tenant_id, title=title, message=message, kind=kind))
+            notification = Notification(tenant_id=tenant_id, title=title, message=message, kind=kind)
+            db.add(notification)
             db.flush()
+            from .notification_service import distribute_notification
+            category = "TASK" if event_type.startswith("TASK") else "DOCUMENT" if event_type.startswith("DOCUMENT") else "COMPLIANCE"
+            distribute_notification(db, notification, event_type=event_type, category=category,
+                                    entity_type=event_type.split("_")[0].title(), recipient_role="TENANT_ADMIN")
         return True
     except IntegrityError:
         return False
@@ -267,6 +272,11 @@ def _applicability(db, job, _today):
     return {"evaluated": len(evaluate_organization(db, job.tenant_id, organization))}
 
 
+def _notification_delivery(db, job, _today):
+    from .notification_service import execute_delivery
+    return execute_delivery(db, job)
+
+
 HANDLERS = {
     "COMPLIANCE_GENERATION_SCAN": _generation_scan,
     "NEXT_CYCLE_SCAN": _next_cycle_scan,
@@ -275,6 +285,7 @@ HANDLERS = {
     "TASK_OVERDUE_SCAN": _task_overdue_scan,
     "DOCUMENT_EXPIRY_SCAN": _document_expiry_scan,
     "APPLICABILITY_REEVALUATION": _applicability,
+    "NOTIFICATION_DELIVERY": _notification_delivery,
 }
 
 
@@ -315,6 +326,8 @@ def finish_job(db, job: ScheduledJob, result: dict, *, completed_at: datetime | 
     job.result_summary = json.dumps(result, separators=(",", ":"), sort_keys=True)[:500]
     if started_monotonic is not None:
         job.duration_ms = max(0, int((time.monotonic() - started_monotonic) * 1000))
+    from .notification_service import update_delivery_success
+    update_delivery_success(db, job, completed_at)
 
 
 def fail_job(db, job: ScheduledJob, error: Exception, *, failed_at: datetime | None = None, started_monotonic: float | None = None):
@@ -333,6 +346,8 @@ def fail_job(db, job: ScheduledJob, error: Exception, *, failed_at: datetime | N
     job.result_summary = ""
     if started_monotonic is not None:
         job.duration_ms = max(0, int((time.monotonic() - started_monotonic) * 1000))
+    from .notification_service import update_delivery_failure
+    update_delivery_failure(db, job, failed_at, job.last_error_code)
 
 
 def retry_job(db, job: ScheduledJob):
@@ -346,6 +361,14 @@ def retry_job(db, job: ScheduledJob):
     job.lease_expires_at = None
     job.last_error_code = ""
     job.updated_at = now()
+    if job.job_type == "NOTIFICATION_DELIVERY":
+        from .notification_models import NotificationDelivery
+        delivery = db.get(NotificationDelivery, job.entity_id)
+        if delivery:
+            delivery.status = "QUEUED"
+            delivery.last_error_code = ""
+            delivery.failed_at = None
+            delivery.updated_at = now()
 
 
 def metrics(db, tenant_id: str | None = None) -> dict:

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
+  BellRing,
   Clock3,
   Eye,
   EyeOff,
@@ -21,7 +22,8 @@ import { validateNewPassword } from "@/lib/auth-validation";
 import { useTranslations } from "next-intl";
 import LocaleSwitcher from "@/components/locale-switcher";
 import { useLocalization } from "@/i18n/client";
-import { updateLocalizationPreference } from "@/lib/api";
+import { loadNotificationPreference, updateLocalizationPreference, updateNotificationPreference } from "@/lib/api";
+import type { NotificationPreference } from "@/lib/types";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
 export default function AccountSettings({ session }: { session: AuthSession }) {
@@ -40,12 +42,16 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
   const [capsLock, setCapsLock] = useState(false);
   const [timezone, setTimezone] = useState("Asia/Kolkata");
   const [timeFormat, setTimeFormat] = useState<"12h" | "24h">("12h");
+  const [notificationPreference, setNotificationPreference] = useState<NotificationPreference | null>(null);
   useEffect(() => {
     if (settings) {
       setTimezone(settings.preference.timezone);
       setTimeFormat(settings.preference.time_format);
     }
   }, [settings]);
+  useEffect(() => {
+    loadNotificationPreference().then(setNotificationPreference).catch(() => setError(t("notificationLoadFailed")));
+  }, [t]);
   const newPasswordError = validateNewPassword(newPassword);
   const confirmPasswordError = !confirmPassword
     ? "Confirm your new password."
@@ -140,6 +146,22 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
       setBusy(false);
     }
   }
+  async function saveNotifications(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!notificationPreference) return;
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      const { user_id: _userId, updated_at: _updatedAt, ...payload } = notificationPreference;
+      setNotificationPreference(await updateNotificationPreference(payload));
+      setSuccess(t("notificationsSaved"));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : t("notificationSaveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <main className="account-page">
       <header className="account-header">
@@ -218,6 +240,27 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                 </button>
               </fieldset>
             </form>
+          </section>
+          <section className="card">
+            <div className="account-section-head">
+              <BellRing size={20} />
+              <h2>{t("notificationsTitle")}</h2>
+            </div>
+            <p className="account-intro">{t("notificationsDescription")}</p>
+            {notificationPreference && <form className="auth-form" onSubmit={saveNotifications}>
+              <fieldset disabled={busy}>
+                {(["in_app_enabled", "email_enabled", "whatsapp_enabled"] as const).map((key) => <label key={key} className="auth-checkbox">
+                  <input type="checkbox" checked={notificationPreference[key]} onChange={(event) => setNotificationPreference({ ...notificationPreference, [key]: event.target.checked })} />
+                  {t(key)}
+                </label>)}
+                <strong>{t("notificationCategories")}</strong>
+                {(["compliance_enabled", "task_enabled", "document_enabled", "system_enabled"] as const).map((key) => <label key={key} className="auth-checkbox">
+                  <input type="checkbox" checked={notificationPreference[key]} onChange={(event) => setNotificationPreference({ ...notificationPreference, [key]: event.target.checked })} />
+                  {t(key)}
+                </label>)}
+                <button className="button primary" type="submit">{t("saveNotifications")}</button>
+              </fieldset>
+            </form>}
           </section>
           <section className="card">
             <div className="account-section-head">

@@ -366,6 +366,17 @@ def dispatch_master_reminders(db, tenant_id: str, today: date) -> int:
                     "reminderTexts": {locale: translation.reminder_text.get(rule["id"], "") for locale, translation in config.translations.items()},
                     "escalationLevel": rule["escalation_level"], "templateVersionId": snapshot.version_id,
                 }, ensure_ascii=False)))
+                db.flush()
+                from .notification_service import distribute_notification
+                delivered = distribute_notification(db, notification, event_type="TEMPLATE_REMINDER", category="COMPLIANCE",
+                    organization_id=item.organization_id, entity_type="Compliance", entity_id=item.id,
+                    recipient_role=rule["recipient_role"], channels=(rule.get("channel", "IN_APP"),),
+                    provider_template=rule.get("provider_template", ""))
+                if delivered == 0 and config.responsibility.fallback_role != rule["recipient_role"]:
+                    distribute_notification(db, notification, event_type="TEMPLATE_REMINDER", category="COMPLIANCE",
+                        organization_id=item.organization_id, entity_type="Compliance", entity_id=item.id,
+                        recipient_role=config.responsibility.fallback_role, channels=(rule.get("channel", "IN_APP"),),
+                        provider_template=rule.get("provider_template", ""))
                 reminder.sent_at = utcnow()
                 db.flush()
             count += 1

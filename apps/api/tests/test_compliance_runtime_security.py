@@ -69,6 +69,6 @@ def test_reminders_freeze_locale_variables_and_role_transition_enforcement(monke
 def test_unsafe_identifier_and_unsupported_channel_are_rejected(monkeypatch):
     with platform_client(monkeypatch) as client:
         row = create(client)
-        for patch in ({"reminders": [{"id": "unsafe", "channel": "EMAIL"}]}, {"checklist": [{"id": "__proto__", "title": "Unsafe identifier"}]}):
+        for patch in ({"reminders": [{"id": "unsafe", "channel": "SMS"}]}, {"checklist": [{"id": "__proto__", "title": "Unsafe identifier"}]}):
             response = client.patch(f"/api/v1/admin/compliance-templates/{row['id']}", json={"expected_revision": 0, "configuration": {**row["configuration"], **patch}, "change_summary": "Invalid sample configuration"})
             assert response.status_code == 422

@@ -115,7 +115,7 @@ def access(user: CurrentUser):
 
 @router.get("/admin/compliance-master/metadata")
 def metadata(user: View):
-    return {"fields": FIELDS, "operators": OPERATORS, "roles": sorted(ROLES), "states": sorted(STATES), "channels": ["IN_APP"],
+    return {"fields": FIELDS, "operators": OPERATORS, "roles": sorted(ROLES), "states": sorted(STATES), "channels": ["IN_APP", "EMAIL", "WHATSAPP"],
         "permissions": sorted(item for item in COMPLIANCE_MASTER_PERMISSIONS if has_permission(user, item))}
 
 

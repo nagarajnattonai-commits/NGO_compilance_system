@@ -89,6 +89,7 @@ from .compliance_engine import dispatch_master_reminders, enforce_snapshot_trans
 from .models import ComplianceMaster, ComplianceSnapshot, ComplianceTemplateVersion
 from .compliance_states import CLOSED_STATES, counts_toward_completion, is_open
 from .compliance_template_schema import GeneratePlanInput, TemplateConfiguration
+from .notification_service import mark_read, notification_inbox
 
 
 @asynccontextmanager
@@ -132,6 +133,8 @@ from .runtime_api import router as runtime_router
 app.include_router(runtime_router)
 from .automation_api import router as automation_router
 app.include_router(automation_router)
+from .notification_api import router as notification_router
+app.include_router(notification_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -809,16 +812,16 @@ def delete_translation_override(override_id: str, db: DB, tenant_id: Tenant, _: 
 
 
 @app.get("/api/v1/notifications", response_model=list[NotificationOut])
-def notifications(db: DB, tenant_id: Tenant):
-    return db.scalars(select(Notification).where(Notification.tenant_id == tenant_id).order_by(Notification.created_at.desc())).all()
+def notifications(db: DB, tenant_id: Tenant, user: CurrentUser):
+    rows = notification_inbox(db, tenant_id, user.id)
+    db.commit()
+    return rows
 
 
 @app.patch("/api/v1/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
-def read_notification(notification_id: str, db: DB, tenant_id: Tenant):
-    item = db.scalar(select(Notification).where(Notification.id == notification_id, Notification.tenant_id == tenant_id))
-    if not item:
+def read_notification(notification_id: str, db: DB, tenant_id: Tenant, user: CurrentUser):
+    if not mark_read(db, tenant_id, user.id, notification_id):
         raise HTTPException(status_code=404, detail="Notification not found")
-    item.is_read = True
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

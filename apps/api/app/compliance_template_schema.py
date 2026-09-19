@@ -166,11 +166,12 @@ class Responsibility(StrictModel):
 class ReminderRule(StrictModel):
     id: str = Field(min_length=1, max_length=40)
     offset_days: int = Field(default=0, ge=-3660, le=3660)
-    channel: Literal["IN_APP"] = "IN_APP"
+    channel: Literal["IN_APP", "EMAIL", "WHATSAPP"] = "IN_APP"
     recipient_role: str = "COMPLIANCE_OFFICER"
     escalation_level: int = Field(default=0, ge=0, le=10)
     enabled: bool = True
     text: str = Field(default="", max_length=2000)
+    provider_template: str = Field(default="", max_length=100, pattern=r"^[a-z0-9_]*$")
 
 
 class TemplateTranslation(StrictModel):

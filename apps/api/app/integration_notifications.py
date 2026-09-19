@@ -33,3 +33,16 @@ def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",r
         if connection:log_operation(db,connection,"email.send","FAILED",(time.perf_counter()-started)*1000,error.code)
         raise
     if connection:log_operation(db,connection,"email.send","SUCCESS",(time.perf_counter()-started)*1000)
+
+def deliver_whatsapp(db,tenant_id,recipient,text,template="",locale="en-IN"):
+    connection,state,adapter=resolve_integration(db,tenant_id,"WHATSAPP","whatsapp.send")
+    started=time.perf_counter()
+    try:
+        if template:
+            adapter.send_template(recipient,template,locale.replace("-","_"))
+        else:
+            adapter.send_message(recipient,text)
+    except IntegrationError as error:
+        log_operation(db,connection,"whatsapp.send","FAILED",(time.perf_counter()-started)*1000,error.code)
+        raise
+    log_operation(db,connection,"whatsapp.send","SUCCESS",(time.perf_counter()-started)*1000)

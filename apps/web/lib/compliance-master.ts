@@ -6,7 +6,7 @@ export type WorkflowStage = { id: string; state: string; label: string };
 export type WorkflowTransition = { from_state: string; to_state: string; allowed_roles: string[]; required_evidence: boolean; required_approval: boolean };
 export type ChecklistItem = { id: string; title: string; description: string; instructions: string; required: boolean; responsible_role: string; relative_due_days: number };
 export type DocumentRequirement = { id: string; document_type: string; required: boolean; minimum_count: number; must_be_valid: boolean; instructions: string };
-export type ReminderRule = { id: string; offset_days: number; channel: "IN_APP"; recipient_role: string; escalation_level: number; enabled: boolean; text: string };
+export type ReminderRule = { id: string; offset_days: number; channel: "IN_APP" | "EMAIL" | "WHATSAPP"; recipient_role: string; escalation_level: number; enabled: boolean; text: string; provider_template?: string };
 export type TemplateTranslation = { name: string; description: string; instructions: string; checklist: Record<string, string>; checklist_descriptions: Record<string, string>; checklist_instructions: Record<string, string>; document_instructions: Record<string, string>; reminder_text: Record<string, string> };
 export type TemplateConfiguration = {
   name: string; category_id: string; subcategory: string; jurisdiction: string; description: string; purpose: string;
