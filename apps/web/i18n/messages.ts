@@ -19,6 +19,7 @@ export const messageModules = [
   "onboarding",
   "evidence",
   "runtime",
+  "automation",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -43,6 +44,7 @@ const loaders = {
       import("../messages/en-IN/onboarding.json"),
       import("../messages/en-IN/evidence.json"),
       import("../messages/en-IN/runtime.json"),
+      import("../messages/en-IN/automation.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -64,6 +66,7 @@ const loaders = {
       import("../messages/hi-IN/onboarding.json"),
       import("../messages/hi-IN/evidence.json"),
       import("../messages/hi-IN/runtime.json"),
+      import("../messages/hi-IN/automation.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -85,6 +88,7 @@ const loaders = {
       import("../messages/kn-IN/onboarding.json"),
       import("../messages/kn-IN/evidence.json"),
       import("../messages/kn-IN/runtime.json"),
+      import("../messages/kn-IN/automation.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -106,6 +110,7 @@ const loaders = {
       import("../messages/mr-IN/onboarding.json"),
       import("../messages/mr-IN/evidence.json"),
       import("../messages/mr-IN/runtime.json"),
+      import("../messages/mr-IN/automation.json"),
     ]),
 } satisfies Record<
   AppLocale,

@@ -11,6 +11,33 @@ services:
       timeout: 3s
       retries: 5
 
+  scheduler:
+    build: ./apps/api
+    command: ["python", "-m", "app.runtime_scheduler", "--loop", "--interval", "60"]
+    volumes:
+      - compliance-data:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
+
+  worker:
+    build: ./apps/api
+    command: ["python", "-m", "app.automation_worker", "--loop"]
+    volumes:
+      - compliance-data:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
+
+  integration-worker:
+    build: ./apps/api
+    command: ["python", "-m", "app.integration_worker", "--loop"]
+    volumes:
+      - compliance-data:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
+
   web:
     build:
       context: ./apps/web

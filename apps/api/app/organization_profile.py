@@ -234,6 +234,9 @@ def save_profile(organization_id, payload, db, tenant, actor, commit=True):
         financial.annual_revenue = payload.financial.annual_revenue; financial.revenue_period = payload.financial.revenue_period
         financial.updated_by = actor.name; financial.updated_at = utcnow(); db.add(financial); changed.append("financial")
     db.add(AuditEvent(tenant_id=tenant, actor_name=actor.name, action="ORGANIZATION_PROFILE_UPDATED", entity_type="Organization", entity_id=org.id, summary="Updated profile fields: "+", ".join(sorted(set(changed)))))
+    if changed:
+        from .automation_service import queue_applicability_reevaluation
+        queue_applicability_reevaluation(db, tenant, org.id, f"profile-{payload.expected_revision + 1}")
     if commit: db.commit()
     else: db.flush()
     db.expire(details)

@@ -8,6 +8,7 @@ export default function PlatformNavigation() {
   const t = useTranslations("ComplianceMaster");
   const auth = useTranslations("Authentication");
   const integrations = useTranslations("Integrations");
+  const automation = useTranslations("Automation");
   const [allowed, setAllowed] = useState(false);
   useEffect(() => { apiRequest<{ allowed: boolean }>("/admin/compliance-master/access").then((result) => setAllowed(result.allowed)).catch(() => setAllowed(false)); }, []);
   if (!allowed) return null;
@@ -17,5 +18,6 @@ export default function PlatformNavigation() {
     <Link className="button secondary" href="/admin/integrations">{integrations("title")}</Link>
     <Link className="button secondary" href="/admin/authentication">{auth("providerSettings")}</Link>
     <Link className="button secondary" href="/admin/developers">{integrations("developers")}</Link>
+    <Link className="button secondary" href="/admin/automation">{automation("title")}</Link>
   </nav></section>;
 }

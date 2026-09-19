@@ -51,6 +51,20 @@ npm.cmd run dev
 
 Open `http://localhost:3000`. The authenticated workspace requires the API; an unavailable API produces a recoverable error state and never substitutes unrelated demo data.
 
+### 3. Scheduler and worker
+
+After applying the additive automation migration, run the scheduler and worker in separate terminals:
+
+```powershell
+cd apps/api
+.venv\Scripts\python.exe -m app.migrate_automation --apply
+.venv\Scripts\python.exe -m app.runtime_scheduler --loop --interval 60
+.venv\Scripts\python.exe -m app.automation_worker --loop
+.venv\Scripts\python.exe -m app.integration_worker --loop
+```
+
+See [the automation runbook](docs/AUTOMATION_RUNBOOK.md) for retry, dead-letter, recovery, and deployment guidance.
+
 The root route is a public pre-login website explaining the platform, compliance workflow, Donor and Donation (D&D) services, audiences, security model, plans and provider-dependent capabilities. Authenticated application work is available at `/dashboard`; administrators can also use `/admin`.
 
 ### Docker

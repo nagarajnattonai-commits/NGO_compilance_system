@@ -1,0 +1,47 @@
+{
+  "Automation": {
+    "platform": "Platform Admin",
+    "navigation": "Automation navigation",
+    "title": "Scheduler & Background Jobs",
+    "description": "Inspect durable tenant jobs, retries, processing time and dead-letter failures. Job payloads and provider secrets are never displayed.",
+    "metrics": "Job metrics",
+    "metric": {
+      "processed": "Processed",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "retried": "Retried",
+      "dead_letter": "Dead letter",
+      "pending": "Pending",
+      "averageDuration": "Average duration",
+      "queueAge": "Oldest queue age"
+    },
+    "state": {
+      "PENDING": "Pending",
+      "RUNNING": "Running",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed",
+      "RETRY": "Retry scheduled",
+      "DEAD_LETTER": "Dead letter",
+      "CANCELLED": "Cancelled"
+    },
+    "jobType": "Job type",
+    "status": "Status",
+    "tenant": "Workspace",
+    "entity": "Entity",
+    "scheduled": "Scheduled",
+    "attempts": "Attempts",
+    "lastError": "Last error",
+    "duration": "Duration",
+    "nextRetry": "Next retry",
+    "actions": "Actions",
+    "all": "All",
+    "none": "None",
+    "refresh": "Refresh",
+    "retry": "Retry job",
+    "previous": "Previous",
+    "next": "Next",
+    "empty": "No jobs match these filters.",
+    "loadFailed": "Unable to load scheduled jobs.",
+    "retryFailed": "Unable to retry this job."
+  }
+}
