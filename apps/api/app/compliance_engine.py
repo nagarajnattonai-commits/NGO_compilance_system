@@ -319,8 +319,8 @@ def enforce_snapshot_transition(db, tenant_id, item, target_status, proof_docume
     roles = actor_roles(db, tenant_id, item.organization_id)
     if not roles.intersection(edge.allowed_roles):
         raise HTTPException(403, "Your organization role cannot perform this transition")
-    if edge.required_approval and not roles.intersection({config.responsibility.reviewer_role, config.responsibility.approver_role}):
-        raise HTTPException(403, "The configured reviewer or approver must approve this transition")
+    # Phase 9 validates required approval from a durable approval record. Role
+    # possession alone is deliberately not treated as proof of approval.
     if edge.required_evidence and not proof_document_id:
         raise HTTPException(422, "This workflow transition requires organization evidence")
     if edge.required_evidence or target_status == "COMPLETED":

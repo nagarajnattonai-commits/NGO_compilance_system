@@ -351,6 +351,12 @@ class Submission(Base):
     compliance_id: Mapped[str] = mapped_column(ForeignKey("compliance_instances.id"), index=True)
     acknowledgement_ref: Mapped[str] = mapped_column(String(160))
     proof_document_id: Mapped[str | None] = mapped_column(ForeignKey("documents.id"), nullable=True)
+    proof_version_id: Mapped[str | None] = mapped_column(ForeignKey("document_versions.id"), nullable=True)
+    proof_type: Mapped[str] = mapped_column(String(40), default="ACKNOWLEDGEMENT")
+    filing_channel: Mapped[str] = mapped_column(String(80), default="PORTAL")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    filed_by: Mapped[str | None] = mapped_column(ForeignKey("auth_users.id"), nullable=True)
+    filed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

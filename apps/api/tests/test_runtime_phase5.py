@@ -136,20 +136,23 @@ def test_next_cycle_period_uses_period_end_and_replays_without_skipping(monkeypa
 
 def test_complete_frozen_workflow_real_evidence_tasks_filing_history(monkeypatch):
     with platform_client(monkeypatch) as client:
-        states=["NOT_STARTED","IN_PROGRESS","UNDER_REVIEW","CHANGES_REQUESTED","READY_TO_FILE","FILED","COMPLETED"]
+        states=["NOT_STARTED","IN_PROGRESS","UNDER_REVIEW","READY_TO_FILE","FILED","COMPLETED"]
         def change(c):
-            c["workflow"]={"stages":[{"id":str(i),"state":s} for i,s in enumerate(states)],"transitions":[{"from_state":a,"to_state":b,"allowed_roles":["TENANT_ADMIN"],"required_evidence":b in {"UNDER_REVIEW","FILED","COMPLETED"}} for a,b in zip(states,states[1:])]+[{"from_state":"CHANGES_REQUESTED","to_state":"IN_PROGRESS","allowed_roles":["TENANT_ADMIN"]}]}
+            c["workflow"]={"stages":[{"id":str(i),"state":s} for i,s in enumerate(states)],"transitions":[{"from_state":a,"to_state":b,"allowed_roles":["TENANT_ADMIN"],"required_evidence":b in {"UNDER_REVIEW","FILED","COMPLETED"}} for a,b in zip(states,states[1:])]};c["responsibility"]["reviewer_role"]="TENANT_ADMIN"
         row=configured(client,change=change);item=generate(client,row["code"]);path=f"/api/v1/compliances/{item['id']}/transitions"
         assert client.post(path,json={"target_status":"IN_PROGRESS"}).status_code==200
         missing=client.post(path,json={"target_status":"UNDER_REVIEW","proof_document_id":"doc-tax"});assert missing.status_code==422 and "Sample evidence" in missing.text
         proof=upload_original(client,expiry_at="2030-01-01");assert proof.status_code==201;doc=proof.json()["document"];version=proof.json()["file"]["version_id"]
-        for status in states[2:-1]:
-            response=client.post(path,json={"target_status":status,"proof_document_id":doc["id"],"reason":"Documented review requires correction","submission_reference":"SAMPLE-FILING-17"});assert response.status_code==200,response.text
-        assert client.post(path,json={"target_status":"COMPLETED","proof_document_id":doc["id"]}).status_code==422
+        assert client.post(path,json={"target_status":"UNDER_REVIEW","proof_document_id":doc["id"]}).status_code==200
+        review=client.get(f"/api/v1/compliances/{item['id']}/workflow-records").json()["reviews"][0]
+        assert client.post(f"/api/v1/compliances/{item['id']}/reviews/{review['id']}/decision",json={"decision":"APPROVED","comments":"Evidence review complete"}).status_code==200
         task=client.get(f"/api/v1/compliances/{item['id']}/runtime-detail").json()["tasks"][0]
         assert client.patch(f"/api/v1/tasks/{task['id']}",json={"status":"DONE"}).status_code==200
+        assert client.post(path,json={"target_status":"READY_TO_FILE"}).status_code==200
+        assert client.post(path,json={"target_status":"FILED","proof_document_id":doc["id"]}).status_code==422
+        assert client.post(path,json={"target_status":"FILED","proof_document_id":doc["id"],"submission_reference":"SAMPLE-FILING-17"}).status_code==200
         assert client.post(path,json={"target_status":"COMPLETED","proof_document_id":doc["id"]}).status_code==200
-        saved=client.get(f"/api/v1/compliances/{item['id']}/runtime-detail").json();assert len([a for a in saved["audit"] if a["action"]=="STATUS_CHANGED"])==6
+        saved=client.get(f"/api/v1/compliances/{item['id']}/runtime-detail").json();assert len([a for a in saved["audit"] if a["action"]=="STATUS_CHANGED"])==5
         assert saved["submissions"][0]["reference"]=="SAMPLE-FILING-17"
         assert any(l["version_id"]==version and l["submission_id"] for l in saved["evidence_links"])
 

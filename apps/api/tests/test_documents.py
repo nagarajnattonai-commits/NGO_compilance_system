@@ -85,6 +85,9 @@ def test_required_document_coverage_rejects_metadata_expiry_and_missing_bytes(mo
             doc=db.get(Document,valid["document"]["id"]);blob=genuine_file(db,doc);storage=DocumentStorage(db,doc.tenant_id,json.loads(blob.locator));path=storage.path(blob.storage_key);original=path.read_bytes();path.write_bytes(b"corrupted")
         assert client.post(root+"/transitions",json={"target_status":"COMPLETED"}).status_code==422
         path.write_bytes(original)
+        approval=client.post(root+"/approvals/request",json={"target_status":"COMPLETED"});assert approval.status_code==201,approval.text
+        approval_id=approval.json()["approvals"][0]["id"]
+        assert client.post(root+f"/approvals/{approval_id}/decision",json={"decision":"APPROVED","comments":"Stored evidence verified"}).status_code==200
         assert client.post(root+"/transitions",json={"target_status":"COMPLETED"}).status_code==200
 
 def test_filing_proof_pins_original_version_and_links_task(monkeypatch):

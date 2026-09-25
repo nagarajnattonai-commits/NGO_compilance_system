@@ -129,6 +129,20 @@ class Transition(StrictModel):
 class Workflow(StrictModel):
     stages: list[Stage] = Field(default_factory=list, max_length=20)
     transitions: list[Transition] = Field(default_factory=list, max_length=60)
+    filing_proof_types: list[str] = Field(
+        default_factory=lambda: ["ACKNOWLEDGEMENT", "RECEIPT", "RETURN", "CERTIFICATE", "OTHER"],
+        max_length=20,
+    )
+
+    @field_validator("filing_proof_types")
+    @classmethod
+    def safe_proof_types(cls, value):
+        normalized = [item.strip().upper() for item in value]
+        if not normalized or len(normalized) != len(set(normalized)):
+            raise ValueError("Filing proof types must be a nonempty unique list")
+        if any(not re.fullmatch(r"[A-Z][A-Z0-9_]{1,39}", item) for item in normalized):
+            raise ValueError("Filing proof types must be stable language-neutral identifiers")
+        return normalized
 
 
 class ChecklistItem(StrictModel):
@@ -155,10 +169,14 @@ class Responsibility(StrictModel):
     fallback_role: str = "ORGANIZATION_ADMIN"
     reviewer_role: str = "AUDITOR"
     approver_role: str = "ORGANIZATION_ADMIN"
+    separate_preparer_reviewer: bool = False
+    separate_reviewer_approver: bool = False
 
     @model_validator(mode="after")
     def known_roles(self):
-        if any(value not in ROLES for value in self.model_dump().values()):
+        if any(value not in ROLES for value in (
+            self.owner_role, self.fallback_role, self.reviewer_role, self.approver_role
+        )):
             raise ValueError("Unknown responsibility role")
         return self
 

@@ -1,5 +1,12 @@
 {
   "ComplianceMaster": {
+    "filingProofType": "Filing proof type",
+    "filingProofTypes": "Allowed filing proof types (comma-separated identifiers)",
+    "filingChannel": "Filing channel",
+    "filingNotes": "Filing notes",
+    "requestApproval": "Request approval",
+    "separatePreparerReviewer": "Require a different preparer and reviewer",
+    "separateReviewerApprover": "Require a different reviewer and approver",
     "title": "अनुपालन मास्टर",
     "ownerRequired": "जिम्मेदार आवश्यक — सक्रिय जिम्मेदार या विकल्प नहीं मिला।",
     "existingEvidence": "संगठन के मौजूदा साक्ष्य",

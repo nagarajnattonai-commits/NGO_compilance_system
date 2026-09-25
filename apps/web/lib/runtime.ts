@@ -10,7 +10,10 @@ export type RuntimeDetail = {
  owner_required:boolean;requires_reevaluation:boolean;decisions:Decision[];
  override:{id:string;decision:string;reason:string;actor_id:string;created_at:string}|null;
  override_history:{id:string;decision:string;reason:string;actor_id:string;created_at:string;version_id:string}[];
- tasks:ComplianceTask[];submissions:{id:string;reference:string;proof_document_id:string|null;submitted_at:string}[];
+ tasks:ComplianceTask[];
+ reviews:{id:string;revision:number;submitted_by:string;submitted_at:string;reviewer_id:string|null;reviewed_at:string|null;decision:string;comments:string}[];
+ approvals:{id:string;review_id:string|null;revision:number;target_status:string;requested_by:string;requested_at:string;approver_id:string|null;decided_at:string|null;decision:string;comments:string}[];
+ submissions:{id:string;reference:string;proof_document_id:string|null;proof_version_id:string|null;proof_type:string;filing_channel:string;notes:string;filed_by:string|null;filed_at:string|null;submitted_at:string}[];
  evidence_links:{id:string;document_id:string;version_id:string;submission_id:string|null;active:boolean}[];
  reminders:{id:string;scheduled_for:string;sent_at:string|null;configuration:{recipient_role:string;channel:string;text:string}}[];
  audit:{id:string;action:string;summary:string;actor_name:string;created_at:string}[];

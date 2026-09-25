@@ -92,6 +92,7 @@ from .compliance_template_schema import GeneratePlanInput, TemplateConfiguration
 from .notification_service import mark_read, notification_inbox
 from .organization_access import accessible_organization_ids, require_organization_access
 from .phase8_api import eligible_users, notify_task, router as phase8_router
+from .phase9_api import router as phase9_router
 
 
 @asynccontextmanager
@@ -138,6 +139,7 @@ app.include_router(automation_router)
 from .notification_api import router as notification_router
 app.include_router(notification_router)
 app.include_router(phase8_router)
+app.include_router(phase9_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -273,6 +275,9 @@ def apply_compliance_transition(
     reason: str | None = None,
     submission_reference: str | None = None,
     proof_document_id: str | None = None,
+    proof_type: str = "ACKNOWLEDGEMENT",
+    filing_channel: str = "PORTAL",
+    filing_notes: str = "",
 ) -> None:
     configured_edge = enforce_snapshot_transition(db, tenant_id, item, target_status, proof_document_id)
     if configured_edge is None and target_status not in ALLOWED_TRANSITIONS.get(item.status, set()):
@@ -280,6 +285,12 @@ def apply_compliance_transition(
     if target_status in {"CHANGES_REQUESTED", "NOT_APPLICABLE", "ON_HOLD", "CANCELLED"} or item.status in CLOSED_STATES:
         if not reason or len(reason.strip()) < 3:
             raise HTTPException(status_code=422, detail="A reason is required for this transition")
+    from .phase9_service import before_transition
+    before_transition(
+        db, item, target_status, configured_edge, reason=reason,
+        submission_reference=submission_reference, proof_document_id=proof_document_id,
+        proof_type=proof_type,
+    )
     if proof_document_id:
         from .document_service import genuine_file, attach_link
         from .models import User
@@ -292,7 +303,18 @@ def apply_compliance_transition(
     if target_status == "FILED":
         if not submission_reference and not proof_document_id:
             raise HTTPException(status_code=422, detail="A submission reference or proof document is required to mark this compliance filed")
-        submission = Submission(tenant_id=tenant_id, compliance_id=item.id, acknowledgement_ref=submission_reference or "Proof document attached", proof_document_id=proof_document_id)
+        submission = Submission(
+            tenant_id=tenant_id,
+            compliance_id=item.id,
+            acknowledgement_ref=submission_reference or "Proof document attached",
+            proof_document_id=proof_document_id,
+            proof_version_id=proof_blob.version_id if proof_document_id else None,
+            proof_type=proof_type.upper(),
+            filing_channel=filing_channel,
+            notes=filing_notes,
+            filed_by=db.info.get("actor_id"),
+            filed_at=datetime.now(timezone.utc),
+        )
         db.add(submission); db.flush()
         if proof_document_id: attach_link(db, tenant_id, item.organization_id, proof, proof_blob, actor, "submission", submission.id)
     requires_filing = configured_edge is None or any(stage.state == "FILED" for stage in TemplateConfiguration.model_validate_json(db.get(ComplianceSnapshot, item.id).configuration).workflow.stages)
@@ -319,6 +341,8 @@ def apply_compliance_transition(
     if reason:
         summary += f"; reason: {reason.strip()}"
     audit(db, tenant_id, "STATUS_CHANGED", "Compliance", item.id, summary)
+    from .phase9_service import after_transition
+    after_transition(db, item, previous, target_status)
 
 
 @app.get("/health")
@@ -519,14 +543,8 @@ def transition_compliance(compliance_id: str, payload: ComplianceTransition, db:
     apply_compliance_transition(
         db, tenant_id, item, payload.target_status, payload.reason,
         payload.submission_reference, payload.proof_document_id,
+        payload.proof_type, payload.filing_channel, payload.filing_notes,
     )
-    if payload.target_status == "UNDER_REVIEW":
-        db.add(Notification(
-            tenant_id=tenant_id,
-            title=f"{item.code} ready for review",
-            message=f"{item.title} was submitted for review.",
-            kind="REVIEW",
-        ))
     db.commit()
     db.refresh(item)
     return item

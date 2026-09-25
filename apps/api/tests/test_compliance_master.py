@@ -146,6 +146,16 @@ def test_runtime_snapshot_tasks_documents_reminders_and_tenant_boundary(monkeypa
         from test_documents import upload_original
         proof = upload_original(client)
         assert proof.status_code == 201, proof.text
+        approval = client.post(
+            f"/api/v1/compliances/{instance['id']}/approvals/request",
+            json={"target_status": "COMPLETED"},
+        )
+        assert approval.status_code == 201, approval.text
+        approval_id = approval.json()["approvals"][0]["id"]
+        assert client.post(
+            f"/api/v1/compliances/{instance['id']}/approvals/{approval_id}/decision",
+            json={"decision": "APPROVED", "comments": "Runtime evidence reviewed"},
+        ).status_code == 200
         assert client.post(f"/api/v1/compliances/{instance['id']}/transitions", json={"target_status": "COMPLETED"}).status_code == 200
         # No re-upload required: the existing organization repository satisfies this requirement.
         assert len(client.get(f"/api/v1/compliances/{instance['id']}/template-snapshot").json()["documents"][0]["document_ids"]) == 1

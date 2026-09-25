@@ -16,6 +16,7 @@ from .runtime_decisions import serialize_writes, latest_override, evaluate_organ
 from .runtime_cycles import generate_due_instances, generate_next_cycle
 from .compliance_engine import published_templates
 from .compliance_template_schema import TemplateConfiguration
+from .phase9_models import ComplianceApproval, ComplianceReview
 router = APIRouter(prefix="/api/v1", tags=["Compliance runtime"])
 
 def admin(actor):
@@ -120,6 +121,8 @@ def runtime_detail(compliance_id: str, db: DB, tenant: Tenant):
     owner_valid = bool(owner and any(u.id == owner.owner_id and role != "VIEWER" for u, role in workspace_members(db, tenant)))
     tasks = db.scalars(select(Task).where(Task.tenant_id == tenant, Task.compliance_id == item.id)).all()
     submissions = db.scalars(select(Submission).where(Submission.tenant_id == tenant, Submission.compliance_id == item.id).order_by(Submission.submitted_at.desc())).all()
+    reviews = db.scalars(select(ComplianceReview).where(ComplianceReview.tenant_id == tenant, ComplianceReview.compliance_id == item.id).order_by(ComplianceReview.revision.desc())).all()
+    approvals = db.scalars(select(ComplianceApproval).where(ComplianceApproval.tenant_id == tenant, ComplianceApproval.compliance_id == item.id).order_by(ComplianceApproval.requested_at.desc())).all()
     links = db.scalars(select(DocumentEvidenceLink).where(DocumentEvidenceLink.tenant_id == tenant, DocumentEvidenceLink.organization_id == org.id, or_(DocumentEvidenceLink.compliance_id == item.id, DocumentEvidenceLink.task_id.in_([t.id for t in tasks]), DocumentEvidenceLink.submission_id.in_([s.id for s in submissions])))).all()
     decisions = db.scalars(select(ApplicabilityDecision).where(ApplicabilityDecision.tenant_id == tenant, ApplicabilityDecision.organization_id == org.id, ApplicabilityDecision.template_id == frozen.definition_id).order_by(ApplicabilityDecision.evaluated_at.desc(), ApplicabilityDecision.id.desc())).all() if frozen else []
     current = next((v.id for m,v in published_templates(db) if frozen and m.id == frozen.definition_id), None)
@@ -135,7 +138,9 @@ def runtime_detail(compliance_id: str, db: DB, tenant: Tenant):
         "override": {"id": override_row.id, "decision": override_row.decision, "reason": override_row.reason, "created_at": override_row.created_at, "actor_id": override_row.actor_id} if override_row else None,
         "override_history": [{"id": r.id, "decision": r.decision, "reason": r.reason, "created_at": r.created_at, "actor_id": r.actor_id, "version_id": r.version_id} for r in override_events],
         "tasks": [TaskOut.model_validate(t) for t in tasks],
-        "submissions": [{"id": s.id, "reference": s.acknowledgement_ref, "proof_document_id": s.proof_document_id, "submitted_at": s.submitted_at} for s in submissions],
+        "reviews": [{"id": r.id, "revision": r.revision, "submitted_by": r.submitted_by, "submitted_at": r.submitted_at, "reviewer_id": r.reviewer_id, "reviewed_at": r.reviewed_at, "decision": r.decision, "comments": r.comments} for r in reviews],
+        "approvals": [{"id": a.id, "review_id": a.review_id, "revision": a.revision, "target_status": a.target_status, "requested_by": a.requested_by, "requested_at": a.requested_at, "approver_id": a.approver_id, "decided_at": a.decided_at, "decision": a.decision, "comments": a.comments} for a in approvals],
+        "submissions": [{"id": s.id, "reference": s.acknowledgement_ref, "proof_document_id": s.proof_document_id, "proof_version_id": s.proof_version_id, "proof_type": s.proof_type, "filing_channel": s.filing_channel, "notes": s.notes, "filed_by": s.filed_by, "filed_at": s.filed_at, "submitted_at": s.submitted_at} for s in submissions],
         "evidence_links": [{"id": l.id, "document_id": l.document_id, "version_id": l.version_id, "submission_id": l.submission_id, "active": l.active} for l in links],
         "reminders": [{"id": r.id, "scheduled_for": r.scheduled_for, "sent_at": r.sent_at, "configuration": json.loads(r.configuration)} for r in reminders],
         "audit": [{"id": a.id, "action": a.action, "summary": a.summary, "actor_name": a.actor_name, "created_at": a.created_at} for a in audit]}

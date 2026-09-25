@@ -1,5 +1,12 @@
 {
   "ComplianceMaster": {
+    "filingProofType": "Filing proof type",
+    "filingProofTypes": "Allowed filing proof types (comma-separated identifiers)",
+    "filingChannel": "Filing channel",
+    "filingNotes": "Filing notes",
+    "requestApproval": "Request approval",
+    "separatePreparerReviewer": "Require a different preparer and reviewer",
+    "separateReviewerApprover": "Require a different reviewer and approver",
     "title": "ಅನುಸರಣೆ ಮಾಸ್ಟರ್",
     "ownerRequired": "ಹೊಣೆಗಾರ ಅಗತ್ಯ — ಸಕ್ರಿಯ ಹೊಣೆಗಾರ ಅಥವಾ ಪರ್ಯಾಯ ಕಂಡಿಲ್ಲ.",
     "existingEvidence": "ಸಂಸ್ಥೆಯ ಈಗಿರುವ ಸಾಕ್ಷ್ಯ",

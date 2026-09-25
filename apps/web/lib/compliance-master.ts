@@ -14,9 +14,9 @@ export type TemplateConfiguration = {
   applicability: { match_all: boolean; operator: "AND" | "OR"; groups: RuleGroup[] };
   recurrence: { frequency: string; anchor_date: string | null; interval_months: number; fiscal_start_month: number };
   deadline: { strategy: string; fixed_date: string | null; offset_days: number; internal_lead_days: number; document_type: string; event_key?: string };
-  workflow: { stages: WorkflowStage[]; transitions: WorkflowTransition[] };
+  workflow: { stages: WorkflowStage[]; transitions: WorkflowTransition[]; filing_proof_types?: string[] };
   checklist: ChecklistItem[]; documents: DocumentRequirement[];
-  responsibility: { owner_role: string; fallback_role: string; reviewer_role: string; approver_role: string };
+  responsibility: { owner_role: string; fallback_role: string; reviewer_role: string; approver_role: string; separate_preparer_reviewer?: boolean; separate_reviewer_approver?: boolean };
   reminders: ReminderRule[]; risk_level: string; priority: string; translations: Record<string, TemplateTranslation>;
 };
 export type ComplianceTemplate = {
@@ -46,8 +46,8 @@ export function newConfiguration(): TemplateConfiguration {
     workflow: { stages: [{ id: "start", state: "NOT_STARTED", label: "" }, { id: "work", state: "IN_PROGRESS", label: "" }, { id: "end", state: "COMPLETED", label: "" }], transitions: [
       { from_state: "NOT_STARTED", to_state: "IN_PROGRESS", allowed_roles: ["COMPLIANCE_OFFICER", "TENANT_ADMIN"], required_evidence: false, required_approval: false },
       { from_state: "IN_PROGRESS", to_state: "COMPLETED", allowed_roles: ["TENANT_ADMIN"], required_evidence: false, required_approval: true },
-    ] },
-    checklist: [], documents: [], responsibility: { owner_role: "COMPLIANCE_OFFICER", fallback_role: "ORGANIZATION_ADMIN", reviewer_role: "AUDITOR", approver_role: "ORGANIZATION_ADMIN" },
+    ], filing_proof_types: ["ACKNOWLEDGEMENT", "RECEIPT", "RETURN", "CERTIFICATE", "OTHER"] },
+    checklist: [], documents: [], responsibility: { owner_role: "COMPLIANCE_OFFICER", fallback_role: "ORGANIZATION_ADMIN", reviewer_role: "AUDITOR", approver_role: "ORGANIZATION_ADMIN", separate_preparer_reviewer: false, separate_reviewer_approver: false },
     reminders: [], risk_level: "MEDIUM", priority: "MEDIUM", translations: {},
   };
 }

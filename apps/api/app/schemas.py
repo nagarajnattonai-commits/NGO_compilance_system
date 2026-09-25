@@ -115,6 +115,9 @@ class ComplianceTransition(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
     submission_reference: str | None = Field(default=None, max_length=160)
     proof_document_id: str | None = None
+    proof_type: str = Field(default="ACKNOWLEDGEMENT", min_length=2, max_length=40, pattern=r"^[A-Za-z][A-Za-z0-9_]*$")
+    filing_channel: str = Field(default="PORTAL", min_length=2, max_length=80)
+    filing_notes: str = Field(default="", max_length=2000)
 
 
 class ComplianceOut(ORMModel):
