@@ -86,8 +86,13 @@ class Task(Base):
     priority: Mapped[str] = mapped_column(String(20), default="MEDIUM")
     assignee_name: Mapped[str] = mapped_column(String(120))
     assignee_initials: Mapped[str] = mapped_column(String(8), default="")
+    assignee_user_id: Mapped[str | None] = mapped_column(ForeignKey("auth_users.id"), nullable=True, index=True)
+    assigned_by: Mapped[str | None] = mapped_column(ForeignKey("auth_users.id"), nullable=True)
+    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Document(Base):

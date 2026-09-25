@@ -133,6 +133,8 @@ def owned_org(db, tenant, organization_id):
     row = db.scalar(select(Organization).where(Organization.id == organization_id, Organization.tenant_id == tenant))
     if not row:
         raise HTTPException(404, "Organization not found in this workspace")
+    from .organization_access import require_organization_access
+    require_organization_access(db, tenant, organization_id)
     return row
 
 def registration_rows(db, org):

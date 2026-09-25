@@ -43,6 +43,11 @@ class DocumentStorage:
     def path(self,key):
         target=(self.directory/key).resolve()
         if not target.is_relative_to(self.directory) or target==self.directory:raise ValueError("Invalid storage reference")
+        # UUID-based tenant/document keys can exceed the legacy Windows path
+        # limit. Validate the ordinary resolved path first, then use the native
+        # extended-length form for local filesystem operations.
+        if os.name=="nt" and not str(target).startswith("\\\\?\\"):
+            return Path("\\\\?\\"+str(target))
         return target
     def private_bucket(self):
         if self.adapter:self.adapter.assert_private()

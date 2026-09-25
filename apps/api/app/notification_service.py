@@ -63,7 +63,9 @@ def user_locale(db, tenant_id: str, user_id: str) -> str:
 def resolve_recipients(db, tenant_id: str, *, organization_id: str | None = None,
                        recipient_role: str | None = None, user_ids: Iterable[str] = ()) -> list[User]:
     """Resolve real, active accounts with effective access to this workspace."""
-    members = {user.id: (user, access) for user, access in workspace_members(db, tenant_id)}
+    from .organization_access import can_access_organization
+    members = {user.id: (user, access) for user, access in workspace_members(db, tenant_id)
+               if not organization_id or can_access_organization(db, tenant_id, organization_id, user.id)}
     resolved: dict[str, User] = {}
     for user_id in user_ids:
         if user_id in members:

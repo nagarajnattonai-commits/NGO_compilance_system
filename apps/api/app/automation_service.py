@@ -143,7 +143,8 @@ def claim_job(db, worker_id: str, *, at: datetime | None = None, lease_seconds: 
     return None
 
 
-def emit_notice(db, tenant_id: str, event_key: str, event_type: str, title: str, message: str, kind: str) -> bool:
+def emit_notice(db, tenant_id: str, event_key: str, event_type: str, title: str, message: str, kind: str,
+                *, organization_id: str | None = None, user_ids: tuple[str, ...] = ()) -> bool:
     scoped_key = f"{tenant_id}:{event_key}"
     if db.scalar(select(AutomationReceipt.id).where(AutomationReceipt.event_key == scoped_key)):
         return False
@@ -156,7 +157,10 @@ def emit_notice(db, tenant_id: str, event_key: str, event_type: str, title: str,
             from .notification_service import distribute_notification
             category = "TASK" if event_type.startswith("TASK") else "DOCUMENT" if event_type.startswith("DOCUMENT") else "COMPLIANCE"
             distribute_notification(db, notification, event_type=event_type, category=category,
-                                    entity_type=event_type.split("_")[0].title(), recipient_role="TENANT_ADMIN")
+                                    organization_id=organization_id,
+                                    entity_type=event_type.split("_")[0].title(),
+                                    recipient_role=None if user_ids else "TENANT_ADMIN", user_ids=user_ids,
+                                    channels=("IN_APP", "EMAIL", "WHATSAPP"))
         return True
     except IntegrityError:
         return False
@@ -232,13 +236,22 @@ def _overdue_compliance_scan(db, job, today: date):
 
 def _task_overdue_scan(db, job, today: date):
     produced = 0
+    threshold = max(0, min(30, int(os.getenv("TASK_DUE_NOTICE_DAYS", "3"))))
     for task in db.scalars(select(Task).where(
         Task.tenant_id == job.tenant_id,
         Task.status != "DONE",
-        Task.due_at < today,
+        Task.archived_at.is_(None),
+        Task.due_at <= today + timedelta(days=threshold),
     )).all():
-        produced += int(emit_notice(db, job.tenant_id, f"task-overdue:{task.id}:{task.due_at}", "TASK_OVERDUE",
-            "Task overdue", f"{task.title} was due on {task.due_at.isoformat()}.", "WARNING"))
+        overdue = task.due_at < today
+        event_type = "TASK_OVERDUE" if overdue else "TASK_DUE_SOON"
+        title = "Task overdue" if overdue else "Task due soon"
+        message = (f"{task.title} was due on {task.due_at.isoformat()}." if overdue else
+                   f"{task.title} is due on {task.due_at.isoformat()}.")
+        produced += int(emit_notice(db, job.tenant_id, f"{event_type.lower()}:{task.id}:{task.due_at}", event_type,
+            title, message, "WARNING" if overdue else "REMINDER",
+            organization_id=task.organization_id,
+            user_ids=(task.assignee_user_id,) if task.assignee_user_id else ()))
     return {"events": produced}
 
 

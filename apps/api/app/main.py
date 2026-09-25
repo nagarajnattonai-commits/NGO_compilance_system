@@ -90,6 +90,8 @@ from .models import ComplianceMaster, ComplianceSnapshot, ComplianceTemplateVers
 from .compliance_states import CLOSED_STATES, counts_toward_completion, is_open
 from .compliance_template_schema import GeneratePlanInput, TemplateConfiguration
 from .notification_service import mark_read, notification_inbox
+from .organization_access import accessible_organization_ids, require_organization_access
+from .phase8_api import eligible_users, notify_task, router as phase8_router
 
 
 @asynccontextmanager
@@ -135,6 +137,7 @@ from .automation_api import router as automation_router
 app.include_router(automation_router)
 from .notification_api import router as notification_router
 app.include_router(notification_router)
+app.include_router(phase8_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -181,6 +184,7 @@ def verify_org(db: Session, tenant_id: str, organization_id: str) -> Organizatio
     org = db.scalar(select(Organization).where(Organization.id == organization_id, Organization.tenant_id == tenant_id))
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found in this tenant")
+    require_organization_access(db, tenant_id, organization_id)
     return org
 
 
@@ -324,7 +328,11 @@ def health() -> dict[str, str]:
 
 @app.get("/api/v1/organizations", response_model=list[OrganizationOut])
 def organizations(db: DB, tenant_id: Tenant):
-    return db.scalars(select(Organization).where(Organization.tenant_id == tenant_id, Organization.status != "ARCHIVED").order_by(Organization.name)).all()
+    filters = [Organization.tenant_id == tenant_id, Organization.status != "ARCHIVED"]
+    allowed = accessible_organization_ids(db, tenant_id)
+    if allowed is not None:
+        filters.append(Organization.id.in_(allowed))
+    return db.scalars(select(Organization).where(*filters).order_by(Organization.name)).all()
 
 
 @app.post("/api/v1/organizations", response_model=OrganizationOnboardingOut, status_code=status.HTTP_201_CREATED)
@@ -414,6 +422,12 @@ def dashboard(db: DB, tenant_id: Tenant, organization_id: str | None = None):
         filters.append(Compliance.organization_id == organization_id)
         task_filters.append(Task.organization_id == organization_id)
         doc_filters.append(Document.organization_id == organization_id)
+    else:
+        allowed = accessible_organization_ids(db, tenant_id)
+        if allowed is not None:
+            filters.append(Compliance.organization_id.in_(allowed))
+            task_filters.append(Task.organization_id.in_(allowed))
+            doc_filters.append(Document.organization_id.in_(allowed))
 
     compliances = list(db.scalars(select(Compliance).where(*filters)).all())
     tasks = list(db.scalars(select(Task).where(*task_filters).order_by(Task.due_at).limit(6)).all())
@@ -452,6 +466,10 @@ def compliances(
     if organization_id:
         verify_org(db, tenant_id, organization_id)
         filters.append(Compliance.organization_id == organization_id)
+    else:
+        allowed = accessible_organization_ids(db, tenant_id)
+        if allowed is not None:
+            filters.append(Compliance.organization_id.in_(allowed))
     if status_filter:
         filters.append(Compliance.status == status_filter)
     if search:
@@ -462,6 +480,7 @@ def compliances(
 @app.post("/api/v1/compliances", response_model=ComplianceOut, status_code=status.HTTP_201_CREATED)
 def create_compliance(payload: ComplianceCreate, db: DB, tenant_id: Tenant):
     verify_org(db, tenant_id, payload.organization_id)
+    require_organization_access(db, tenant_id, payload.organization_id, write=True)
     item = Compliance(tenant_id=tenant_id, **payload.model_dump(), status="NOT_STARTED", progress=0)
     db.add(item)
     db.flush()
@@ -476,6 +495,7 @@ def update_compliance(compliance_id: str, payload: ComplianceUpdate, db: DB, ten
     item = db.scalar(select(Compliance).where(Compliance.id == compliance_id, Compliance.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Compliance not found")
+    require_organization_access(db, tenant_id, item.organization_id, write=True)
     values = payload.model_dump(exclude_unset=True)
     target_status = values.pop("status", None)
     if target_status:
@@ -495,6 +515,7 @@ def transition_compliance(compliance_id: str, payload: ComplianceTransition, db:
     item = db.scalar(select(Compliance).where(Compliance.id == compliance_id, Compliance.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Compliance not found")
+    require_organization_access(db, tenant_id, item.organization_id, write=True)
     apply_compliance_transition(
         db, tenant_id, item, payload.target_status, payload.reason,
         payload.submission_reference, payload.proof_document_id,
@@ -512,17 +533,57 @@ def transition_compliance(compliance_id: str, payload: ComplianceTransition, db:
 
 
 @app.get("/api/v1/tasks", response_model=list[TaskOut])
-def tasks(db: DB, tenant_id: Tenant, organization_id: str | None = None):
+def tasks(
+    db: DB,
+    tenant_id: Tenant,
+    user: CurrentUser,
+    organization_id: str | None = None,
+    compliance_id: str | None = None,
+    assignee_user_id: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    priority: str | None = None,
+    search: str | None = None,
+    due_from: date | None = None,
+    due_to: date | None = None,
+    overdue: bool = False,
+    mine: bool = False,
+    include_archived: bool = False,
+):
     filters = [Task.tenant_id == tenant_id]
+    if not include_archived:
+        filters.append(Task.archived_at.is_(None))
     if organization_id:
         verify_org(db, tenant_id, organization_id)
         filters.append(Task.organization_id == organization_id)
-    return db.scalars(select(Task).where(*filters).order_by(Task.status, Task.due_at)).all()
+    else:
+        allowed = accessible_organization_ids(db, tenant_id, user.id)
+        if allowed is not None:
+            filters.append(Task.organization_id.in_(allowed))
+    if compliance_id:
+        filters.append(Task.compliance_id == compliance_id)
+    if assignee_user_id:
+        filters.append(Task.assignee_user_id == assignee_user_id)
+    if mine:
+        filters.append(Task.assignee_user_id == user.id)
+    if status_filter:
+        filters.append(Task.status == status_filter)
+    if priority:
+        filters.append(Task.priority == priority)
+    if search:
+        filters.append(func.lower(Task.title).contains(search.strip().lower()))
+    if due_from:
+        filters.append(Task.due_at >= due_from)
+    if due_to:
+        filters.append(Task.due_at <= due_to)
+    if overdue:
+        filters.extend((Task.due_at < date.today(), Task.status != "DONE"))
+    return db.scalars(select(Task).where(*filters).order_by(Task.status, Task.due_at, Task.created_at)).all()
 
 
 @app.post("/api/v1/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
-def create_task(payload: TaskCreate, db: DB, tenant_id: Tenant):
+def create_task(payload: TaskCreate, db: DB, tenant_id: Tenant, user: CurrentUser):
     verify_org(db, tenant_id, payload.organization_id)
+    require_organization_access(db, tenant_id, payload.organization_id, write=True, user_id=user.id)
     if payload.compliance_id:
         linked = db.scalar(
             select(Compliance.id).where(
@@ -533,23 +594,70 @@ def create_task(payload: TaskCreate, db: DB, tenant_id: Tenant):
         )
         if not linked:
             raise HTTPException(status_code=404, detail="Linked compliance not found for this organization")
-    item = Task(tenant_id=tenant_id, **payload.model_dump(), status="TODO")
+    values = payload.model_dump()
+    assignee_id = values.pop("assignee_user_id", None)
+    assignee = None
+    if assignee_id:
+        assignee = next((candidate for candidate, _ in eligible_users(db, tenant_id, payload.organization_id)
+                         if candidate.id == assignee_id), None)
+        if not assignee:
+            raise HTTPException(422, "TASK_ASSIGNEE_NOT_AUTHORIZED")
+        values["assignee_name"] = assignee.name
+        values["assignee_initials"] = person_initials(assignee.name)
+    elif not values["assignee_name"]:
+        raise HTTPException(422, "An eligible assignee user is required")
+    item = Task(tenant_id=tenant_id, **values, assignee_user_id=assignee_id,
+                assigned_by=user.id, assigned_at=datetime.now(timezone.utc), status="TODO")
     db.add(item)
     db.flush()
     audit(db, tenant_id, "TASK_CREATED", "Task", item.id, f"Created task {item.title}")
+    if item.assignee_user_id:
+        notify_task(db, item, event_type="TASK_ASSIGNED", title="Task assigned",
+                    message=f"{item.title} is due on {item.due_at.isoformat()}.", user_ids=[item.assignee_user_id])
     db.commit()
     db.refresh(item)
     return item
 
 
 @app.patch("/api/v1/tasks/{task_id}", response_model=TaskOut)
-def update_task(task_id: str, payload: TaskUpdate, db: DB, tenant_id: Tenant):
+def update_task(task_id: str, payload: TaskUpdate, db: DB, tenant_id: Tenant, user: CurrentUser):
     item = db.scalar(select(Task).where(Task.id == task_id, Task.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Task not found")
-    item.status = payload.status
-    item.completed_at = datetime.now(timezone.utc) if payload.status == "DONE" else None
-    audit(db, tenant_id, "TASK_UPDATED", "Task", item.id, f"Set {item.title} to {item.status}")
+    access = require_organization_access(db, tenant_id, item.organization_id, user_id=user.id)
+    values = payload.model_dump(exclude_unset=True)
+    only_status = set(values) <= {"status"}
+    if access == "VIEWER" or user.role == "VIEWER":
+        if not (only_status and item.assignee_user_id == user.id):
+            raise HTTPException(403, "ORGANIZATION_ACCESS_DENIED")
+    elif access not in {"CONTRIBUTOR", "MANAGER"} and item.assignee_user_id != user.id:
+        raise HTTPException(403, "ORGANIZATION_ACCESS_DENIED")
+    previous_assignee = item.assignee_user_id
+    if "assignee_user_id" in values:
+        assignee_id = values.pop("assignee_user_id")
+        assignee = next((candidate for candidate, _ in eligible_users(db, tenant_id, item.organization_id)
+                         if candidate.id == assignee_id), None)
+        if not assignee:
+            raise HTTPException(422, "TASK_ASSIGNEE_NOT_AUTHORIZED")
+        item.assignee_user_id = assignee.id
+        item.assignee_name = assignee.name
+        item.assignee_initials = person_initials(assignee.name)
+        item.assigned_by = user.id
+        item.assigned_at = datetime.now(timezone.utc)
+    archived = values.pop("archived", None)
+    if archived is not None:
+        item.archived_at = datetime.now(timezone.utc) if archived else None
+    for field, value in values.items():
+        if value is not None:
+            setattr(item, field, value)
+    if "status" in values:
+        item.completed_at = datetime.now(timezone.utc) if item.status == "DONE" else None
+    item.updated_at = datetime.now(timezone.utc)
+    action = "TASK_REASSIGNED" if previous_assignee != item.assignee_user_id else "TASK_UPDATED"
+    audit(db, tenant_id, action, "Task", item.id, f"Updated {item.title}")
+    if previous_assignee != item.assignee_user_id and item.assignee_user_id:
+        notify_task(db, item, event_type="TASK_REASSIGNED", title="Task reassigned",
+                    message=f"{item.title} is now assigned to you.", user_ids=[item.assignee_user_id])
     db.commit()
     db.refresh(item)
     return item
@@ -561,12 +669,17 @@ def documents(db: DB, tenant_id: Tenant, organization_id: str | None = None):
     if organization_id:
         verify_org(db, tenant_id, organization_id)
         filters.append(Document.organization_id == organization_id)
+    else:
+        allowed = accessible_organization_ids(db, tenant_id)
+        if allowed is not None:
+            filters.append(Document.organization_id.in_(allowed))
     return db.scalars(select(Document).where(*filters).order_by(Document.created_at.desc())).all()
 
 
 @app.post("/api/v1/documents", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 def create_document(payload: DocumentCreate, db: DB, tenant_id: Tenant):
     verify_org(db, tenant_id, payload.organization_id)
+    require_organization_access(db, tenant_id, payload.organization_id, write=True)
     if payload.compliance_id:
         linked = db.scalar(
             select(Compliance.id).where(
@@ -596,9 +709,10 @@ def create_document(payload: DocumentCreate, db: DB, tenant_id: Tenant):
 
 @app.get("/api/v1/documents/{document_id}/versions", response_model=list[DocumentVersionOut])
 def document_versions(document_id: str, db: DB, tenant_id: Tenant):
-    document = db.scalar(select(Document.id).where(Document.id == document_id, Document.tenant_id == tenant_id))
+    document = db.scalar(select(Document).where(Document.id == document_id, Document.tenant_id == tenant_id))
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+    require_organization_access(db, tenant_id, document.organization_id)
     return db.scalars(select(DocumentVersion).where(
         DocumentVersion.document_id == document_id,
         DocumentVersion.tenant_id == tenant_id,
@@ -613,6 +727,7 @@ def create_document_version(document_id: str, payload: DocumentVersionCreate, db
     document = db.scalar(select(Document).where(Document.id == document_id, Document.tenant_id == tenant_id))
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+    require_organization_access(db, tenant_id, document.organization_id, write=True)
     latest = db.scalar(select(func.max(DocumentVersion.version)).where(
         DocumentVersion.document_id == document_id,
         DocumentVersion.tenant_id == tenant_id,
@@ -827,15 +942,31 @@ def read_notification(notification_id: str, db: DB, tenant_id: Tenant, user: Cur
 
 
 @app.get("/api/v1/audit-events", response_model=list[AuditOut])
-def audit_events(db: DB, tenant_id: Tenant, limit: int = Query(default=30, ge=1, le=100)):
-    return db.scalars(select(AuditEvent).where(AuditEvent.tenant_id == tenant_id).order_by(AuditEvent.created_at.desc()).limit(limit)).all()
+def audit_events(db: DB, tenant_id: Tenant, user: CurrentUser, limit: int = Query(default=30, ge=1, le=100)):
+    filters = [AuditEvent.tenant_id == tenant_id]
+    allowed = accessible_organization_ids(db, tenant_id, user.id)
+    if allowed is not None:
+        compliance_ids = select(Compliance.id).where(Compliance.tenant_id == tenant_id, Compliance.organization_id.in_(allowed))
+        task_ids = select(Task.id).where(Task.tenant_id == tenant_id, Task.organization_id.in_(allowed))
+        document_ids = select(Document.id).where(Document.tenant_id == tenant_id, Document.organization_id.in_(allowed))
+        portfolio_ids = select(PortfolioRecord.id).where(PortfolioRecord.tenant_id == tenant_id, PortfolioRecord.organization_id.in_(allowed))
+        filters.append(or_(
+            AuditEvent.entity_id.in_(allowed),
+            AuditEvent.entity_id.in_(compliance_ids),
+            AuditEvent.entity_id.in_(task_ids),
+            AuditEvent.entity_id.in_(document_ids),
+            AuditEvent.entity_id.in_(portfolio_ids),
+            (AuditEvent.entity_type == "User") & (AuditEvent.entity_id == user.id),
+        ))
+    return db.scalars(select(AuditEvent).where(*filters).order_by(AuditEvent.created_at.desc()).limit(limit)).all()
 
 
 @app.get("/api/v1/compliances/{compliance_id}/comments", response_model=list[ComplianceCommentOut])
 def compliance_comments(compliance_id: str, db: DB, tenant_id: Tenant):
-    item = db.scalar(select(Compliance.id).where(Compliance.id == compliance_id, Compliance.tenant_id == tenant_id))
+    item = db.scalar(select(Compliance).where(Compliance.id == compliance_id, Compliance.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Compliance not found")
+    require_organization_access(db, tenant_id, item.organization_id)
     return db.scalars(select(ComplianceComment).where(
         ComplianceComment.tenant_id == tenant_id,
         ComplianceComment.compliance_id == compliance_id,
@@ -847,6 +978,7 @@ def add_compliance_comment(compliance_id: str, payload: ComplianceCommentCreate,
     item = db.scalar(select(Compliance).where(Compliance.id == compliance_id, Compliance.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Compliance not found")
+    require_organization_access(db, tenant_id, item.organization_id, write=True)
     comment = ComplianceComment(
         tenant_id=tenant_id,
         compliance_id=compliance_id,
@@ -873,6 +1005,10 @@ def portfolio_records(
     if organization_id:
         verify_org(db, tenant_id, organization_id)
         filters.append(PortfolioRecord.organization_id == organization_id)
+    else:
+        allowed = accessible_organization_ids(db, tenant_id)
+        if allowed is not None:
+            filters.append(PortfolioRecord.organization_id.in_(allowed))
     if record_type:
         filters.append(PortfolioRecord.record_type == record_type)
     return db.scalars(select(PortfolioRecord).where(*filters).order_by(PortfolioRecord.updated_at.desc())).all()
@@ -881,6 +1017,7 @@ def portfolio_records(
 @app.post("/api/v1/portfolio-records", response_model=PortfolioRecordOut, status_code=status.HTTP_201_CREATED)
 def create_portfolio_record(payload: PortfolioRecordCreate, db: DB, tenant_id: Tenant):
     verify_org(db, tenant_id, payload.organization_id)
+    require_organization_access(db, tenant_id, payload.organization_id, write=True)
     item = PortfolioRecord(tenant_id=tenant_id, **payload.model_dump())
     db.add(item)
     db.flush()
@@ -895,6 +1032,7 @@ def update_portfolio_record(record_id: str, payload: PortfolioRecordUpdate, db: 
     item = db.scalar(select(PortfolioRecord).where(PortfolioRecord.id == record_id, PortfolioRecord.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Portfolio record not found")
+    require_organization_access(db, tenant_id, item.organization_id, write=True)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
     item.updated_at = datetime.now(timezone.utc)
@@ -909,6 +1047,7 @@ def delete_portfolio_record(record_id: str, db: DB, tenant_id: Tenant, _: AdminU
     item = db.scalar(select(PortfolioRecord).where(PortfolioRecord.id == record_id, PortfolioRecord.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Portfolio record not found")
+    require_organization_access(db, tenant_id, item.organization_id, write=True)
     audit(db, tenant_id, f"{item.record_type}_DELETED", "PortfolioRecord", item.id, f"Deleted {item.title}")
     db.delete(item)
     db.commit()

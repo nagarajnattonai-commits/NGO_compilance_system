@@ -139,16 +139,24 @@ class ComplianceOut(ORMModel):
 
 
 class TaskUpdate(BaseModel):
-    status: Literal["TODO", "IN_PROGRESS", "DONE"]
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    title: str | None = Field(default=None, min_length=3, max_length=220)
+    status: Literal["TODO", "IN_PROGRESS", "DONE"] | None = None
+    priority: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None = None
+    due_at: date | None = None
+    assignee_user_id: str | None = Field(default=None, max_length=36)
+    archived: bool | None = None
 
 
 class TaskCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     organization_id: str
     compliance_id: str | None = None
     title: str = Field(min_length=3, max_length=220)
     due_at: date
     priority: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] = "MEDIUM"
-    assignee_name: str = Field(min_length=2, max_length=120)
+    assignee_user_id: str | None = Field(default=None, max_length=36)
+    assignee_name: str = Field(default="", max_length=120)
     assignee_initials: str = Field(default="", max_length=8)
 
 
@@ -160,8 +168,15 @@ class TaskOut(ORMModel):
     due_at: date
     status: str
     priority: str
+    assignee_user_id: str | None = None
     assignee_name: str
     assignee_initials: str
+    assigned_by: str | None = None
+    assigned_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None = None
+    archived_at: datetime | None = None
 
 
 class DocumentCreate(BaseModel):

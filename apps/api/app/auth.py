@@ -279,7 +279,11 @@ def signup(payload: SignupInput, request: Request, response: Response, db: DB):
     if verification:
         from .integration_notifications import email_available
         if not email_available(db): raise HTTPException(503, "Authentication email is not configured")
-    limit_attempts(db, f"signup:{request_ip(request)}", 10, 3600)
+    try:
+        signup_limit = int(os.getenv("AUTH_SIGNUP_RATE_LIMIT", "10"))
+    except ValueError:
+        signup_limit = 10
+    limit_attempts(db, f"signup:{request_ip(request)}", max(1, signup_limit), 3600)
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(409, "Unable to create this account. Try signing in or recovering your password.")
     workspace = Workspace(name=payload.workspace_name)

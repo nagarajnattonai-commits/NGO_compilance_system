@@ -1,6 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { apiRequest, ApiError } from "@/lib/http";
 import { actOnTemplate, emptyTranslation, getTemplate, newConfiguration, pruneTemplateTranslations, templatePath, type ApplicabilityPreview, type ComplianceCategory, type ComplianceTemplate, type MasterMetadata, type TemplateConfiguration, type TemplateTranslation } from "@/lib/compliance-master";
@@ -25,8 +24,6 @@ export default function ComplianceTemplateBuilder({ id }: { id?: string }) {
   const t = useTranslations("ComplianceMaster");
   const common = useTranslations("Common");
   const locale = useLocale();
-  const router = useRouter();
-  const [navigating, startNavigation] = useTransition();
   const [configuration, setConfiguration] = useState<TemplateConfiguration>(newConfiguration);
   const [row, setRow] = useState<ComplianceTemplate | null>(null);
   const [code, setCode] = useState("");
@@ -49,17 +46,21 @@ export default function ComplianceTemplateBuilder({ id }: { id?: string }) {
   const [preview, setPreview] = useState<ApplicabilityPreview | null>(null);
   const [editingLocale, setEditingLocale] = useState("en-IN");
   const [showHistory, setShowHistory] = useState(false);
+  const refreshSequence = useRef(0);
   const can = (action: string) => metadata?.permissions.includes("compliance_master." + action) ?? false;
   const readOnly = (row !== null && row.status !== "DRAFT") || !can(row ? "edit" : "create");
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     setLoading(true); setError("");
     try {
       const [allCategories, meta, template] = await Promise.all([apiRequest<ComplianceCategory[]>("/admin/compliance-categories"), apiRequest<MasterMetadata>("/admin/compliance-master/metadata"), id ? getTemplate(id) : Promise.resolve(null)]);
+      if (sequence !== refreshSequence.current) return;
       setCategories(allCategories); setMetadata(meta);
       if (template) { setRow(template); setConfiguration(template.configuration); setCode(template.code); setSummary(template.change_summary); }
       else { const initial = newConfiguration(); initial.category_id = allCategories.find((c) => c.enabled)?.id || ""; setConfiguration(initial); }
       setDirty(false);
-    } catch { setError("failed"); } finally { setLoading(false); }
+    } catch { if (sequence === refreshSequence.current) setError("failed"); }
+    finally { if (sequence === refreshSequence.current) setLoading(false); }
   }, [id]);
   useEffect(() => { void refresh(); if (window.location.hash === "#review") setStep(10); if (window.location.hash === "#history") { setStep(10); setShowHistory(true); } }, [refresh]);
   useEffect(() => { const handler = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); }; window.addEventListener("beforeunload", handler); return () => window.removeEventListener("beforeunload", handler); }, [dirty]);
@@ -71,7 +72,10 @@ export default function ComplianceTemplateBuilder({ id }: { id?: string }) {
     try {
       const saved = await apiRequest<ComplianceTemplate>(id ? `${templatePath}/${id}` : templatePath, id ? "PATCH" : "POST", { ...(id ? { expected_revision: row?.revision } : { code }), configuration, change_summary: summary || t("initialSummary") });
       setRow(saved); setConfiguration(saved.configuration); setCode(saved.code); setDirty(false); setNotice("saved");
-      if (!id) startNavigation(() => router.replace(`/admin/compliance-master/${saved.id}`));
+      // A newly-created template changes this page's identity. Complete that
+      // navigation before allowing more edits so a delayed route refresh cannot
+      // replace newer form state with the new route's initial empty state.
+      if (!id) window.location.replace(`/admin/compliance-master/${saved.id}`);
     } catch (reason) { changeError(reason); } finally { setBusy(false); }
   }
   async function action(name: string) {
@@ -111,13 +115,13 @@ export default function ComplianceTemplateBuilder({ id }: { id?: string }) {
   const a = configuration.applicability;
   const workflow = configuration.workflow;
   return <ComplianceMasterShell dirty={dirty}><div className="master-heading"><div><h1>{row ? row.configuration.name || t("untitled") : t("create")}</h1><p>{code}{row && <> · v{row.version} · {t(`states.${row.status}`)}</>}</p></div><div className="master-actions">
-    {!readOnly && <button className="button primary" disabled={busy || loading || navigating} onClick={() => void save()}>{t(busy || navigating ? "saving" : "saveDraft")}</button>}
+    {!readOnly && <button className="button primary" disabled={busy || loading} onClick={() => void save()}>{t(busy ? "saving" : "saveDraft")}</button>}
     {can("version") && row && ["PUBLISHED", "ARCHIVED"].includes(row.status) && <button className="button secondary" disabled={busy} onClick={() => void action("new-version")}>{t("newVersion")}</button>}
   </div></div>
     <p className="master-policy">{t("policy")}</p>
     {notice && <p className="auth-alert" role="status">{t(notice)}</p>}
     {error && <div className="auth-alert error" role="alert"><p>{t(error)}</p>{detail && <details><summary>{t("details")}</summary><p>{detail}</p></details>}{error === "failed" && <button onClick={() => void refresh()}>{t("retry")}</button>}</div>}
-    {loading || navigating ? <p role="status">{t("loading")}</p> : <div className="master-builder-layout">
+    {loading ? <p role="status">{t("loading")}</p> : <div className="master-builder-layout">
       <nav className="master-step-nav" aria-label={t("steps")}>
         <label className="master-mobile-step">{t("steps")}<select aria-label={t("steps")} value={step} onChange={(e) => setStep(Number(e.target.value))}>{steps.map((key, index) => <option key={key} value={index}>{index + 1}. {t(`stepsList.${key}`)}</option>)}</select></label>
         <ol>{steps.map((key, index) => <li key={key}><button aria-current={step === index ? "step" : undefined} onClick={() => setStep(index)}><span>{index + 1}</span>{t(`stepsList.${key}`)}</button></li>)}</ol>

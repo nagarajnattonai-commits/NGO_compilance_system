@@ -11,6 +11,7 @@ from .models import AuditEvent, Compliance, ComplianceSnapshot, ComplianceRemind
 from .schemas import ComplianceOut, TaskOut
 from .runtime_models import ComplianceOwnership, OrganizationEventFact, ApplicabilityOverride, ApplicabilityDecision
 from .runtime_membership import workspace_members
+from .organization_access import require_organization_access
 from .runtime_decisions import serialize_writes, latest_override, evaluate_organization, decision_data, material_facts
 from .runtime_cycles import generate_due_instances, generate_next_cycle
 from .compliance_engine import published_templates
@@ -83,15 +84,18 @@ def override(organization_id: str, template_id: str, payload: OverrideInput, db:
     return {"override_id": row.id, "results": results, "policy": "EXISTING_INSTANCES_RETAINED"}
 @router.get("/compliances/{compliance_id}/owner-candidates")
 def owner_candidates(compliance_id: str, db: DB, tenant: Tenant):
-    owned_compliance(db, tenant, compliance_id)
-    return [{"id": u.id, "name": u.name, "role": role} for u, role in workspace_members(db, tenant) if role != "VIEWER"]
+    item = owned_compliance(db, tenant, compliance_id)
+    from .phase8_api import eligible_users
+    return [{"id": u.id, "name": u.name, "role": role} for u, role in eligible_users(db, tenant, item.organization_id)]
 @router.post("/compliances/{compliance_id}/owner")
 def assign_owner(compliance_id: str, payload: OwnerInput, db: DB, tenant: Tenant, actor: CurrentUser):
     admin(actor); item = owned_compliance(db, tenant, compliance_id); org = owned_org(db, tenant, item.organization_id); serialize_writes(db, org)
-    owner = next((u for u, role in workspace_members(db, tenant) if u.id == payload.owner_id and role != "VIEWER"), None)
-    if not owner: raise HTTPException(422, "Owner must be an active authorized workspace member with write access")
+    require_organization_access(db, tenant, item.organization_id, write=True, user_id=actor.id)
     row = db.get(ComplianceOwnership, item.id)
     if (row.owner_id if row else None) != payload.expected_owner_id: raise HTTPException(409, "Owner changed; reload before assigning")
+    from .phase8_api import eligible_users
+    owner = next((u for u, _ in eligible_users(db, tenant, item.organization_id) if u.id == payload.owner_id), None)
+    if not owner: raise HTTPException(422, "Owner must be an active authorized workspace member with write access")
     previous = row.owner_id if row else "UNASSIGNED"
     if not row: row = ComplianceOwnership(compliance_id=item.id, tenant_id=tenant, owner_id=owner.id); db.add(row)
     row.owner_id, row.assigned_by, row.assigned_at, row.manual = owner.id, actor.id, utcnow(), True

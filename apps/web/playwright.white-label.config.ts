@@ -11,6 +11,7 @@ process.env.SETU_QA_DATABASE_URL="sqlite:///"+path.join(temporary,"qa.db").split
 const common = {
   APP_ENV: "development",
   APP_ORIGIN: "http://localhost:3001",
+  AUTH_SIGNUP_RATE_LIMIT: "100",
   BRAND_PROXY_KEY: "setu-development-proxy",
   PLATFORM_ADMIN_EMAILS: "white-label-qa@example.test",
 };

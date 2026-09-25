@@ -1,6 +1,7 @@
 """Authorization, idempotent file uploads and genuine evidence for existing documents."""
 import hashlib
 import json
+import logging
 from datetime import date,timedelta
 from typing import Protocol
 from uuid import UUID
@@ -18,6 +19,7 @@ from .document_storage import DocumentStorage,maximum_bytes
 from .document_validation import validate_file
 
 FILE_STATES={"UPLOADING","PROCESSING","AVAILABLE","QUARANTINED","FAILED"}
+logger=logging.getLogger(__name__)
 class Scanner(Protocol):
     def scan(self,content:bytes,mime:str)->str: ...
 _scanner:Scanner|None=None
@@ -150,6 +152,7 @@ def upload(db,tenant,actor,metadata,filename,mime,content):
         db.commit();db.refresh(doc)
         return {"document":DocumentOut.model_validate(doc).model_dump(),"file":file_data(blob),"replayed":False}
     except Exception:
+        logger.exception("Document upload storage transaction failed")
         db.rollback()
         if wrote:
             try:storage.discard_uncommitted(key)

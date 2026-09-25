@@ -16,6 +16,7 @@ Setu is a working MVP derived from the three approved documents in `Development 
 - Tenant administration for scoped member invitations, roles and plan-entitlement usage
 - Versioned compliance catalogue entries evaluated against legal type and FCRA status
 - Idempotent daily automation for overdue compliance, task reminders, document expiry and annual roll-forward
+- Organization-scoped workspace access with real-user task assignment, comments, evidence links and notifications
 - Impact portfolio modules for grants, donors, CSR projects and volunteers
 - Provider-neutral integration registry for email, WhatsApp, calendars, cloud drives, digital signatures and OCR
 - Tenant-grounded compliance assistant with record-level sources and a professional-review disclaimer
@@ -59,6 +60,7 @@ After applying the additive automation migration, run the scheduler and worker i
 cd apps/api
 .venv\Scripts\python.exe -m app.migrate_automation --apply
 .venv\Scripts\python.exe -m app.migrate_notifications --apply
+.venv\Scripts\python.exe -m app.migrate_phase8 --apply
 .venv\Scripts\python.exe -m app.runtime_scheduler --loop --interval 60
 .venv\Scripts\python.exe -m app.automation_worker --loop
 .venv\Scripts\python.exe -m app.integration_worker --loop
@@ -66,6 +68,7 @@ cd apps/api
 
 See [the automation runbook](docs/AUTOMATION_RUNBOOK.md) for retry, dead-letter, recovery, and deployment guidance.
 See [the notification automation runbook](docs/NOTIFICATION_AUTOMATION_RUNBOOK.md) for recipient rules, preferences, channel delivery, and provider recovery.
+See [the tasks and organization access runbook](docs/PHASE8_TASKS_ACCESS.md) for the access cutover, task permissions, and migration procedure.
 
 The root route is a public pre-login website explaining the platform, compliance workflow, Donor and Donation (D&D) services, audiences, security model, plans and provider-dependent capabilities. Authenticated application work is available at `/dashboard`; administrators can also use `/admin`.
 

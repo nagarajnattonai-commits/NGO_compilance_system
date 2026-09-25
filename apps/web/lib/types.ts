@@ -36,9 +36,21 @@ export type ComplianceTask = {
   due_at: string;
   status: string;
   priority: string;
+  assignee_user_id?: string | null;
   assignee_name: string;
   assignee_initials: string;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+  archived_at?: string | null;
 };
+
+export type EligibleAssignee = { id: string; name: string; email: string; access_role: string };
+export type TaskComment = { id: string; task_id: string; author_id: string; author_name: string; body: string; created_at: string };
+export type TaskAttachment = { id: string; document_id: string; version_id: string; name: string; linked_by: string; linked_at: string };
+export type OrganizationAccess = { id: string; user_id: string; user_name: string; user_email: string; access_role: "VIEWER" | "CONTRIBUTOR" | "MANAGER"; status: string };
 
 export type ComplianceDocument = {
   storage_status?:string;

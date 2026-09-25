@@ -88,6 +88,19 @@
     "auditHelp": "Profile audit entries name the changed fields without retaining full tax identifiers.",
     "INVITED": "Invited",
     "INACTIVE": "Inactive",
-    "DISABLED": "Disabled"
+    "DISABLED": "Disabled",
+    "organizationAccess": "Organization access",
+    "organizationAccessHelp": "Choose which signed-in accounts may open and work with this organization. Responsibility records do not grant access.",
+    "revokeAccess": "Revoke",
+    "noOrganizationAccess": "No organization-specific access has been granted.",
+    "loginAccount": "Login account",
+    "selectAccount": "Select an account",
+    "accessScope": "Access scope",
+    "grantAccess": "Grant access",
+    "accessRole": {
+      "VIEWER": "View only",
+      "CONTRIBUTOR": "Contributor",
+      "MANAGER": "Manager"
+    }
   }
 }

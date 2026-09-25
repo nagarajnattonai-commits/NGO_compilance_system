@@ -47,6 +47,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   addComplianceComment,
+  addTaskAttachment,
+  addTaskComment,
+  archiveTaskAttachment,
   askAssistant,
   createCompliance,
   createOrganization,
@@ -55,6 +58,9 @@ import {
   deletePortfolioRecord,
   inviteMember,
   loadComplianceComments,
+  loadEligibleAssignees,
+  loadTaskAttachments,
+  loadTaskComments,
   loadWorkspace,
   markNotificationRead,
   patchIntegration,
@@ -78,12 +84,15 @@ import type {
   ComplianceDefinition,
   ComplianceDocument,
   ComplianceTask,
+  EligibleAssignee,
   IntegrationConnection,
   Membership,
   Notification,
   Organization,
   PortfolioRecord,
   Subscription,
+  TaskAttachment,
+  TaskComment,
 } from "@/lib/types";
 import ThemeToggle from "@/components/theme-toggle";
 import { normalizeEmail, validateEmail } from "@/lib/auth-validation";
@@ -725,7 +734,9 @@ export default function ComplianceApp({
             <TasksView
               items={scopedTasks}
               compliances={compliances}
+              documents={documents}
               toggleTask={toggleTask}
+              taskUpdated={(updated) => setTasks((rows) => rows.map((row) => row.id === updated.id ? updated : row))}
               setShowNewTask={setShowNewTask}
             />
           )}
@@ -1572,16 +1583,21 @@ function ComplianceView({
 function TasksView({
   items,
   compliances,
+  documents,
   toggleTask,
+  taskUpdated,
   setShowNewTask,
 }: {
   items: ComplianceTask[];
   compliances: Compliance[];
+  documents: ComplianceDocument[];
   toggleTask: (t: ComplianceTask) => void;
+  taskUpdated: (task: ComplianceTask) => void;
   setShowNewTask: (v: boolean) => void;
 }) {
   const t = useTranslations("Tasks");
   const common = useTranslations("Common");
+  const user = useCurrentUser();
   const [tab, setTab] = useState("OPEN");
   const [assignee, setAssignee] = useState("ALL");
   const [selectedTask, setSelectedTask] = useState<ComplianceTask | null>(null);
@@ -1598,12 +1614,16 @@ function TasksView({
       new Date(`${item.due_at}T12:00:00`) >= today &&
       new Date(`${item.due_at}T12:00:00`) <= weekEnd,
   ).length;
-  const visible = items.filter(
-    (item) =>
-      (tab === "ALL" ||
-        (tab === "DONE" ? item.status === "DONE" : item.status !== "DONE")) &&
-      (assignee === "ALL" || item.assignee_name === assignee),
-  );
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const visible = items.filter((item) => {
+    const matchesTab = tab === "ALL" ||
+      (tab === "MINE" && item.assignee_user_id === user.id) ||
+      (tab === "TODAY" && item.status !== "DONE" && item.due_at === todayKey) ||
+      (tab === "OVERDUE" && item.status !== "DONE" && item.due_at < todayKey) ||
+      (tab === "DONE" && item.status === "DONE") ||
+      (tab === "OPEN" && item.status !== "DONE");
+    return matchesTab && (assignee === "ALL" || item.assignee_name === assignee);
+  });
   return (
     <>
       <div className="page">
@@ -1648,7 +1668,7 @@ function TasksView({
         </div>
         <div className="toolbar task-toolbar">
           <div className="filter-tabs">
-            {["OPEN", "DONE", "ALL"].map((item) => (
+            {["OPEN", "MINE", "TODAY", "OVERDUE", "DONE", "ALL"].map((item) => (
               <button
                 key={item}
                 className={tab === item ? "active" : ""}
@@ -1656,6 +1676,12 @@ function TasksView({
               >
                 {item === "OPEN"
                   ? t("open")
+                  : item === "MINE"
+                    ? t("myTasks")
+                    : item === "TODAY"
+                      ? t("dueToday")
+                      : item === "OVERDUE"
+                        ? t("overdue")
                   : item === "DONE"
                     ? t("completed")
                     : common("items", { count: items.length })}
@@ -1745,11 +1771,9 @@ function TasksView({
           compliance={compliances.find(
             (item) => item.id === selectedTask.compliance_id,
           )}
+          documents={documents.filter((document) => document.organization_id === selectedTask.organization_id)}
+          taskUpdated={(updated) => { setSelectedTask(updated); taskUpdated(updated); }}
           close={() => setSelectedTask(null)}
-          toggleTask={() => {
-            toggleTask(selectedTask);
-            setSelectedTask(null);
-          }}
         />
       )}
     </>
@@ -3431,56 +3455,134 @@ function NotificationCenter({
 function TaskDetailsModal({
   task,
   compliance,
+  documents,
+  taskUpdated,
   close,
-  toggleTask,
 }: {
   task: ComplianceTask;
   compliance?: Compliance;
+  documents: ComplianceDocument[];
+  taskUpdated: (task: ComplianceTask) => void;
   close: () => void;
-  toggleTask: () => void;
 }) {
+  const t = useTranslations("Tasks");
+  const common = useTranslations("Common");
+  const [assignees, setAssignees] = useState<EligibleAssignee[]>([]);
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [assigneeId, setAssigneeId] = useState(task.assignee_user_id || "");
+  const [taskStatus, setTaskStatus] = useState(task.status);
+  const [priority, setPriority] = useState(task.priority);
+  const [dueAt, setDueAt] = useState(task.due_at);
+  const [comment, setComment] = useState("");
+  const [documentId, setDocumentId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      loadEligibleAssignees(task.organization_id),
+      loadTaskComments(task.id),
+      loadTaskAttachments(task.id),
+    ]).then(([users, taskComments, taskAttachments]) => {
+      setAssignees(users);
+      setComments(taskComments);
+      setAttachments(taskAttachments);
+    }).catch(() => setError(t("loadError")));
+  }, [task.id, task.organization_id, t]);
+
+  async function save() {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await patchTask(task.id, {
+        status: taskStatus,
+        priority,
+        due_at: dueAt,
+        ...(assigneeId ? { assignee_user_id: assigneeId } : {}),
+      });
+      taskUpdated(updated);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("updateError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitComment(event: React.FormEvent) {
+    event.preventDefault();
+    if (!comment.trim()) return;
+    setBusy(true);
+    try {
+      const row = await addTaskComment(task.id, comment.trim());
+      setComments((items) => [...items, row]);
+      setComment("");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("commentError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function attach() {
+    if (!documentId) return;
+    setBusy(true);
+    try {
+      const row = await addTaskAttachment(task.id, documentId);
+      setAttachments((items) => items.some((item) => item.id === row.id) ? items : [row, ...items]);
+      setDocumentId("");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("attachmentError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeAttachment(linkId: string) {
+    setBusy(true);
+    try {
+      await archiveTaskAttachment(task.id, linkId);
+      setAttachments((items) => items.filter((item) => item.id !== linkId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("attachmentError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Modal
       title={task.title}
-      text="Task assignment and linkage details."
+      text={t("details")}
       close={close}
     >
       <div className="modal-content">
+        {error && <div className="form-error" role="alert"><AlertTriangle size={16}/>{error}</div>}
         <div className="detail-grid modal-detail-grid">
-          <div>
-            <span>Status</span>
-            <strong>
-              {task.status === "DONE"
-                ? "Completed"
-                : task.status === "IN_PROGRESS"
-                  ? "In progress"
-                  : "To do"}
-            </strong>
-          </div>
-          <div>
-            <span>Priority</span>
-            <strong>{task.priority}</strong>
-          </div>
-          <div>
-            <span>Due date</span>
-            <strong>{niceDate(task.due_at)}</strong>
-          </div>
-          <div>
-            <span>Assignee</span>
-            <strong>{task.assignee_name}</strong>
-          </div>
+          <label><span>{t("status")}</span><select value={taskStatus} onChange={(event) => setTaskStatus(event.target.value)}><option value="TODO">{t("todo")}</option><option value="IN_PROGRESS">{t("inProgress")}</option><option value="DONE">{t("completed")}</option></select></label>
+          <label><span>{t("priority")}</span><select value={priority} onChange={(event) => setPriority(event.target.value)}>{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((value) => <option key={value} value={value}>{common(`priority.${value}`)}</option>)}</select></label>
+          <label><span>{t("dueDate")}</span><input type="date" value={dueAt} onChange={(event) => setDueAt(event.target.value)}/></label>
+          <label><span>{t("assignee")}</span><select value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}>{assignees.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></label>
           <div className="wide">
-            <span>Linked compliance</span>
-            <strong>{compliance?.title || "Standalone task"}</strong>
+            <span>{t("linkedCompliance")}</span>
+            <strong>{compliance?.title || t("standalone")}</strong>
           </div>
         </div>
+        <section className="detail-section">
+          <h3>{t("comments")}</h3>
+          {comments.length ? <ul className="organization-records">{comments.map((row) => <li key={row.id}><strong>{row.author_name}</strong><p>{row.body}</p><small>{formatDateTime(row.created_at)}</small></li>)}</ul> : <p className="muted">{t("noComments")}</p>}
+          <form className="form-row" onSubmit={(event) => void submitComment(event)}><input value={comment} maxLength={4000} placeholder={t("commentPlaceholder")} onChange={(event) => setComment(event.target.value)}/><button className="button secondary" disabled={busy || !comment.trim()}>{t("addComment")}</button></form>
+        </section>
+        <section className="detail-section">
+          <h3>{t("attachments")}</h3>
+          {attachments.length ? <ul className="organization-records">{attachments.map((row) => <li key={row.id}><span>{row.name}</span><button className="text-button" disabled={busy} onClick={() => void removeAttachment(row.id)}>{t("remove")}</button></li>)}</ul> : <p className="muted">{t("noAttachments")}</p>}
+          <div className="form-row"><select aria-label={t("selectDocument")} value={documentId} onChange={(event) => setDocumentId(event.target.value)}><option value="">{t("selectDocument")}</option>{documents.filter((document) => document.storage_status === "AVAILABLE").map((document) => <option key={document.id} value={document.id}>{document.name}</option>)}</select><button className="button secondary" disabled={busy || !documentId} onClick={() => void attach()}>{t("attach")}</button></div>
+        </section>
         <div className="modal-actions">
           <button className="button secondary" onClick={close}>
-            Close
+            {t("close")}
           </button>
-          <button className="button primary" onClick={toggleTask}>
-            {task.status === "DONE" ? "Reopen task" : "Mark complete"}
-          </button>
+          <button className="button primary" disabled={busy} onClick={() => void save()}>{busy ? t("saving") : t("save")}</button>
         </div>
       </div>
     </Modal>
@@ -3505,7 +3607,7 @@ function NewTaskModal({
   close: () => void;
   onCreate: (item: ComplianceTask) => void;
 }) {
-  const currentUser = useCurrentUser();
+  const t = useTranslations("Tasks");
   const [title, setTitle] = useState("");
   const [org, setOrg] = useState(
     currentOrg === "all" ? organizations[0]?.id : currentOrg,
@@ -3513,15 +3615,24 @@ function NewTaskModal({
   const [complianceId, setComplianceId] = useState("");
   const [dueAt, setDueAt] = useState(() => dateInput(7));
   const [priority, setPriority] = useState("MEDIUM");
+  const [assignees, setAssignees] = useState<EligibleAssignee[]>([]);
+  const [assigneeId, setAssigneeId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const availableCompliances = compliances.filter(
     (item) => item.organization_id === org && isOpenCompliance(item.status),
   );
+  useEffect(() => {
+    if (!org) return;
+    loadEligibleAssignees(org).then((rows) => {
+      setAssignees(rows);
+      setAssigneeId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id || "");
+    }).catch((requestError) => setError(requestError instanceof Error ? requestError.message : t("loadError")));
+  }, [org, t]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !org || saving) return;
+    if (!title.trim() || !org || !assigneeId || saving) return;
     setSaving(true);
     setError("");
     try {
@@ -3531,15 +3642,14 @@ function NewTaskModal({
         title: title.trim(),
         due_at: dueAt,
         priority,
-        assignee_name: currentUser.name,
-        assignee_initials: initials(currentUser.name),
+        assignee_user_id: assigneeId,
       });
       onCreate(item);
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Could not create this task.",
+          : t("updateError"),
       );
       setSaving(false);
     }
@@ -3547,25 +3657,25 @@ function NewTaskModal({
 
   return (
     <Modal
-      title="Create task"
-      text="Assign a concrete next step to an owner and obligation."
+      title={t("createTitle")}
+      text={t("createHelp")}
       close={close}
     >
       <form onSubmit={submit} className="form">
         <label>
-          <span>Task title</span>
+          <span>{t("taskTitle")}</span>
           <input
             autoFocus
             required
             minLength={3}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Collect signed utilization certificates"
+            placeholder={t("taskPlaceholder")}
           />
         </label>
         <div className="form-row">
           <label>
-            <span>Organization</span>
+            <span>{t("organization")}</span>
             <select
               required
               value={org}
@@ -3582,7 +3692,7 @@ function NewTaskModal({
             </select>
           </label>
           <label>
-            <span>Due date</span>
+            <span>{t("dueDate")}</span>
             <input
               type="date"
               required
@@ -3592,12 +3702,12 @@ function NewTaskModal({
           </label>
         </div>
         <label>
-          <span>Linked compliance</span>
+          <span>{t("linkedCompliance")}</span>
           <select
             value={complianceId}
             onChange={(e) => setComplianceId(e.target.value)}
           >
-            <option value="">Standalone task</option>
+            <option value="">{t("standalone")}</option>
             {availableCompliances.map((item) => (
               <option value={item.id} key={item.id}>
                 {item.title}
@@ -3607,11 +3717,13 @@ function NewTaskModal({
         </label>
         <div className="form-row">
           <label>
-            <span>Assignee</span>
-            <input value={currentUser.name} readOnly />
+            <span>{t("assignee")}</span>
+            <select required value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}>
+              {assignees.map((assignee) => <option key={assignee.id} value={assignee.id}>{assignee.name}</option>)}
+            </select>
           </label>
           <label>
-            <span>Priority</span>
+            <span>{t("priority")}</span>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
@@ -3631,8 +3743,7 @@ function NewTaskModal({
         )}
         <div className="form-info">
           <ShieldCheck size={17} />
-          The assignment and any later status changes are written to the audit
-          history.
+          {t("auditHelp")}
         </div>
         <div className="modal-actions">
           <button
@@ -3641,10 +3752,10 @@ function NewTaskModal({
             onClick={close}
             disabled={saving}
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button className="button primary" type="submit" disabled={saving}>
-            {saving ? "Creating..." : "Create task"}
+            {saving ? t("creating") : t("create")}
           </button>
         </div>
       </form>

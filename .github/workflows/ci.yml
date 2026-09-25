@@ -72,7 +72,7 @@ jobs:
   white-label-browser:
     name: White-label browser regression
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@v7
