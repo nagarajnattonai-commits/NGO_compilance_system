@@ -94,6 +94,7 @@ from .organization_access import accessible_organization_ids, require_organizati
 from .phase8_api import eligible_users, notify_task, router as phase8_router
 from .phase9_api import router as phase9_router
 from .phase10_api import router as phase10_router
+from .reporting_api import router as reporting_router
 
 
 @asynccontextmanager
@@ -142,6 +143,7 @@ app.include_router(notification_router)
 app.include_router(phase8_router)
 app.include_router(phase9_router)
 app.include_router(phase10_router)
+app.include_router(reporting_router)
 app.add_middleware(DocumentUploadLimit)
 
 

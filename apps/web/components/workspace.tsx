@@ -100,7 +100,6 @@ import LocaleSwitcher from "@/components/locale-switcher";
 import {
   activeLocale,
   formatDateTime,
-  formatPercentage,
   formatShortDate,
   localizedCollator,
 } from "@/i18n/format";
@@ -108,11 +107,12 @@ import LocalizationAdmin from "@/components/localization-admin";
 import WhiteLabelSettings from "@/components/white-label-settings";
 import PlatformNavigation from "@/components/platform-navigation";
 import ComplianceTemplateRuntime from "@/components/compliance-template-runtime";
+import { ManagementDashboard, ManagementReports } from "@/components/reporting";
 import { ComplianceNotificationMessage, ComplianceNotificationTitle } from "@/components/compliance-notification";
 import OrganizationComplianceProfile from "@/components/organization-compliance-profile";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
-import { countsTowardCompletion, isOpenCompliance } from "@/lib/compliance-states";
+import { isOpenCompliance } from "@/lib/compliance-states";
 
 const UserContext = createContext<AuthUser | null>(null);
 function useCurrentUser() {
@@ -193,10 +193,6 @@ function downloadText(
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-}
-
-function csvCell(value: string | number | null | undefined) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
 
 function dateInput(daysFromToday: number) {
@@ -709,15 +705,17 @@ export default function ComplianceApp({
             <Overview
               compliances={scopedCompliances}
               tasks={scopedTasks}
-              documents={scopedDocuments}
-              organizations={organizations}
+              organizationId={selectedOrg === "all" ? undefined : selectedOrg}
               audits={auditEvents}
               orgName={org?.name}
               go={go}
-              selectCompliance={setSelectedCompliance}
               toggleTask={toggleTask}
               setShowNew={setShowNew}
               openUpload={openUpload}
+              onSelectCompliance={(id) => {
+                const item = scopedCompliances.find((compliance) => compliance.id === id);
+                if (item) setSelectedCompliance(item);
+              }}
             />
           )}
           {view === "compliance" && (
@@ -760,14 +758,14 @@ export default function ComplianceApp({
             />
           )}
           {view === "reports" && (
-            <ReportsView
-              compliances={scopedCompliances}
-              organizations={
-                selectedOrg === "all"
-                  ? organizations
-                  : organizations.filter((item) => item.id === selectedOrg)
-              }
-              showToast={showToast}
+            <ManagementReports
+              key={selectedOrg}
+              organizations={selectedOrg === "all" ? organizations : organizations.filter((item) => item.id === selectedOrg)}
+              initialOrganizationId={selectedOrg === "all" ? undefined : selectedOrg}
+              onSelectCompliance={(id) => {
+                const item = scopedCompliances.find((compliance) => compliance.id === id);
+                if (item) setSelectedCompliance(item);
+              }}
             />
           )}
           {view === "programmes" && (
@@ -1012,56 +1010,36 @@ function PageHeading({
 function Overview({
   compliances,
   tasks,
-  documents,
-  organizations,
   audits,
   orgName,
   go,
-  selectCompliance,
   toggleTask,
   setShowNew,
   openUpload,
+  organizationId,
+  onSelectCompliance,
 }: {
   compliances: Compliance[];
   tasks: ComplianceTask[];
-  documents: ComplianceDocument[];
-  organizations: Organization[];
   audits: AuditEvent[];
   orgName?: string;
   go: (v: View) => void;
-  selectCompliance: (c: Compliance) => void;
   toggleTask: (t: ComplianceTask) => void;
   setShowNew: (v: boolean) => void;
   openUpload: () => void;
+  organizationId?: string;
+  onSelectCompliance: (id: string) => void;
 }) {
   const t = useTranslations("Dashboard");
   const openItems = compliances.filter((item) => isOpenCompliance(item.status));
-  const eligibleItems = compliances.filter((item) => countsTowardCompletion(item.status));
-  const completed = compliances.filter(
-    (item) => item.status === "COMPLETED",
-  ).length;
-  const active = compliances.filter((item) =>
-    ["IN_PROGRESS", "UNDER_REVIEW", "READY_TO_FILE", "FILED"].includes(
-      item.status,
-    ),
-  ).length;
   const risk = openItems.filter((item) =>
     ["HIGH", "CRITICAL"].includes(item.priority),
   ).length;
-  const rate = eligibleItems.length
-    ? Math.round((completed / eligibleItems.length) * 100)
-    : 0;
   const today = dateInput(0);
   const overdue = openItems.filter(
     (item) => item.statutory_deadline < today,
   ).length;
-  const deadlines = [...openItems]
-    .sort((a, b) => a.statutory_deadline.localeCompare(b.statutory_deadline))
-    .slice(0, 5);
   const openTasks = tasks.filter((task) => task.status !== "DONE");
-  const expiredEvidence = documents.filter(
-    (document) => document.expiry_at && document.expiry_at < today,
-  ).length;
   return (
     <div className="page reference-dashboard">
       <PageHeading
@@ -1083,104 +1061,7 @@ function Overview({
           </div>
         }
       />
-      <div className="metric-grid">
-        <Metric
-          label={t("totalCompliances")}
-          value={compliances.length}
-          note={orgName || t("organizations", { count: organizations.length })}
-          icon={<ClipboardCheck size={26} />}
-          tone="purple"
-          onClick={() => go("compliance")}
-        />
-        <Metric
-          label={t("openTasks")}
-          value={openTasks.length}
-          note={t("completed", {
-            count: tasks.filter((task) => task.status === "DONE").length,
-          })}
-          icon={<ListChecks size={26} />}
-          tone="pink"
-          onClick={() => go("tasks")}
-        />
-        <Metric
-          label={t("evidenceRecords")}
-          value={documents.length}
-          note={`${expiredEvidence} expired records`}
-          icon={<FolderOpen size={26} />}
-          tone="cyan"
-          onClick={() => go("documents")}
-        />
-        <Metric
-          label={t("complianceHealth")}
-          value={formatPercentage(rate / 100)}
-          note={t("completed", { count: completed })}
-          icon={<CheckCircle2 size={26} />}
-          tone="gold"
-          onClick={() => go("reports")}
-        />
-      </div>
-      <div className="statistics-grid">
-        <section className="card statistics-card">
-          <CardTitle
-            title="Compliance Statistics"
-            sub="Status of the selected portfolio"
-            action={
-              <button className="text-button" onClick={() => go("reports")}>
-                View report <ChevronRight size={14} />
-              </button>
-            }
-          />
-          <div className="statistics-values">
-            <div>
-              <span>Total obligations</span>
-              <strong className="stat-blue">{compliances.length}</strong>
-            </div>
-            <div>
-              <span>In progress / filing</span>
-              <strong className="stat-purple">{active}</strong>
-            </div>
-            <div>
-              <span>Completed</span>
-              <strong className="stat-green">{completed}</strong>
-            </div>
-            <div>
-              <span>Overdue</span>
-              <strong className="stat-red">{overdue}</strong>
-            </div>
-          </div>
-        </section>
-        <section className="card statistics-card">
-          <CardTitle
-            title="Task & Evidence Statistics"
-            sub="Work and supporting records"
-            action={
-              <button className="text-button" onClick={() => go("documents")}>
-                View evidence <ChevronRight size={14} />
-              </button>
-            }
-          />
-          <div className="statistics-values">
-            <div>
-              <span>Open tasks</span>
-              <strong className="stat-blue">{openTasks.length}</strong>
-            </div>
-            <div>
-              <span>Finished tasks</span>
-              <strong className="stat-green">
-                {tasks.length - openTasks.length}
-              </strong>
-            </div>
-            <div>
-              <span>Evidence records</span>
-              <strong className="stat-purple">{documents.length}</strong>
-            </div>
-            <div>
-              <span>Expired records</span>
-              <strong className="stat-amber">{expiredEvidence}</strong>
-            </div>
-          </div>
-        </section>
-      </div>
+      <ManagementDashboard organizationId={organizationId} onSelectCompliance={onSelectCompliance} />
       <section className="card admin-notice">
         <div className="notice-heading">
           <Bell size={17} />
@@ -1211,55 +1092,6 @@ function Overview({
         </div>
       </section>
       <div className="dashboard-grid">
-        <section className="card upcoming-card">
-          <CardTitle
-            title={t("priorityDeadlines")}
-            sub="Earliest open statutory dates, including overdue items"
-            action={
-              <button className="text-button" onClick={() => go("calendar")}>
-                Calendar <ChevronRight size={15} />
-              </button>
-            }
-          />
-          <div className="deadline-list">
-            {deadlines.map((item) => (
-              <button key={item.id} onClick={() => selectCompliance(item)}>
-                <div
-                  className={`date-tile ${item.statutory_deadline < today ? "date-overdue" : ""}`}
-                >
-                  <strong>
-                    {new Date(`${item.statutory_deadline}T12:00:00`).getDate()}
-                  </strong>
-                  <span>
-                    {new Date(
-                      `${item.statutory_deadline}T12:00:00`,
-                    ).toLocaleString(activeLocale(), { month: "short" })}
-                  </span>
-                </div>
-                <div className="deadline-main">
-                  <strong>{item.title}</strong>
-                  <span>
-                    {
-                      organizations.find(
-                        (org) => org.id === item.organization_id,
-                      )?.name
-                    }{" "}
-                    · {niceDate(item.statutory_deadline)}
-                  </span>
-                </div>
-                <StatusBadge status={item.status} />
-                <ChevronRight size={15} />
-              </button>
-            ))}
-          </div>
-          {!deadlines.length && (
-            <EmptyState
-              icon={<CalendarDays />}
-              title="No pending deadlines"
-              text="New obligations will appear here."
-            />
-          )}
-        </section>
         <section className="card task-card">
           <CardTitle
             title="Assigned Tasks"
@@ -1343,34 +1175,6 @@ function Overview({
         </section>
       </div>
     </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  note,
-  icon,
-  tone,
-  onClick,
-}: {
-  label: string;
-  value: number | string;
-  note: string;
-  icon: React.ReactNode;
-  tone: string;
-  onClick: () => void;
-}) {
-  return (
-    <button className={`metric-card metric-${tone}`} onClick={onClick}>
-      <span className="metric-icon">{icon}</span>
-      <span className="metric-content">
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{note}</small>
-      </span>
-      <ChevronRight className="metric-arrow" size={18} />
-    </button>
   );
 }
 
@@ -2178,181 +1982,6 @@ function DocumentsView({
         />
       )}
     </>
-  );
-}
-
-function ReportsView({
-  compliances,
-  organizations,
-  showToast,
-}: {
-  compliances: Compliance[];
-  organizations: Organization[];
-  showToast: (message: string) => void;
-}) {
-  const t = useTranslations("Reports");
-  const eligibleItems = compliances.filter((c) => countsTowardCompletion(c.status));
-  const categories = [...new Set(eligibleItems.map((c) => c.category))];
-  function exportReport() {
-    const header = [
-      "Code",
-      "Compliance",
-      "Organization",
-      "Category",
-      "Period",
-      "Deadline",
-      "Internal target",
-      "Owner",
-      "Priority",
-      "Status",
-      "Progress",
-    ];
-    const rows = compliances.map((item) => [
-      item.code,
-      item.title,
-      organizations.find((org) => org.id === item.organization_id)?.name ||
-        item.organization_id,
-      item.category,
-      item.period,
-      item.statutory_deadline,
-      item.internal_target,
-      item.owner_name,
-      item.priority,
-      statusLabels[item.status] || item.status,
-      item.progress,
-    ]);
-    downloadText(
-      "setu-compliance-report.csv",
-      [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n"),
-      "text/csv;charset=utf-8",
-    );
-    showToast("Compliance report exported");
-  }
-  return (
-    <div className="page">
-      <PageHeading
-        title={t("title")}
-        text={t("description")}
-        action={
-          <div className="report-export-actions"><a className="button secondary" href={`/api/v1/reports/compliance/print?locale=${encodeURIComponent(activeLocale())}${organizations.length === 1 ? `&organization_id=${encodeURIComponent(organizations[0].id)}` : ""}`} target="_blank" rel="noopener noreferrer"><FileText size={17} />{t("printPdf")}</a><button className="button primary" onClick={exportReport}>
-            <Download size={17} />
-            {t("exportCsv")}
-          </button></div>
-        }
-      />
-      <div className="report-banner">
-        <div>
-          <span className="eyebrow">Portfolio health</span>
-          <h2>
-            Most obligations are moving, but evidence collection is the
-            bottleneck.
-          </h2>
-          <p>
-            {
-              compliances.filter(
-                (c) =>
-                  ["HIGH", "CRITICAL"].includes(c.priority) &&
-                  isOpenCompliance(c.status),
-              ).length
-            }{" "}
-            high-risk items across{" "}
-            {new Set(compliances.map((c) => c.organization_id)).size}{" "}
-            organizations need management attention.
-          </p>
-        </div>
-        <div className="report-score">
-          <strong>
-            {Math.round(
-              eligibleItems.reduce((sum, c) => sum + c.progress, 0) /
-                Math.max(1, eligibleItems.length),
-            )}
-          </strong>
-          <span>Health score</span>
-          <small>out of 100</small>
-        </div>
-      </div>
-      <div className="report-grid">
-        <section className="card">
-          <CardTitle
-            title="Progress by category"
-            sub="Average completion of active obligations"
-          />
-          <div className="bar-chart">
-            {categories.map((category) => {
-              const rows = eligibleItems.filter((c) => c.category === category);
-              const value = Math.round(
-                rows.reduce((sum, c) => sum + c.progress, 0) / rows.length,
-              );
-              return (
-                <div key={category}>
-                  <span>{category}</span>
-                  <div>
-                    <b style={{ width: `${value}%` }} />
-                  </div>
-                  <strong>{formatPercentage(value / 100)}</strong>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-        <section className="card">
-          <CardTitle title="Organization health" sub="Portfolio comparison" />
-          <div className="org-health">
-            {organizations.map((org) => {
-              const rows = eligibleItems.filter(
-                (c) => c.organization_id === org.id,
-              );
-              const score = rows.length
-                ? Math.round(
-                    rows.reduce((sum, c) => sum + c.progress, 0) / rows.length,
-                  )
-                : 0;
-              return (
-                <div key={org.id}>
-                  <span className="org-mini">{org.name[0]}</span>
-                  <div>
-                    <Link href={`/organizations/${org.id}`}><strong>{org.name}</strong></Link>
-                    <small>{rows.length} obligations</small>
-                  </div>
-                  <b>{formatPercentage(score / 100)}</b>
-                  <div className="mini-bar">
-                    <i style={{ width: `${score}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-        <section className="card full-report">
-          <CardTitle
-            title="Recommended actions"
-            sub="Prioritized from your current workspace"
-          />
-          <div className="recommendation-grid">
-            <div>
-              <span>01</span>
-              <strong>Close evidence gaps</strong>
-              <p>
-                Collect the missing audit schedules for Udaan before the
-                internal target.
-              </p>
-            </div>
-            <div>
-              <span>02</span>
-              <strong>Approve GST filing</strong>
-              <p>
-                GSTR-3B is prepared and needs final sign-off before submission.
-              </p>
-            </div>
-            <div>
-              <span>03</span>
-              <strong>Start tax return</strong>
-              <p>Assign a preparer and request tax audit inputs for ITR-7.</p>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
   );
 }
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import html
 from datetime import date, datetime, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
 from babel.dates import format_date, format_datetime
@@ -17,6 +17,7 @@ from .branding import resolve_tenant_branding, version_configuration
 from .branding_schema import ConfigurationModel, BrandConfiguration
 from .brand_domains import active_domain
 from .models import Compliance, Organization, TenantBranding, TenantDomain, TenantLocale, UserPreference
+from .reporting_service import compliance_report_rows, reporting_organizations
 
 Tenant = Annotated[str, Depends(tenant_context)]
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(check_mutation)])
@@ -26,6 +27,18 @@ CONTENT = {
     "hi-IN": {"resetSubject": "अपना पासवर्ड रीसेट करें", "reset": "एक घंटे के भीतर इस एकल-उपयोग लिंक का उपयोग करें। यदि आपने अनुरोध नहीं किया है, तो इस ईमेल को अनदेखा करें।", "inviteSubject": "आपका कार्यक्षेत्र आमंत्रण", "invite": "आपको अनुपालन कार्यक्षेत्र में आमंत्रित किया गया है।", "deadlineSubject": "अनुपालन समयसीमा अनुस्मारक", "deadline": "आपकी अनुपालन समयसीमा निकट आ रही है।", "report": "अनुपालन स्थिति रिपोर्ट", "client": "ग्राहक एनजीओ", "generated": "निर्मित", "provider": "सेवा प्रदाता", "code": "कोड", "compliance": "अनुपालन", "deadlineHeader": "समयसीमा", "status": "स्थिति", "progress": "प्रगति", "owner": "जिम्मेदार", "empty": "कोई अनुपालन रिकॉर्ड नहीं मिला"},
     "kn-IN": {"resetSubject": "ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಸಿ", "reset": "ಒಂದು ಗಂಟೆಯೊಳಗೆ ಈ ಏಕ-ಬಳಕೆಯ ಲಿಂಕ್ ಬಳಸಿ. ನೀವು ವಿನಂತಿಸದಿದ್ದರೆ ಈ ಇಮೇಲ್ ನಿರ್ಲಕ್ಷಿಸಿ.", "inviteSubject": "ನಿಮ್ಮ ಕಾರ್ಯಕ್ಷೇತ್ರದ ಆಹ್ವಾನ", "invite": "ನಿಮ್ಮ ಅನುಸರಣೆ ಕಾರ್ಯಕ್ಷೇತ್ರಕ್ಕೆ ನಿಮ್ಮನ್ನು ಆಹ್ವಾನಿಸಲಾಗಿದೆ.", "deadlineSubject": "ಅನುಸರಣೆ ಗಡುವಿನ ನೆನಪಿನ ಸಂದೇಶ", "deadline": "ನಿಮ್ಮ ಅನುಸರಣೆ ಗಡುವು ಸಮೀಪಿಸುತ್ತಿದೆ.", "report": "ಅನುಸರಣೆ ಸ್ಥಿತಿ ವರದಿ", "client": "ಗ್ರಾಹಕ ಎನ್‌ಜಿಒ", "generated": "ರಚಿಸಲಾಗಿದೆ", "provider": "ಸೇವಾ ಪೂರೈಕೆದಾರ", "code": "ಕೋಡ್", "compliance": "ಅನುಸರಣೆ", "deadlineHeader": "ಗಡುವು", "status": "ಸ್ಥಿತಿ", "progress": "ಪ್ರಗತಿ", "owner": "ಜವಾಬ್ದಾರರು", "empty": "ಯಾವುದೇ ಅನುಸರಣೆ ದಾಖಲೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ"},
     "mr-IN": {"resetSubject": "तुमचा पासवर्ड रीसेट करा", "reset": "एका तासाच्या आत ही एकदा वापरण्याची लिंक वापरा. तुम्ही विनंती केली नसल्यास हा ईमेल दुर्लक्षित करा.", "inviteSubject": "तुमचे कार्यक्षेत्र आमंत्रण", "invite": "तुम्हाला अनुपालन कार्यक्षेत्रात आमंत्रित केले आहे.", "deadlineSubject": "अनुपालन मुदत स्मरणपत्र", "deadline": "तुमची अनुपालन मुदत जवळ येत आहे.", "report": "अनुपालन स्थिती अहवाल", "client": "ग्राहक एनजीओ", "generated": "तयार केले", "provider": "सेवा प्रदाता", "code": "कोड", "compliance": "अनुपालन", "deadlineHeader": "मुदत", "status": "स्थिती", "progress": "प्रगती", "owner": "जबाबदार", "empty": "अनुपालन नोंदी आढळल्या नाहीत"},
+}
+REPORT_FIELDS = {
+    "en-IN": {"organization": "Organization", "applicability": "Applicability", "tasks": "Tasks and checklist", "evidence": "Evidence coverage", "workflow": "Review, approval, filing and proof", "completion": "Completion and audit timeline", "completed": "Completed", "open": "Open", "priority": "Priority", "filing": "Filing", "noProof": "No proof file", "required": "required", "optional": "optional", "complianceEvidence": "compliance", "taskEvidence": "task", "filingEvidence": "filing"},
+    "hi-IN": {"organization": "संगठन", "applicability": "लागू होने की स्थिति", "tasks": "कार्य और जाँच-सूची", "evidence": "साक्ष्य कवरेज", "workflow": "समीक्षा, अनुमोदन, फाइलिंग और प्रमाण", "completion": "पूर्णता और ऑडिट समयरेखा", "completed": "पूर्ण", "open": "खुला", "priority": "प्राथमिकता", "filing": "फाइलिंग", "noProof": "कोई प्रमाण फ़ाइल नहीं", "required": "आवश्यक", "optional": "वैकल्पिक", "complianceEvidence": "अनुपालन", "taskEvidence": "कार्य", "filingEvidence": "फाइलिंग"},
+    "kn-IN": {"organization": "ಸಂಸ್ಥೆ", "applicability": "ಅನ್ವಯಿಸುವಿಕೆ", "tasks": "ಕಾರ್ಯಗಳು ಮತ್ತು ಪರಿಶೀಲನಾ ಪಟ್ಟಿ", "evidence": "ಸಾಕ್ಷ್ಯ ವ್ಯಾಪ್ತಿ", "workflow": "ಪರಿಶೀಲನೆ, ಅನುಮೋದನೆ, ಸಲ್ಲಿಕೆ ಮತ್ತು ಪುರಾವೆ", "completion": "ಪೂರ್ಣತೆ ಮತ್ತು ಆಡಿಟ್ ಕಾಲರೇಖೆ", "completed": "ಪೂರ್ಣಗೊಂಡಿದೆ", "open": "ತೆರೆದಿದೆ", "priority": "ಆದ್ಯತೆ", "filing": "ಸಲ್ಲಿಕೆ", "noProof": "ಪುರಾವೆ ಕಡತವಿಲ್ಲ", "required": "ಅಗತ್ಯ", "optional": "ಐಚ್ಛಿಕ", "complianceEvidence": "ಅನುಸರಣೆ", "taskEvidence": "ಕಾರ್ಯ", "filingEvidence": "ಸಲ್ಲಿಕೆ"},
+    "mr-IN": {"organization": "संस्था", "applicability": "लागू स्थिती", "tasks": "कामे आणि तपासणी सूची", "evidence": "पुरावा व्याप्ती", "workflow": "पुनरावलोकन, मंजुरी, दाखल आणि पुरावा", "completion": "पूर्णता आणि ऑडिट कालरेषा", "completed": "पूर्ण", "open": "उघडे", "priority": "प्राधान्य", "filing": "दाखल", "noProof": "पुरावा फाइल नाही", "required": "आवश्यक", "optional": "ऐच्छिक", "complianceEvidence": "अनुपालन", "taskEvidence": "काम", "filingEvidence": "दाखल"},
+}
+REPORT_DECISIONS = {
+    "en-IN": {"review": "Review", "approval": "Approval"},
+    "hi-IN": {"review": "समीक्षा", "approval": "अनुमोदन"},
+    "kn-IN": {"review": "ಪರಿಶೀಲನೆ", "approval": "ಅನುಮೋದನೆ"},
+    "mr-IN": {"review": "पुनरावलोकन", "approval": "मंजुरी"},
 }
 STATUSES = {
     "en-IN": {"NOT_STARTED": "Not started", "IN_PROGRESS": "In progress", "UNDER_REVIEW": "Under review", "READY_TO_FILE": "Ready to file", "FILED": "Filed", "COMPLETED": "Completed", "ON_HOLD": "On hold", "OVERDUE": "Overdue"},
@@ -115,30 +128,55 @@ def email_preview(payload: EmailPreviewInput, db: DB, tenant_id: Tenant, _: Admi
 
 
 @router.get("/reports/compliance/print")
-def compliance_print_report(db: DB, tenant_id: Tenant, user: CurrentUser, organization_id: str | None = None, locale: str | None = None):
+def compliance_print_report(
+    db: DB,
+    tenant_id: Tenant,
+    user: CurrentUser,
+    organization_id: str | None = None,
+    locale: str | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    owner: str | None = None,
+    priority: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    organizations = reporting_organizations(db, tenant_id, user, organization_id)
+    rows = compliance_report_rows(
+        db, tenant_id, user, organization_id=organization_id, category=category,
+        status=status, owner=owner, priority=priority, date_from=date_from,
+        date_to=date_to, limit=500,
+    )
     preference = db.get(UserPreference, user.id)
     locale = output_locale(db, tenant_id, preference.locale if preference and preference.locale else locale)
     content = CONTENT[locale]
+    fields = REPORT_FIELDS[locale]
+    decisions = REPORT_DECISIONS[locale]
     brand = resolve_tenant_branding(db, tenant_id, locale)
     configuration = output_configuration(db, tenant_id)
-    orgs = db.scalars(select(Organization).where(Organization.tenant_id == tenant_id)).all()
-    names = {org.id: org.name for org in orgs}
-    if organization_id and organization_id not in names:
-        raise HTTPException(404, "Organization not found")
-    query = select(Compliance).where(Compliance.tenant_id == tenant_id)
-    if organization_id:
-        query = query.where(Compliance.organization_id == organization_id)
-    rows = db.scalars(query.order_by(Compliance.statutory_deadline, Compliance.code)).all()
     generated = format_datetime(datetime.now(timezone.utc), format="long", tzinfo=ZoneInfo(preference.timezone if preference else "Asia/Kolkata"), locale=locale.replace("-", "_"))
     esc = html.escape
     logo = brand["assets"].get("REPORT_LOGO") or brand["assets"].get("PRIMARY_LOGO")
     logo_html = f'<img src="{esc(logo, quote=True)}" alt="{esc(brand["brand_name"], quote=True)}"/>' if logo else ""
-    markup = f'<!doctype html><html lang="{locale}" dir="ltr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{esc(brand["product_name"])} | {esc(content["report"])}</title><style>body{{font:14px system-ui,sans-serif;color:#243746;max-width:1100px;margin:24px auto;padding:24px}}header{{border-bottom:3px solid {brand["light"]["primary"]};padding-bottom:16px}}header img{{max-width:180px;max-height:70px;object-fit:contain}}h1{{font-size:24px}}table{{width:100%;border-collapse:collapse;margin:24px 0}}th,td{{padding:9px;border:1px solid #dce3e8;text-align:start;overflow-wrap:anywhere}}th{{background:#f5f7f9}}footer{{border-top:1px solid #dce3e8;padding-top:16px;color:#657584}}button{{padding:12px;cursor:pointer}}@page{{size:A4 landscape;margin:15mm}}@media print{{body{{margin:0;padding:0;max-width:none}}.print-actions{{display:none}}thead{{display:table-header-group}}tr{{break-inside:avoid}}footer{{position:running(footer)}}}}@media(max-width:600px){{body{{padding:12px}}.table-wrap{{overflow-x:auto}}table{{min-width:800px}}}}</style></head><body><div class="print-actions"><button onclick="window.print()">PDF / Print</button></div><header>{logo_html}<p>{esc(content["provider"])}: {esc(brand["brand_name"])}</p><h1>{esc(content["report"])}</h1><p>{esc(content["client"])}: {esc(names[organization_id]) if organization_id else esc(", ".join(names.values()))}</p><p>{esc(content["generated"])}: {esc(generated)}</p></header><div class="table-wrap"><table><thead><tr>'
-    headers = [content[key] for key in ("code", "compliance", "client", "deadlineHeader", "owner", "status", "progress")]
-    markup += "".join(f"<th>{esc(header)}</th>" for header in headers) + "</tr></thead><tbody>"
+    org_names = ", ".join(org.name for org in organizations)
+    markup = f'<!doctype html><html lang="{locale}" dir="ltr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>{esc(brand["product_name"])} | {esc(content["report"])}</title><style>body{{font:13px system-ui,sans-serif;color:#243746;max-width:1500px;margin:24px auto;padding:24px}}header{{border-bottom:3px solid {brand["light"]["primary"]};padding-bottom:16px}}header img{{max-width:180px;max-height:70px;object-fit:contain}}h1{{font-size:24px}}table{{width:100%;border-collapse:collapse;margin:24px 0}}th,td{{padding:7px;border:1px solid #dce3e8;text-align:start;vertical-align:top;overflow-wrap:anywhere}}th{{background:#f5f7f9}}ul{{margin:0;padding-left:16px}}li{{margin:0 0 4px}}footer{{border-top:1px solid #dce3e8;padding-top:16px;color:#657584}}button{{padding:12px;cursor:pointer}}@page{{size:A4 landscape;margin:12mm}}@media print{{body{{margin:0;padding:0;max-width:none}}.print-actions{{display:none}}thead{{display:table-header-group}}tr{{break-inside:avoid}}footer{{position:running(footer)}}}}@media(max-width:700px){{body{{padding:12px}}.table-wrap{{overflow-x:auto}}table{{min-width:1100px}}}}</style></head><body><div class="print-actions"><button onclick="window.print()">PDF / Print</button></div><header>{logo_html}<p>{esc(content["provider"])}: {esc(brand["brand_name"])}</p><h1>{esc(content["report"])}</h1><p>{esc(fields["organization"])}: {esc(org_names)}</p><p>{esc(content["generated"])}: {esc(generated)}</p></header><div class="table-wrap"><table><thead><tr><th>{esc(fields["organization"])}</th><th>{esc(content["compliance"])}</th><th>{esc(fields["applicability"])} / {esc(content["owner"])} / {esc(content["deadlineHeader"])} / {esc(content["status"])} / {esc(fields["priority"])}</th><th>{esc(fields["tasks"])}</th><th>{esc(fields["evidence"])}</th><th>{esc(fields["workflow"])}</th><th>{esc(fields["completion"])}</th></tr></thead><tbody>'
     for row in rows:
-        values = [row.code, row.title, names.get(row.organization_id, row.organization_id), format_date(row.statutory_deadline, format="long", locale=locale.replace("-", "_")), row.owner_name, STATUSES.get(locale, {}).get(row.status) or STATUSES["en-IN"].get(row.status) or row.status.replace("_", " ").title(), format_percent(row.progress / 100, locale=locale.replace("-", "_"))]
-        markup += "<tr>" + "".join(f"<td>{esc(value)}</td>" for value in values) + "</tr>"
+        tasks = [f'{entry["title"]} · {entry["status"]} · {entry["due_date"] or "—"} · {entry["owner"]} · {entry["priority"]}' for entry in row["tasks"]]
+        tasks.extend(f'{entry["title"] or entry["task_id"]} · {entry["status"]} · {fields["required"] if entry["required"] else fields["optional"]}' for entry in row["checklist"])
+        evidence = [f'{entry["category"]}: {entry["name"]} v{entry["version"]} ({fields.get(entry["source"] + "Evidence", entry["source"])})' for entry in row["evidence"]]
+        evidence.extend(f'{entry["document_type"]}: {entry["covered_count"]}/{entry["minimum_count"]}' for entry in row["evidence_coverage"]["requirements"])
+        workflow = [f'{decisions["review"]} r{entry["revision"]}: {entry["decision"]} · {entry["submitted_by"]} · {entry["submitted_at"]}' for entry in row["reviews"]]
+        workflow.extend(f'{decisions["approval"]} r{entry["revision"]}: {entry["decision"]} · {entry["approved_by"] or entry["requested_by"]} · {entry["decided_at"] or entry["requested_at"]}' for entry in row["approvals"])
+        if row["filing"]:
+            filing = row["filing"]
+            workflow.append(f'{fields["filing"]} {filing["reference"]} · {filing["proof_type"]} · {filing["proof_name"] or fields["noProof"]} · {filing["proof_version"] or "—"} · {filing["filed_at"] or "—"}')
+        timeline = [f'{entry["occurred_at"]} · {entry["actor"]} · {entry["action"]}: {entry["summary"]}' for entry in row["audit_timeline"]]
+        def listing(values):
+            return "<ul>" + "".join(f"<li>{esc(value)}</li>" for value in values) + "</ul>" if values else "—"
+        applicability = row["applicability"]
+        metadata = f'{row["owner"]}<br/>{format_date(date.fromisoformat(row["deadline"]), format="long", locale=locale.replace("-", "_"))}<br/>{STATUSES.get(locale, {}).get(row["status"]) or STATUSES["en-IN"].get(row["status"]) or row["status"]}<br/>{row["priority"]}'
+        completion = f'{format_percent(row["completion"]["progress"] / 100, locale=locale.replace("-", "_"))} · {fields["completed"] if row["completion"]["completed"] else fields["open"]}'
+        markup += f'<tr><td>{esc(row["organization_name"])}</td><td>{esc(row["code"])}<br/>{esc(row["title"])}<br/>{esc(row["category"])} · {esc(row["period"])}</td><td>{esc(applicability)}<br/>{metadata}</td><td>{listing(tasks)}</td><td>{listing(evidence)}</td><td>{listing(workflow)}</td><td>{esc(completion)}<br/>{listing(timeline)}</td></tr>'
     if not rows:
         markup += f'<tr><td colspan="7">{esc(content["empty"])}</td></tr>'
     markup += f'</tbody></table></div><footer>{esc(configuration.report_footer or configuration.footer_text or brand["brand_name"])}<br/>{esc(configuration.support_email)} {esc(configuration.support_phone)}'
