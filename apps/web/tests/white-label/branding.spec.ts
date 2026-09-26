@@ -97,8 +97,21 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
     (await (await request.get("/api/v1/white-label/published")).json()).enabled,
   ).toBe(false);
   page.on("dialog", (dialog) => dialog.accept());
+  const publishedResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/white-label/publish") &&
+      response.request().method() === "POST",
+  );
+  const publishedReload = page.waitForEvent("domcontentloaded");
   await page.getByRole("button", { name: "Publish", exact: true }).click();
-  await page.waitForLoadState("domcontentloaded");
+  expect((await publishedResponse).ok()).toBeTruthy();
+  await publishedReload;
+  await expect
+    .poll(async () => {
+      const response = await request.get("/api/v1/white-label/published");
+      return response.ok() ? (await response.json()).brand_name : "";
+    })
+    .toBe("ABC Compliance Solutions");
   await expect(page.locator("html")).toHaveAttribute(
     "data-white-label",
     "true",
