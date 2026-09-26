@@ -1,5 +1,22 @@
 {
   "Integrations": {
+    "calendarSyncStatus": "Calendar sync status",
+    "oauthStatus": "Google account",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "connectGoogle": "Connect Google Calendar",
+    "syncStatutory": "Sync statutory deadlines",
+    "syncInternal": "Sync internal targets",
+    "syncTasks": "Sync task deadlines",
+    "closedBehavior": "Closed item behavior",
+    "closedUpdate": "Update event as closed",
+    "closedCancel": "Remove event from calendar",
+    "saveCalendarPolicy": "Save calendar settings",
+    "syncNow": "Sync now",
+    "lastSynced": "Last synchronized",
+    "syncSummary": "{synced} synced · {queued} queued · {failed} failed",
+    "syncFailed": "Synchronization failed",
+    "retrySync": "Retry synchronization",
     "title": "Integrations",
     "developers": "API & Developers",
     "navigation": "Integration navigation",
@@ -190,6 +207,8 @@
       "test_connection": "Test connection",
       "webhook_delivery": "Webhook delivery",
       "email_send": "Send email"
+      ,"calendar_sync": "Synchronize calendar event"
+      ,"calendar_test": "Test calendar connection"
     },
     "healthRecorded": "Recorded health from explicit connection tests. Pages do not call external providers automatically.",
     "metricsToday": "Operations in the last 24 hours",

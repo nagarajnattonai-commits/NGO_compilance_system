@@ -94,6 +94,24 @@ def resolve_integration(db,tenant_id,category,capability,environment="PRODUCTION
                 continue
     raise IntegrationError("INTEGRATION_NOT_CONFIGURED")
 
+def resolve_connection(db,tenant_id,connection_id,category,capability):
+    """Resolve one tenant-selected connection through the same registry and entitlement gates."""
+    row=db.execute(select(IntegrationConnection,ConnectionSettings).join(ConnectionSettings,ConnectionSettings.connection_id==IntegrationConnection.id)
+        .where(IntegrationConnection.id==connection_id,IntegrationConnection.tenant_id==tenant_id,
+               IntegrationConnection.category==category,IntegrationConnection.status=="CONNECTED",
+               ConnectionSettings.scope=="TENANT")).first()
+    if not row:
+        raise IntegrationError("INTEGRATION_NOT_CONFIGURED")
+    connection,state=row
+    definition=get_provider(connection.provider)
+    if capability not in definition.capabilities or not provider_enabled(db,connection.provider):
+        raise IntegrationError("INTEGRATION_NOT_CONFIGURED")
+    if not can_use_feature(db,tenant_id,definition.entitlement_key):
+        raise IntegrationError("PERMISSION_DENIED")
+    if state.blocked_until and aware(state.blocked_until)>now():
+        raise IntegrationError("PROVIDER_UNAVAILABLE")
+    return connection,state
+
 def log_operation(db,connection,operation,status,duration,error_code=""):
     row=IntegrationOperation(id=uid(),tenant_id=connection.tenant_id,connection_id=connection.id,provider_key=connection.provider,operation=operation,
         status=status,duration_ms=max(0,int(duration)),error_code=error_code)

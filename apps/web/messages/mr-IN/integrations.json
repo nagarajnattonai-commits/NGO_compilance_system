@@ -1,5 +1,22 @@
 {
   "Integrations": {
+    "calendarSyncStatus": "कॅलेंडर सिंक स्थिती",
+    "oauthStatus": "Google खाते",
+    "connected": "जोडलेले",
+    "notConnected": "जोडलेले नाही",
+    "connectGoogle": "Google Calendar जोडा",
+    "syncStatutory": "वैधानिक मुदती सिंक करा",
+    "syncInternal": "अंतर्गत लक्ष्ये सिंक करा",
+    "syncTasks": "कार्य मुदती सिंक करा",
+    "closedBehavior": "बंद नोंदीचे वर्तन",
+    "closedUpdate": "इव्हेंट बंद म्हणून अद्यतनित करा",
+    "closedCancel": "कॅलेंडरमधून इव्हेंट काढा",
+    "saveCalendarPolicy": "कॅलेंडर सेटिंग्ज जतन करा",
+    "syncNow": "आता सिंक करा",
+    "lastSynced": "शेवटचे सिंक",
+    "syncSummary": "{synced} सिंक · {queued} रांगेत · {failed} अयशस्वी",
+    "syncFailed": "सिंक अयशस्वी",
+    "retrySync": "सिंक पुन्हा करा",
     "title": "एकत्रीकरण",
     "developers": "API आणि विकासक",
     "navigation": "एकत्रीकरण नेव्हिगेशन",
@@ -190,6 +207,8 @@
       "test_connection": "जोडणी चाचणी",
       "webhook_delivery": "वेबहुक वितरण",
       "email_send": "ईमेल पाठवा"
+      ,"calendar_sync": "कॅलेंडर इव्हेंट सिंक करा"
+      ,"calendar_test": "कॅलेंडर जोडणी तपासा"
     },
     "healthRecorded": "स्पष्ट जोडणी चाचण्यांतून नोंदवलेले आरोग्य. पृष्ठे प्रदात्यांना स्वयंचलितपणे कॉल करत नाहीत.",
     "metricsToday": "गेल्या 24 तासांतील क्रिया",

@@ -290,6 +290,11 @@ def _notification_delivery(db, job, _today):
     return execute_delivery(db, job)
 
 
+def _calendar_sync(db, job, _today):
+    from .calendar_service import process_sync_job
+    return process_sync_job(db, job)
+
+
 HANDLERS = {
     "COMPLIANCE_GENERATION_SCAN": _generation_scan,
     "NEXT_CYCLE_SCAN": _next_cycle_scan,
@@ -299,6 +304,7 @@ HANDLERS = {
     "DOCUMENT_EXPIRY_SCAN": _document_expiry_scan,
     "APPLICABILITY_REEVALUATION": _applicability,
     "NOTIFICATION_DELIVERY": _notification_delivery,
+    "CALENDAR_SYNC": _calendar_sync,
 }
 
 
@@ -361,6 +367,8 @@ def fail_job(db, job: ScheduledJob, error: Exception, *, failed_at: datetime | N
         job.duration_ms = max(0, int((time.monotonic() - started_monotonic) * 1000))
     from .notification_service import update_delivery_failure
     update_delivery_failure(db, job, failed_at, job.last_error_code)
+    from .calendar_service import mark_sync_failure
+    mark_sync_failure(db, job, job.last_error_code)
 
 
 def retry_job(db, job: ScheduledJob):

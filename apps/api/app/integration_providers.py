@@ -110,19 +110,35 @@ class WhatsAppAdapter(BaseAdapter):
         require_success(*safe_http(self._url()+"/messages","POST",{"Authorization":"Bearer "+self.secret,"Content-Type":"application/json"},json.dumps(payload).encode()))
 
 class GoogleCalendarAdapter(BaseAdapter):
+    def _token(self):
+        try:
+            value = json.loads(self.secret)
+            token = value.get("access_token") if isinstance(value, dict) else ""
+            if not token:
+                raise ValueError()
+            return token
+        except (TypeError, ValueError, json.JSONDecodeError):
+            # Preserve compatibility with credentials configured before OAuth.
+            return self.secret
     def _url(self):
         return "https://www.googleapis.com/calendar/v3/calendars/" + quote(self.config["calendar_id"],safe="")
     def test_connection(self):
-        require_success(*safe_http(self._url(),headers={"Authorization":"Bearer "+self.secret}))
+        require_success(*safe_http(self._url(),headers={"Authorization":"Bearer "+self._token()}))
     def create_event(self, event_id, payload):
         if not re.fullmatch(r"[a-v0-9]{5,1024}",event_id):
             raise IntegrationError("INVALID_CONFIGURATION")
         body = dict(payload,id=event_id)
-        require_success(*safe_http(self._url()+"/events","POST",{"Authorization":"Bearer "+self.secret,"Content-Type":"application/json"},json.dumps(body).encode()))
+        status, retry_after = safe_http(self._url()+"/events","POST",{"Authorization":"Bearer "+self._token(),"Content-Type":"application/json"},json.dumps(body).encode())
+        # A deterministic ID makes a retried create safe after a provider
+        # success followed by a local transaction failure.
+        if status == 409:
+            self.update_event(event_id, payload)
+            return
+        require_success(status, retry_after)
     def update_event(self, event_id, payload):
-        require_success(*safe_http(self._url()+"/events/"+quote(event_id,safe=""),"PATCH",{"Authorization":"Bearer "+self.secret,"Content-Type":"application/json"},json.dumps(payload).encode()))
+        require_success(*safe_http(self._url()+"/events/"+quote(event_id,safe=""),"PATCH",{"Authorization":"Bearer "+self._token(),"Content-Type":"application/json"},json.dumps(payload).encode()))
     def cancel_event(self, event_id):
-        require_success(*safe_http(self._url()+"/events/"+quote(event_id,safe=""),"DELETE",{"Authorization":"Bearer "+self.secret}))
+        require_success(*safe_http(self._url()+"/events/"+quote(event_id,safe=""),"DELETE",{"Authorization":"Bearer "+self._token()}))
 
 class S3Adapter(BaseAdapter):
     def _client(self):

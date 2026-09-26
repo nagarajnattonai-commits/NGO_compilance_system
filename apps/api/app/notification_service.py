@@ -28,6 +28,7 @@ from .notification_models import (
     UserNotificationPreference,
     WorkspaceNotificationPolicy,
 )
+from .organization_access import can_access_organization
 from .runtime_membership import workspace_members
 from .runtime_models import ComplianceOwnership
 
@@ -63,7 +64,6 @@ def user_locale(db, tenant_id: str, user_id: str) -> str:
 def resolve_recipients(db, tenant_id: str, *, organization_id: str | None = None,
                        recipient_role: str | None = None, user_ids: Iterable[str] = ()) -> list[User]:
     """Resolve real, active accounts with effective access to this workspace."""
-    from .organization_access import can_access_organization
     members = {user.id: (user, access) for user, access in workspace_members(db, tenant_id)
                if not organization_id or can_access_organization(db, tenant_id, organization_id, user.id)}
     resolved: dict[str, User] = {}

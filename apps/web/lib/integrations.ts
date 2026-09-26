@@ -7,4 +7,6 @@ export type APIKey = {id:string;application_id:string;name:string;key_prefix:str
 export type Webhook = {id:string;name:string;direction:string;endpoint_url:string;event_types:string[];enabled:boolean;inbound_path:string|null};
 export type OperationLog = {id:string;tenant_id:string|null;provider_key:string;operation:string;status:string;duration_ms:number;error_code:string;retry_count:number;created_at:string;completed_at:string};
 export type TenantIntegration = {id:string;name:string;entitlements:Record<string,boolean>};
+export type CalendarMappingStatus = {id:string;organization_id:string;entity_type:string;entity_id:string;event_kind:string;sync_status:string;last_synced_at:string|null;error_code:string};
+export type CalendarConnectionStatus = {connection_id:string;status:string;calendar_id:string;oauth_connected:boolean;last_synced_at:string|null;error_code:string;policy:{sync_statutory_deadlines:boolean;sync_internal_targets:boolean;sync_tasks:boolean;closed_behavior:"UPDATE"|"CANCEL"};sync_counts:Record<string,number>;mappings:CalendarMappingStatus[]};
 export const connectionStates = ["NOT_CONFIGURED","CONFIGURED","CONNECTED","DEGRADED","ERROR","DISABLED"];

@@ -1,5 +1,22 @@
 {
   "Integrations": {
+    "calendarSyncStatus": "कैलेंडर सिंक स्थिति",
+    "oauthStatus": "Google खाता",
+    "connected": "जुड़ा हुआ",
+    "notConnected": "जुड़ा नहीं है",
+    "connectGoogle": "Google Calendar जोड़ें",
+    "syncStatutory": "वैधानिक समय-सीमाएँ सिंक करें",
+    "syncInternal": "आंतरिक लक्ष्य सिंक करें",
+    "syncTasks": "कार्य समय-सीमाएँ सिंक करें",
+    "closedBehavior": "बंद मद का व्यवहार",
+    "closedUpdate": "ईवेंट को बंद के रूप में अपडेट करें",
+    "closedCancel": "कैलेंडर से ईवेंट हटाएँ",
+    "saveCalendarPolicy": "कैलेंडर सेटिंग सहेजें",
+    "syncNow": "अभी सिंक करें",
+    "lastSynced": "अंतिम सिंक",
+    "syncSummary": "{synced} सिंक · {queued} कतार में · {failed} विफल",
+    "syncFailed": "सिंक विफल रहा",
+    "retrySync": "सिंक फिर चलाएँ",
     "title": "एकीकरण",
     "developers": "API और डेवलपर",
     "navigation": "एकीकरण नेविगेशन",
@@ -190,6 +207,8 @@
       "test_connection": "कनेक्शन परीक्षण",
       "webhook_delivery": "वेबहुक डिलीवरी",
       "email_send": "ईमेल भेजें"
+      ,"calendar_sync": "कैलेंडर ईवेंट सिंक करें"
+      ,"calendar_test": "कैलेंडर कनेक्शन जाँचें"
     },
     "healthRecorded": "स्पष्ट कनेक्शन परीक्षण से दर्ज स्वास्थ्य। पृष्ठ प्रदाता को स्वचालित रूप से कॉल नहीं करते।",
     "metricsToday": "पिछले 24 घंटे की क्रियाएँ",

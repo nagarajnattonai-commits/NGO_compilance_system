@@ -1,5 +1,22 @@
 {
   "Integrations": {
+    "calendarSyncStatus": "ಕ್ಯಾಲೆಂಡರ್ ಸಿಂಕ್ ಸ್ಥಿತಿ",
+    "oauthStatus": "Google ಖಾತೆ",
+    "connected": "ಸಂಪರ್ಕಗೊಂಡಿದೆ",
+    "notConnected": "ಸಂಪರ್ಕಗೊಂಡಿಲ್ಲ",
+    "connectGoogle": "Google Calendar ಸಂಪರ್ಕಿಸಿ",
+    "syncStatutory": "ಶಾಸನಬದ್ಧ ಗಡುವುಗಳನ್ನು ಸಿಂಕ್ ಮಾಡಿ",
+    "syncInternal": "ಆಂತರಿಕ ಗುರಿಗಳನ್ನು ಸಿಂಕ್ ಮಾಡಿ",
+    "syncTasks": "ಕಾರ್ಯ ಗಡುವುಗಳನ್ನು ಸಿಂಕ್ ಮಾಡಿ",
+    "closedBehavior": "ಮುಚ್ಚಿದ ಅಂಶದ ವರ್ತನೆ",
+    "closedUpdate": "ಈವೆಂಟ್ ಅನ್ನು ಮುಚ್ಚಿದಂತೆ ನವೀಕರಿಸಿ",
+    "closedCancel": "ಕ್ಯಾಲೆಂಡರ್‌ನಿಂದ ಈವೆಂಟ್ ತೆಗೆದುಹಾಕಿ",
+    "saveCalendarPolicy": "ಕ್ಯಾಲೆಂಡರ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉಳಿಸಿ",
+    "syncNow": "ಈಗ ಸಿಂಕ್ ಮಾಡಿ",
+    "lastSynced": "ಕೊನೆಯ ಸಿಂಕ್",
+    "syncSummary": "{synced} ಸಿಂಕ್ · {queued} ಸರದಿಯಲ್ಲಿ · {failed} ವಿಫಲ",
+    "syncFailed": "ಸಿಂಕ್ ವಿಫಲವಾಗಿದೆ",
+    "retrySync": "ಸಿಂಕ್ ಮರುಪ್ರಯತ್ನಿಸಿ",
     "title": "ಸಂಯೋಜನೆಗಳು",
     "developers": "API ಮತ್ತು ಅಭಿವೃದ್ಧಿಪಡಿಸುವವರು",
     "navigation": "ಸಂಯೋಜನೆ ಸಂಚರಣೆ",
@@ -190,6 +207,8 @@
       "test_connection": "ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ",
       "webhook_delivery": "ವೆಬ್‌ಹುಕ್ ವಿತರಣೆ",
       "email_send": "ಇಮೇಲ್ ಕಳುಹಿಸಿ"
+      ,"calendar_sync": "ಕ್ಯಾಲೆಂಡರ್ ಈವೆಂಟ್ ಸಿಂಕ್ ಮಾಡಿ"
+      ,"calendar_test": "ಕ್ಯಾಲೆಂಡರ್ ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ"
     },
     "healthRecorded": "ಸ್ಪಷ್ಟ ಸಂಪರ್ಕ ಪರೀಕ್ಷೆಗಳಿಂದ ದಾಖಲಿಸಿದ ಆರೋಗ್ಯ. ಪುಟಗಳು ಪೂರೈಕೆದಾರರನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕರೆಯುವುದಿಲ್ಲ.",
     "metricsToday": "ಕಳೆದ 24 ಗಂಟೆಗಳ ಕಾರ್ಯಾಚರಣೆಗಳು",

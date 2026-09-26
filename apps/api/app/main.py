@@ -93,6 +93,7 @@ from .notification_service import mark_read, notification_inbox
 from .organization_access import accessible_organization_ids, require_organization_access
 from .phase8_api import eligible_users, notify_task, router as phase8_router
 from .phase9_api import router as phase9_router
+from .phase10_api import router as phase10_router
 
 
 @asynccontextmanager
@@ -140,6 +141,7 @@ from .notification_api import router as notification_router
 app.include_router(notification_router)
 app.include_router(phase8_router)
 app.include_router(phase9_router)
+app.include_router(phase10_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -343,6 +345,8 @@ def apply_compliance_transition(
     audit(db, tenant_id, "STATUS_CHANGED", "Compliance", item.id, summary)
     from .phase9_service import after_transition
     after_transition(db, item, previous, target_status)
+    from .calendar_service import queue_entity_sync
+    queue_entity_sync(db, item)
 
 
 @app.get("/health")
@@ -509,6 +513,8 @@ def create_compliance(payload: ComplianceCreate, db: DB, tenant_id: Tenant):
     db.add(item)
     db.flush()
     audit(db, tenant_id, "COMPLIANCE_CREATED", "Compliance", item.id, f"Created {item.title}")
+    from .calendar_service import queue_entity_sync
+    queue_entity_sync(db, item)
     db.commit()
     db.refresh(item)
     return item
@@ -529,6 +535,8 @@ def update_compliance(compliance_id: str, payload: ComplianceUpdate, db: DB, ten
     item.updated_at = datetime.now(timezone.utc)
     if values:
         audit(db, tenant_id, "COMPLIANCE_UPDATED", "Compliance", item.id, f"Updated {item.title}")
+        from .calendar_service import queue_entity_sync
+        queue_entity_sync(db, item)
     db.commit()
     db.refresh(item)
     return item
@@ -632,6 +640,8 @@ def create_task(payload: TaskCreate, db: DB, tenant_id: Tenant, user: CurrentUse
     if item.assignee_user_id:
         notify_task(db, item, event_type="TASK_ASSIGNED", title="Task assigned",
                     message=f"{item.title} is due on {item.due_at.isoformat()}.", user_ids=[item.assignee_user_id])
+    from .calendar_service import queue_entity_sync
+    queue_entity_sync(db, item)
     db.commit()
     db.refresh(item)
     return item
@@ -676,6 +686,8 @@ def update_task(task_id: str, payload: TaskUpdate, db: DB, tenant_id: Tenant, us
     if previous_assignee != item.assignee_user_id and item.assignee_user_id:
         notify_task(db, item, event_type="TASK_REASSIGNED", title="Task reassigned",
                     message=f"{item.title} is now assigned to you.", user_ids=[item.assignee_user_id])
+    from .calendar_service import queue_entity_sync
+    queue_entity_sync(db, item)
     db.commit()
     db.refresh(item)
     return item

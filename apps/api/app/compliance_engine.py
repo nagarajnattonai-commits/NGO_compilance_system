@@ -274,6 +274,8 @@ def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: 
                         assignee_name=assignee.name if assignee else "Owner Required", assignee_initials="")
                     db.add(task)
                     db.flush()
+                    from .calendar_service import queue_entity_sync
+                    queue_entity_sync(db, task)
                     task_ids.append({"item_id": checklist.id, "task_id": task.id, "required": checklist.required})
                 db.add(ComplianceSnapshot(compliance_id=item.id, tenant_id=tenant_id, organization_id=organization.id, definition_id=master.id,
                     version_id=version.id, cycle=dates["cycle"], configuration=version.configuration, checklist_tasks=json.dumps(task_ids), owner_required=owner is None))
@@ -284,6 +286,8 @@ def generate_master_plan(db, tenant_id: str, organization: Organization, as_of: 
                 db.add(AuditEvent(tenant_id=tenant_id, actor_name=db.info.get("actor_name", "System"), action="COMPLIANCE_GENERATED",
                     entity_type="Compliance", entity_id=item.id, summary=f"Generated {master.code} v{version.version}, cycle {dates['cycle']}"[:280]))
                 db.flush()
+                from .calendar_service import queue_entity_sync
+                queue_entity_sync(db, item)
             generated.append(item)
         except IntegrityError:
             # The unique snapshot cycle is the final concurrency/idempotency guard.
