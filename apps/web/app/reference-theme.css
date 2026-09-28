@@ -63,6 +63,34 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .header-search { display: flex; align-items: center; gap: 8px; height: 35px; border: 1px solid #ced4da; border-radius: 4px; padding-left: 9px; overflow: hidden; color: #74818c; }
 .header-search input { width: 155px; min-width: 0; border: 0; color: var(--ink); background: white; font-size: 12px; outline-offset: -3px; }
 .header-search button { align-self: stretch; padding: 0 12px; border: 0; color: #fff; background: #218838; cursor: pointer; font-size: 12px; }
+.header-search .search-filter-trigger { padding: 0 8px; color: var(--muted); background: #fff; border-left: 1px solid var(--line); }
+.global-search-wrap { position: relative; }
+.global-search-panel { position: absolute; z-index: 80; top: 43px; right: 0; width: min(760px, calc(100vw - 36px)); max-height: min(680px, calc(100vh - 90px)); overflow: auto; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 16px 40px rgba(30, 43, 56, .18); }
+.global-search-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+.global-search-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; padding: 12px 14px; background: var(--surface-alt); border-bottom: 1px solid var(--line); }
+.global-search-filters label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; }
+.global-search-filters input, .global-search-filters select, .saved-view-bar input { min-width: 0; height: 32px; padding: 0 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+.global-search-filters .search-apply { align-self: end; height: 32px; }
+.saved-view-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 11px; }
+.saved-view-bar > input { margin-left: auto; width: 130px; }
+.saved-view-bar > button, .saved-view-chip button { border: 0; background: transparent; color: var(--brand); cursor: pointer; }
+.saved-view-default { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.saved-view-bar > button:disabled { color: var(--muted); cursor: default; }
+.saved-view-chip { display: inline-flex; align-items: center; padding: 4px 6px; background: var(--surface-alt); border: 1px solid var(--line); border-radius: 12px; }
+.saved-view-chip button { display: inline-flex; align-items: center; padding: 0 3px; font-size: 11px; }
+.global-search-results { min-height: 100px; }
+.search-state { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 105px; margin: 0; color: var(--muted); }
+.search-result-group h4 { margin: 0; padding: 9px 14px 5px; color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.search-result-group > a { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 14px; color: var(--ink); text-decoration: none; border-top: 1px solid var(--line); }
+.search-result-group > a:hover { background: var(--surface-alt); }
+.search-result-group a > span { display: grid; gap: 2px; min-width: 0; }
+.search-result-group strong, .search-result-group small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-result-group small { color: var(--muted); font-size: 11px; }
+.search-result-meta { justify-items: end; flex: 0 0 auto; }
+.search-result-meta b { color: var(--brand); font-size: 10px; }
+.spin { animation: search-spin 1s linear infinite; }
+@keyframes search-spin { to { transform: rotate(360deg); } }
+@media (max-width: 800px) { .global-search-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.global-search-panel { position: fixed; top: 58px; right: 12px; left: 12px; width: auto; } }
 .icon-button { border-radius: 4px; }
 .top-actions .icon-button { border: 0; }
 .top-avatar { display: flex; align-items: center; gap: 9px; margin: 0; padding: 0 0 0 15px; border: 0; border-left: 1px solid var(--line); background: transparent; cursor: pointer; text-align: left; }

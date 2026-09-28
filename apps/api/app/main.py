@@ -97,6 +97,7 @@ from .phase9_api import router as phase9_router
 from .phase10_api import router as phase10_router
 from .reporting_api import router as reporting_router
 from .subscription_api import router as subscription_router
+from .phase13_api import router as phase13_router
 
 
 @asynccontextmanager
@@ -147,6 +148,7 @@ app.include_router(phase9_router)
 app.include_router(phase10_router)
 app.include_router(reporting_router)
 app.include_router(subscription_router)
+app.include_router(phase13_router)
 app.add_middleware(DocumentUploadLimit)
 
 

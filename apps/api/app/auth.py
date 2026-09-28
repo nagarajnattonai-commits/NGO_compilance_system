@@ -124,7 +124,8 @@ def tenant_context(request: Request, user: CurrentUser) -> str:
     if path.startswith("/api/v1/memberships") and user.role != "ADMIN":
         raise HTTPException(403, "Administrator access is required")
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
-        if user.role == "VIEWER" and not path.endswith("/read"):
+        personal_views = path == "/api/v1/saved-views" or path.startswith("/api/v1/saved-views/")
+        if user.role == "VIEWER" and not path.endswith("/read") and not personal_views:
             raise HTTPException(403, "This account has read-only access")
         if path.startswith("/api/v1/organizations") and user.role != "ADMIN":
             raise HTTPException(403, "Only administrators can manage organizations")

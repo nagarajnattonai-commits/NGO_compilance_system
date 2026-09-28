@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import GlobalSearch from "./global-search";
 import {
   addComplianceComment,
   addTaskAttachment,
@@ -263,7 +264,6 @@ export default function ComplianceApp({
   const [orgMenu, setOrgMenu] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [headerSearch, setHeaderSearch] = useState("");
   const [selectedCompliance, setSelectedCompliance] =
     useState<Compliance | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -638,26 +638,7 @@ export default function ComplianceApp({
               </span>
             </span>
             <div className="top-actions">
-              <form
-                className="header-search"
-                role="search"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (view === "whiteLabel" && brandDirty && !window.confirm(tBrand("unsavedConfirm"))) return;
-                  setView("compliance");
-                  setSearch(headerSearch);
-                  setMobileMenu(false);
-                }}
-              >
-                <Search size={16} />
-                <input
-                  aria-label={tCommon("actions.search")}
-                  placeholder={`${tCommon("actions.search")}...`}
-                  value={headerSearch}
-                  onChange={(event) => setHeaderSearch(event.target.value)}
-                />
-                <button type="submit">Go!</button>
-              </form>
+              <GlobalSearch organizations={organizations} compliances={compliances} />
               <LocaleSwitcher compact />
               <ThemeToggle variant="icon" />
               <div className="notification-wrap">
