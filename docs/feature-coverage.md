@@ -14,10 +14,10 @@ This map follows the priority groups in the approved requirement analysis. “Im
 | Document metadata, expiry and immutable version history | Implemented; private binary object storage is a production foundation item |
 | Users, invitations, roles and read-only access | Implemented |
 | Notifications, read state, reminders and delivery history | In-app implemented; email and WhatsApp are provider foundations |
-| Dashboard, calendar, standard reports and CSV export | Implemented |
+| Dashboard, calendar, standard reports and CSV/print export | Implemented; exports require the advanced-reporting entitlement |
 | Audit trail | Implemented for material mutations and automation |
 | Consultant multi-organization portfolio | Implemented |
-| Subscription limits and entitlement foundation | Implemented |
+| Subscription plans, status, organization/user/integration/storage limits and feature entitlements | Implemented with tenant views, platform assignment and audited changes |
 
 ## Good-to-have capabilities
 

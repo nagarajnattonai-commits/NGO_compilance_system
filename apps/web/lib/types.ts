@@ -118,14 +118,33 @@ export type Membership = {
   accepted_at: string | null;
 };
 
+export type SubscriptionPlan = {
+  key: string;
+  label: string;
+  user_limit: number;
+  organization_limit: number;
+  storage_limit_gb: number;
+  integration_limit: number;
+  entitlements: string[];
+  features: string[];
+};
+
 export type Subscription = {
   id: string;
   plan_name: string;
   status: string;
   user_limit: number;
   organization_limit: number;
+  integration_limit?: number;
   storage_limit_gb: number;
+  period_start?: string | null;
   period_end: string;
+  cancel_at_period_end?: boolean;
+  usage?: { users: number; organizations: number; integrations: number; storage_bytes: number; storage_gb: number };
+  features?: string[];
+  feature_access?: Record<string, boolean>;
+  plans?: SubscriptionPlan[];
+  history?: { id: string; actor_name: string; summary: string; created_at: string }[];
 };
 
 export type DocumentVersion = {

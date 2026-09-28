@@ -512,3 +512,38 @@ html[data-theme="dark"] .report-record-link, html[data-theme="dark"] .report-det
 }
 
 .status-cancelled { color: var(--muted); background: var(--canvas); }
+
+/* Subscription views reuse the authenticated cards, controls and brand tokens. */
+.subscription-page { max-width: 1540px; }
+.subscription-summary { margin-bottom: 14px; }
+.subscription-usage-panel, .subscription-features, .subscription-history { margin-bottom: 14px; }
+.subscription-usage-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.subscription-usage { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--canvas); }
+.subscription-usage > div { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; }
+.subscription-usage progress { width: 100%; accent-color: var(--forest-2); }
+.subscription-upgrade-required, .entitlement-locked { color: var(--red); }
+.subscription-features > ul, .subscription-history ul { display: grid; gap: 8px; padding: 0; list-style: none; }
+.subscription-features > ul li { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.subscription-entitlements { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.subscription-entitlements > div { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 4px 7px; padding: 11px; border: 1px solid var(--line); border-radius: 9px; font-size: 10px; }
+.subscription-entitlements small { grid-column: 2; }
+.entitlement-enabled { color: var(--forest-2); background: var(--mint); }
+.subscription-plan-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.subscription-plan-option { display: grid; align-content: start; gap: 10px; }
+.subscription-plan-option.current { border-color: var(--forest-2); box-shadow: inset 0 3px var(--forest-2); }
+.subscription-plan-option header { display: flex; justify-content: space-between; gap: 8px; }
+.subscription-plan-option ul { padding-inline-start: 18px; }
+.subscription-history li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
+.platform-subscriptions-page { display: grid; gap: 14px; }
+.platform-subscription-list { display: grid; gap: 12px; }
+.platform-subscription-row > header { display: flex; justify-content: space-between; gap: 12px; }
+.platform-subscription-fields { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); align-items: end; gap: 10px; margin-top: 14px; }
+.platform-subscription-fields label { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
+.platform-subscription-fields input, .platform-subscription-fields select { min-height: 38px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
+.platform-subscription-fields .subscription-cancel-toggle { display: flex; align-items: center; }
+.platform-subscription-fields .subscription-cancel-toggle input { min-height: auto; }
+.platform-subscription-history { margin-top: 12px; font-size: 10px; }
+.platform-subscription-history ul { display: grid; gap: 6px; padding-inline-start: 18px; }
+.platform-subscription-history li { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1100px) { .subscription-plan-grid, .subscription-usage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.platform-subscription-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .subscription-plan-grid, .subscription-usage-grid, .subscription-entitlements, .platform-subscription-fields { grid-template-columns: 1fr; }.subscription-history li { grid-template-columns: 1fr; gap: 4px; } }

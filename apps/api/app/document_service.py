@@ -12,11 +12,12 @@ from sqlalchemy import func,select,update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import object_session
 from .organization_profile import Strict,owned_org
-from .models import AuditEvent,Compliance,Document,DocumentVersion,Submission,Subscription,Task,uid
+from .models import AuditEvent,Compliance,Document,DocumentVersion,Submission,Task,uid
 from .schemas import DocumentOut
 from .document_models import DocumentBlob,DocumentCurrent,DocumentEvidenceLink,DocumentUploadReceipt
 from .document_storage import DocumentStorage,maximum_bytes
 from .document_validation import validate_file
+from .features import require_active_subscription
 
 FILE_STATES={"UPLOADING","PROCESSING","AVAILABLE","QUARANTINED","FAILED"}
 logger=logging.getLogger(__name__)
@@ -109,7 +110,7 @@ def upload(db,tenant,actor,metadata,filename,mime,content):
     try:db.flush()
     except IntegrityError:
         db.rollback();return replay(db.scalar(select(DocumentUploadReceipt).where(DocumentUploadReceipt.tenant_id==tenant,DocumentUploadReceipt.request_id==str(metadata.request_id))))
-    subscription=db.scalar(select(Subscription).where(Subscription.tenant_id==tenant).with_for_update())
+    subscription=require_active_subscription(db,tenant)
     used=db.scalar(select(func.coalesce(func.sum(DocumentBlob.size_bytes),0)).where(DocumentBlob.tenant_id==tenant)) or 0
     if subscription and used+len(content)>subscription.storage_limit_gb*1024**3:raise HTTPException(403,"Workspace storage limit reached")
     if scan_required() and _scanner is None:raise HTTPException(503,"Document scanning is required but no scanner is configured")

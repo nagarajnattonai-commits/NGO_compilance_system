@@ -283,8 +283,16 @@ class SubscriptionOut(ORMModel):
     status: str
     user_limit: int
     organization_limit: int
+    integration_limit: int
     storage_limit_gb: int
+    period_start: date | None
     period_end: date
+    cancel_at_period_end: bool
+    usage: dict[str, int | float]
+    features: list[str]
+    feature_access: dict[str, bool]
+    plans: list[dict]
+    history: list[dict]
 
 
 SupportedLocale = Literal["en-IN", "hi-IN", "kn-IN", "mr-IN"]

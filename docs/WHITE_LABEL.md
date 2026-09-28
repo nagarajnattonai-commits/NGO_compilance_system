@@ -15,9 +15,9 @@ deadlines, workflow states, and CSV data are not rewritten by branding.
   An ordinary tenant administrator cannot grant their own entitlement or act on
   other tenants.
 - `can_use_feature(tenant_id, "white_label")` requires an active, unexpired
-  subscription and an enabled, unexpired explicit tenant entitlement. Plan names
-  are not authorization rules. The development demo alone is seeded with access.
-  New workspaces require an operator grant.
+  subscription and either an entitled plan or an enabled, unexpired platform
+  override. An explicit disabled or expired override takes precedence over the
+  plan. The development demo remains seeded with access.
 
 An operator can enable the entitlement in the platform screen after the account
 is provisioned through the existing signup/invitation process. No default

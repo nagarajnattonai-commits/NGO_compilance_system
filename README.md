@@ -13,7 +13,7 @@ Setu is a working MVP derived from the three approved documents in `Development 
 - Version-aware evidence/document library with immutable version-history records
 - Notifications, portfolio reporting and recent audit activity
 - Compliance comments, correction requests, exceptions and recovery-plan entries
-- Tenant administration for scoped member invitations, roles and plan-entitlement usage
+- Configuration-driven SaaS plans with tenant subscriptions, audited operator assignment, usage limits and backend-enforced feature entitlements
 - Versioned compliance catalogue entries evaluated against legal type and FCRA status
 - Idempotent daily automation for overdue compliance, task reminders, document expiry and annual roll-forward
 - Organization-scoped workspace access with real-user task assignment, comments, evidence links and notifications

@@ -21,7 +21,7 @@ from .auth import (DB,CurrentUser,EmailInput,InputModel,APP_ORIGIN,SECURE_COOKIE
 from .auth_models import (OAuthPolicy,OAuthFlow,ProviderIdentity,PendingGoogleIdentity,AuthAccount)
 from .auth_policy import is_platform_admin
 from .auth_experience import (security_event,memberships,select_host_workspace,verified_login,LinkInput)
-from .models import User,Workspace,Subscription,AuthSession
+from .models import User,Workspace,AuthSession
 from .brand_domains import platform_hosts,active_domain,request_hostname
 from .integration_security import secret_store,IntegrationError
 
@@ -218,7 +218,8 @@ def google_signup(payload:GoogleSignup,request:Request,response:Response,db:DB):
     db.add(user);db.flush()
     db.add(AuthAccount(user_id=user.id,verified=True,verification_required=True,organization_type=payload.organization_type,terms_at=now()))
     db.add(ProviderIdentity(user_id=user.id,provider="google",subject=pending.subject))
-    db.add(Subscription(tenant_id=workspace.id,plan_name="STARTER",user_limit=5,organization_limit=3,storage_limit_gb=1,period_end=date.today()+timedelta(days=30)))
+    from .features import new_subscription
+    db.add(new_subscription(workspace.id, "STARTER", date.today() + timedelta(days=30)))
     issue_session(db,user,response,method="google")
     security_event(db,request,"GOOGLE_LOGIN",user,method="google")
     try:db.commit()

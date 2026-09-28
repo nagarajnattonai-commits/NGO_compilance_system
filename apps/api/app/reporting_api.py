@@ -5,9 +5,10 @@ import io
 import json
 from typing import Literal
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from .auth import CurrentUser
+from .features import can_use_feature
 from .organization_profile import DB, Tenant
 from .reporting_service import compliance_report_count, compliance_report_rows, management_analytics
 
@@ -88,6 +89,8 @@ def compliance_csv(
     date_from: date | None = None,
     date_to: date | None = None,
 ):
+    if not can_use_feature(db, tenant, "advanced_reporting"):
+        raise HTTPException(403, "UPGRADE_REQUIRED:advanced_reporting")
     rows = []
     offset = 0
     while True:

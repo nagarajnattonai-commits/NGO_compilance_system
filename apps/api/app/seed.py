@@ -116,10 +116,10 @@ def seed_extended_data(db: Session) -> None:
         ])
 
     if not db.scalar(select(Subscription.id).where(Subscription.tenant_id == TENANT_ID)):
-        db.add(Subscription(
-            id="sub-demo", tenant_id=TENANT_ID, plan_name="BUSINESS", status="ACTIVE",
-            user_limit=25, organization_limit=10, storage_limit_gb=25, period_end=date(2027, 3, 31),
-        ))
+        from .features import new_subscription
+        subscription = new_subscription(TENANT_ID, "BUSINESS", date(2027, 3, 31))
+        subscription.id = "sub-demo"
+        db.add(subscription)
 
     if not db.scalar(select(PortfolioRecord.id).where(PortfolioRecord.tenant_id == TENANT_ID).limit(1)):
         db.add_all([

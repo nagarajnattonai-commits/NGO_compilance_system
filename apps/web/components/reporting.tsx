@@ -232,12 +232,15 @@ export function ManagementReports({
   organizations,
   initialOrganizationId,
   onSelectCompliance,
+  advancedReporting = false,
 }: {
   organizations: Organization[];
   initialOrganizationId?: string;
   onSelectCompliance: (id: string) => void;
+  advancedReporting?: boolean;
 }) {
   const t = useTranslations("Reports");
+  const tSubscriptions = useTranslations("Subscriptions");
   const tStatus = useTranslations("Common.status");
   const [filters, setFilters] = useState<FilterValues>({
     organization_id: initialOrganizationId || "", category: "", status: "", owner: "",
@@ -284,8 +287,10 @@ export function ManagementReports({
     <div className="page management-reports">
       <div className="page-heading"><div><h1>{t("title")}</h1><p>{t("description")}</p></div>
         <div className="report-export-actions">
-          <a className="button secondary" href={printUrl} target="_blank" rel="noopener noreferrer"><FileText size={16} />{t("printPdf")}</a>
-          <a className="button primary" href={csvUrl} download><Download size={16} />{t("exportCsv")}</a>
+          {advancedReporting ? <>
+            <a className="button secondary" href={printUrl} target="_blank" rel="noopener noreferrer"><FileText size={16} />{t("printPdf")}</a>
+            <a className="button primary" href={csvUrl} download><Download size={16} />{t("exportCsv")}</a>
+          </> : <span className="subscription-upgrade-required"><FileText size={16} />{tSubscriptions("upgradeRequired")}</span>}
         </div>
       </div>
       <section className="report-filters" aria-label={t("filters")}>

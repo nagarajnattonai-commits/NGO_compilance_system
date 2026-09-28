@@ -16,6 +16,7 @@ from .auth import AdminUser, CurrentUser, DB, APP_ORIGIN, check_mutation, tenant
 from .branding import resolve_tenant_branding, version_configuration
 from .branding_schema import ConfigurationModel, BrandConfiguration
 from .brand_domains import active_domain
+from .features import can_use_feature
 from .models import Compliance, Organization, TenantBranding, TenantDomain, TenantLocale, UserPreference
 from .reporting_service import compliance_report_rows, reporting_organizations
 
@@ -141,6 +142,8 @@ def compliance_print_report(
     date_from: date | None = None,
     date_to: date | None = None,
 ):
+    if not can_use_feature(db, tenant_id, "advanced_reporting"):
+        raise HTTPException(403, "UPGRADE_REQUIRED:advanced_reporting")
     organizations = reporting_organizations(db, tenant_id, user, organization_id)
     rows = compliance_report_rows(
         db, tenant_id, user, organization_id=organization_id, category=category,

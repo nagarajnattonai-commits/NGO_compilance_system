@@ -369,8 +369,11 @@ class Subscription(Base):
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
     user_limit: Mapped[int] = mapped_column(Integer, default=25)
     organization_limit: Mapped[int] = mapped_column(Integer, default=10)
+    integration_limit: Mapped[int] = mapped_column(Integer, default=10)
     storage_limit_gb: Mapped[int] = mapped_column(Integer, default=25)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True, default=date.today)
     period_end: Mapped[date] = mapped_column(Date)
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class TenantLocale(Base):

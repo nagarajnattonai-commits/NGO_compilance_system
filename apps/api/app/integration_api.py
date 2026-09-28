@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import case, func, or_, select
 from .auth import CurrentUser, DB, aware, now, tenant_context
-from .features import can_use_feature
+from .features import can_use_feature, require_plan_capacity
 from .models import IntegrationConnection, TenantEntitlement, Workspace, uid
 from .permissions import has_permission, INTEGRATION_PERMISSIONS
 from .integration_models import ConnectionSettings, IntegrationProvider, IntegrationOperation
@@ -120,21 +120,11 @@ def set_provider(key:str,payload:EnabledInput,db:DB,user:CurrentUser):
 @router.get("/integrations-management/platform/tenants")
 def platform_tenants(db:DB,user:CurrentUser):
     permission(user,"integrations.platform.view",True)
-    from .models import Subscription
-    from datetime import date
     rows=db.scalars(select(Workspace).order_by(Workspace.name).limit(200)).all()
-    ids=[row.id for row in rows]
-    subscriptions={row.tenant_id:row for row in db.scalars(select(Subscription).where(Subscription.tenant_id.in_(ids)))}
-    grants={(row.tenant_id,row.feature_key):row for row in db.scalars(select(TenantEntitlement).where(TenantEntitlement.tenant_id.in_(ids)))}
     keys=sorted({p.entitlement_key for p in REGISTRY.values()}|{"public_api","custom_webhooks"})
     result=[]
     for row in rows:
-        subscription=subscriptions.get(row.id)
-        active=bool(subscription and subscription.status=="ACTIVE" and subscription.period_end>=date.today())
-        flags={}
-        for key in keys:
-            grant=grants.get((row.id,key))
-            flags[key]=bool(active and grant and grant.enabled and (not grant.expires_at or aware(grant.expires_at)>now()))
+        flags={key:can_use_feature(db,row.id,key) for key in keys}
         result.append({"id":row.id,"name":row.name,"entitlements":flags})
     return result
 
@@ -169,6 +159,7 @@ def connections(scope:Literal["platform","tenant"],db:DB,user:CurrentUser,tenant
 def create_connection(scope:Literal["platform","tenant"],payload:ConnectionInput,db:DB,user:CurrentUser,tenant:Tenant):
     permission(user,"integrations."+scope+".manage",scope=="platform")
     owner=owner_for(user,scope);definition=definition_for(db,owner,payload.provider_key)
+    if owner!=PLATFORM_OWNER:require_plan_capacity(db,owner,"integrations")
     if owner!=PLATFORM_OWNER and payload.fallback_allowed:raise HTTPException(422,"Only platform administrators can authorize platform fallback")
     config=validate_config(definition,payload.configuration)
     connection=IntegrationConnection(id=uid(),tenant_id=owner,provider=definition.key,category=definition.category,status="NOT_CONFIGURED")

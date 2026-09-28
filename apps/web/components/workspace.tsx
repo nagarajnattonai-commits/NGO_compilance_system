@@ -42,6 +42,7 @@ import {
   Trash2,
   Languages,
   Palette,
+  CreditCard,
 } from "lucide-react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -111,6 +112,7 @@ import { ManagementDashboard, ManagementReports } from "@/components/reporting";
 import { ComplianceNotificationMessage, ComplianceNotificationTitle } from "@/components/compliance-notification";
 import OrganizationComplianceProfile from "@/components/organization-compliance-profile";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
+import { TenantSubscription } from "@/components/subscriptions";
 
 import { isOpenCompliance } from "@/lib/compliance-states";
 
@@ -134,6 +136,7 @@ type View =
   | "integrations"
   | "administration"
   | "localization"
+  | "subscription"
   | "whiteLabel";
 
 const nav = [
@@ -149,6 +152,7 @@ const nav = [
   { id: "integrations" as View, labelKey: "integrations", icon: PlugZap },
   { id: "administration" as View, labelKey: "administration", icon: Users },
   { id: "localization" as View, labelKey: "localization", icon: Languages },
+  { id: "subscription" as View, labelKey: "subscription", icon: CreditCard },
   { id: "whiteLabel" as View, labelKey: "whiteLabel", icon: Palette },
 ];
 
@@ -766,6 +770,7 @@ export default function ComplianceApp({
                 const item = scopedCompliances.find((compliance) => compliance.id === id);
                 if (item) setSelectedCompliance(item);
               }}
+              advancedReporting={subscription.feature_access?.advanced_reporting === true}
             />
           )}
           {view === "programmes" && (
@@ -845,6 +850,7 @@ export default function ComplianceApp({
           {view === "localization" && user.role === "ADMIN" && (
             <LocalizationAdmin />
           )}
+          {view === "subscription" && <TenantSubscription subscription={subscription} />}
           {view === "whiteLabel" && user.role === "ADMIN" && (
             <WhiteLabelSettings onDirtyChange={setBrandDirty} />
           )}

@@ -35,12 +35,8 @@ def workspace_active(db,tenant):
     if row and row.status in {"SUSPENDED","DISABLED"}:raise HTTPException(403,"Workspace is unavailable")
 
 def seat_available(db,tenant):
-    from .models import Subscription
-    from sqlalchemy import func
-    plan=db.scalar(select(Subscription).where(Subscription.tenant_id==tenant))
-    count=db.scalar(select(func.count()).select_from(User).where(User.tenant_id==tenant,User.status!="DISABLED")) or 0
-    count+=db.scalar(select(func.count()).select_from(WorkspaceAccess).where(WorkspaceAccess.tenant_id==tenant,WorkspaceAccess.active.is_(True))) or 0
-    if plan and count>=plan.user_limit:raise HTTPException(403,"The workspace user limit has been reached")
+    from .features import require_plan_capacity
+    require_plan_capacity(db,tenant,"users")
 
 def apply_context(db,user,session):
     account=db.get(AuthAccount,user.id)

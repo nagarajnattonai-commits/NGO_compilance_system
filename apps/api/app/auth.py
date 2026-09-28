@@ -11,12 +11,12 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from .database import SessionLocal
-from .models import AuditEvent, AuthAttempt, AuthSession, AuthToken, Subscription, User, Workspace
+from .models import AuditEvent, AuthAttempt, AuthSession, AuthToken, User, Workspace
 from .validation import normalize_email, validate_new_password
 
 COOKIE_NAME = "setu_session"
@@ -293,8 +293,8 @@ def signup(payload: SignupInput, request: Request, response: Response, db: DB):
                 password_hash=hash_password(payload.password), role="ADMIN")
     db.add(user)
     db.flush()
-    db.add(Subscription(tenant_id=workspace.id, plan_name="STARTER", user_limit=5,
-                        organization_limit=3, storage_limit_gb=1, period_end=date.today() + timedelta(days=30)))
+    from .features import new_subscription
+    db.add(new_subscription(workspace.id, "STARTER", date.today() + timedelta(days=30)))
     from .auth_models import AuthAccount
     db.add(AuthAccount(user_id=user.id,verified=not verification,verification_required=verification,
            organization_type=payload.organization_type or "",terms_at=now() if payload.terms_accepted else None))
@@ -493,10 +493,6 @@ def invite_user(payload: InvitationInput, admin: AdminUser, db: DB):
         invitation_email(db,existing,token,admin.tenant_id)
         record_event(db,admin,"USER_INVITED","Invited an existing identity to the workspace",existing.id);db.commit()
         return {"user":UserOut.model_validate(existing),"token":token,"expires_in_hours":48}
-    plan = db.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
-    count = db.scalar(select(func.count()).select_from(User).where(User.tenant_id == admin.tenant_id, User.status != "DISABLED")) or 0
-    if plan and count >= plan.user_limit:
-        raise HTTPException(403, "The workspace user limit has been reached")
     user = User(tenant_id=admin.tenant_id, email=payload.email, name=payload.name.strip(), role=payload.role, status="INVITED")
     db.add(user)
     try:
@@ -517,10 +513,8 @@ def renew_invitation(user_id: str, admin: AdminUser, db: DB):
     if not user or user.password_hash or user.status not in {"INVITED", "DISABLED"}:
         raise HTTPException(404, "Pending invitation not found")
     if user.status == "DISABLED":
-        plan = db.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
-        count = db.scalar(select(func.count()).select_from(User).where(User.tenant_id == admin.tenant_id, User.status != "DISABLED")) or 0
-        if plan and count >= plan.user_limit:
-            raise HTTPException(403, "The workspace user limit has been reached")
+        from .auth_experience import seat_available
+        seat_available(db,admin.tenant_id)
         user.status = "INVITED"
     token = issue_token(db, user, "INVITE", 48)
     from .auth_experience import invitation_email
@@ -550,10 +544,8 @@ def update_access(user_id: str, payload: AccessInput, admin: AdminUser, db: DB):
     if payload.status == "ACTIVE" and not user.password_hash:
         raise HTTPException(409, "The user must first accept their invitation")
     if user.status == "DISABLED" and payload.status == "ACTIVE":
-        plan = db.scalar(select(Subscription).where(Subscription.tenant_id == admin.tenant_id))
-        count = db.scalar(select(func.count()).select_from(User).where(User.tenant_id == admin.tenant_id, User.status != "DISABLED")) or 0
-        if plan and count >= plan.user_limit:
-            raise HTTPException(403, "The workspace user limit has been reached")
+        from .auth_experience import seat_available
+        seat_available(db,admin.tenant_id)
     other_admin = aliased(User)
     remaining_admin = select(other_admin.id).where(
         other_admin.tenant_id == admin.tenant_id, other_admin.id != user.id,

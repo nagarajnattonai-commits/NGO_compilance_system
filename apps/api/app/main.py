@@ -79,6 +79,7 @@ from .integration_api import router as integration_router
 from .developer_api import router as developer_router
 from .document_api import router as document_router
 from .document_limits import DocumentUploadLimit
+from .features import can_use_feature, plan_catalog_payload, plan_definition, require_plan_capacity, subscription_usage
 from .onboarding import router as onboarding_router
 from .organization_profile import router as organization_profile_router
 from .seed import seed_demo_data
@@ -95,6 +96,7 @@ from .phase8_api import eligible_users, notify_task, router as phase8_router
 from .phase9_api import router as phase9_router
 from .phase10_api import router as phase10_router
 from .reporting_api import router as reporting_router
+from .subscription_api import router as subscription_router
 
 
 @asynccontextmanager
@@ -144,6 +146,7 @@ app.include_router(phase8_router)
 app.include_router(phase9_router)
 app.include_router(phase10_router)
 app.include_router(reporting_router)
+app.include_router(subscription_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -367,13 +370,7 @@ def organizations(db: DB, tenant_id: Tenant):
 
 @app.post("/api/v1/organizations", response_model=OrganizationOnboardingOut, status_code=status.HTTP_201_CREATED)
 def create_organization(payload: OrganizationCreate, db: DB, tenant_id: Tenant):
-    subscription = db.scalar(select(Subscription).where(Subscription.tenant_id == tenant_id))
-    organization_count = db.scalar(select(func.count()).select_from(Organization).where(
-        Organization.tenant_id == tenant_id,
-        Organization.status != "ARCHIVED",
-    )) or 0
-    if subscription and organization_count >= subscription.organization_limit:
-        raise HTTPException(status_code=403, detail="Organization limit reached for the current plan")
+    require_plan_capacity(db,tenant_id,"organizations")
     duplicate_checks = [func.lower(Organization.registration_number) == payload.registration_number.lower()]
     if payload.pan:
         duplicate_checks.append(func.lower(Organization.pan) == payload.pan.lower())
@@ -797,13 +794,7 @@ def memberships(db: DB, tenant_id: Tenant, organization_id: str | None = None):
 def invite_member(payload: MembershipCreate, db: DB, tenant_id: Tenant):
     if payload.organization_id:
         verify_org(db, tenant_id, payload.organization_id)
-    subscription = db.scalar(select(Subscription).where(Subscription.tenant_id == tenant_id))
-    active_count = db.scalar(select(func.count()).select_from(Membership).where(
-        Membership.tenant_id == tenant_id,
-        Membership.status != "INACTIVE",
-    )) or 0
-    if subscription and active_count >= subscription.user_limit:
-        raise HTTPException(status_code=403, detail="User limit reached for the current plan")
+    require_plan_capacity(db,tenant_id,"users")
     duplicate = db.scalar(select(Membership.id).where(
         Membership.tenant_id == tenant_id,
         func.lower(Membership.email) == payload.email.lower(),
@@ -825,7 +816,10 @@ def update_membership(membership_id: str, payload: MembershipUpdate, db: DB, ten
     item = db.scalar(select(Membership).where(Membership.id == membership_id, Membership.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Membership not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    values = payload.model_dump(exclude_unset=True)
+    if item.status == "INACTIVE" and values.get("status", "INACTIVE") != "INACTIVE":
+        require_plan_capacity(db,tenant_id,"users")
+    for field, value in values.items():
         setattr(item, field, value)
     if payload.status == "ACTIVE" and not item.accepted_at:
         item.accepted_at = datetime.now(timezone.utc)
@@ -836,11 +830,43 @@ def update_membership(membership_id: str, payload: MembershipUpdate, db: DB, ten
 
 
 @app.get("/api/v1/subscription", response_model=SubscriptionOut)
-def subscription(db: DB, tenant_id: Tenant):
+def subscription(db: DB, tenant_id: Tenant, user: CurrentUser):
+    if getattr(user, "_admin_audience", False):
+        raise HTTPException(403, "Platform administrator sessions cannot access tenant subscriptions")
     item = db.scalar(select(Subscription).where(Subscription.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Subscription not configured")
-    return item
+    plan = plan_definition(item.plan_name)
+    keys = sorted({key for configured in plan_catalog_payload() for key in configured["entitlements"]})
+    available = list(plan.features) if plan else []
+    feature_access = {key: can_use_feature(db, tenant_id, key) for key in keys}
+    available.extend(key for key, enabled in feature_access.items() if enabled and key not in available)
+    history = db.scalars(select(AuditEvent).where(
+        AuditEvent.tenant_id == tenant_id,
+        AuditEvent.action == "SUBSCRIPTION_CHANGED",
+    ).order_by(AuditEvent.created_at.desc()).limit(25)).all()
+    return {
+        "id": item.id,
+        "plan_name": item.plan_name,
+        "status": item.status,
+        "user_limit": item.user_limit,
+        "organization_limit": item.organization_limit,
+        "integration_limit": item.integration_limit,
+        "storage_limit_gb": item.storage_limit_gb,
+        "period_start": item.period_start,
+        "period_end": item.period_end,
+        "cancel_at_period_end": item.cancel_at_period_end,
+        "usage": subscription_usage(db, tenant_id),
+        "features": available,
+        "feature_access": feature_access,
+        "plans": plan_catalog_payload(),
+        "history": [{
+            "id": event.id,
+            "actor_name": event.actor_name,
+            "summary": event.summary,
+            "created_at": event.created_at,
+        } for event in history],
+    }
 
 
 DEFAULT_LOCALES = [
