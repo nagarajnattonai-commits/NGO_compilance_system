@@ -2,7 +2,11 @@ export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
 
+let explicitLogoutInProgress = false;
+
 export async function apiRequest<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  const isLogout = path === "/auth/logout" && method === "POST";
+  if (isLogout) explicitLogoutInProgress = true;
   let response: Response;
   try {
     response = await fetch(`/api/v1${path}`, {
@@ -11,16 +15,18 @@ export async function apiRequest<T>(path: string, method = "GET", body?: unknown
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   } catch {
+    if (isLogout) explicitLogoutInProgress = false;
     throw new ApiError("Cannot connect to the server. Please try again.", 0);
   }
   if (!response.ok) {
+    if (isLogout) explicitLogoutInProgress = false;
     let message = response.status >= 500 ? "The server is unavailable. Please try again shortly." : `Request failed (${response.status})`;
     try {
       const data = await response.json();
       if (typeof data.detail === "string") message = data.detail;
       else if (Array.isArray(data.detail)) message = data.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(", ");
     } catch { /* An upstream failure may return HTML, not JSON. */ }
-    if (response.status === 401 && !path.startsWith("/auth/") && typeof window !== "undefined") window.location.assign("/login?expired=1");
+    if (response.status === 401 && !path.startsWith("/auth/") && !explicitLogoutInProgress && typeof window !== "undefined") window.location.assign("/login?expired=1");
     throw new ApiError(message, response.status);
   }
   if (response.status === 204) return undefined as T;
