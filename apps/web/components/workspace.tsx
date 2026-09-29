@@ -252,9 +252,11 @@ function AppLogo() {
 export default function ComplianceApp({
   user,
   initialView = "overview",
+  platformAdmin = false,
 }: {
   user: AuthUser;
   initialView?: View;
+  platformAdmin?: boolean;
 }) {
   const tCommon = useTranslations("Common");
   const tAuth = useTranslations("Authentication");
@@ -301,7 +303,9 @@ export default function ComplianceApp({
   const [brandDirty, setBrandDirty] = useState(false);
 
   useEffect(() => {
-    loadWorkspace(user.role === "ADMIN")
+    if (platformAdmin) {
+      setLoading(false);
+    } else loadWorkspace(user.role === "ADMIN")
       .then((data) => {
         setOrganizations(data.organizations);
         setCompliances(data.compliances);
@@ -329,7 +333,7 @@ export default function ComplianceApp({
     } catch {
       /* Ignore invalid local demo preferences. */
     }
-  }, [user.role]);
+  }, [user.role, platformAdmin]);
 
   useEffect(() => {
     if (!toast) return;
@@ -450,7 +454,7 @@ export default function ComplianceApp({
         <p>{tCommon("loading")}</p>
       </main>
     );
-  if (loadError || !subscription)
+  if (loadError || (!subscription && !platformAdmin))
     return (
       <main className="workspace-loading">
         <h1>Unable to load workspace</h1>
@@ -483,7 +487,7 @@ export default function ComplianceApp({
           <nav aria-label={tCommon("mainNavigation")}>
             {nav
               .filter(
-                (item) =>
+                (item) => platformAdmin ? item.id === "administration" :
                   !["operations", "administration", "localization", "whiteLabel"].includes(
                     item.id,
                   ) || user.role === "ADMIN",
@@ -570,7 +574,7 @@ export default function ComplianceApp({
           />
         )}
         <main className="main">
-          <OnboardingBanner canManage={user.role==="ADMIN"}/>
+          {!platformAdmin && <OnboardingBanner canManage={user.role==="ADMIN"}/>}
           <header className="topbar">
             <button
               className="menu-button"
@@ -752,7 +756,7 @@ export default function ComplianceApp({
                 const item = scopedCompliances.find((compliance) => compliance.id === id);
                 if (item) setSelectedCompliance(item);
               }}
-              advancedReporting={subscription.feature_access?.advanced_reporting === true}
+              advancedReporting={subscription?.feature_access?.advanced_reporting === true}
             />
           )}
           {view === "programmes" && (
@@ -816,9 +820,10 @@ export default function ComplianceApp({
                   setAuditEvents(data.auditEvents);
                 });
               }}
-            />{user.role === "ADMIN" && <WorkflowBuilder entitled={subscription.feature_access?.advanced_automation === true} />}</>
+            />{user.role === "ADMIN" && <WorkflowBuilder entitled={subscription?.feature_access?.advanced_automation === true} />}</>
           )}
-          {view === "administration" && user.role === "ADMIN" && (
+          {view === "administration" && platformAdmin && <PlatformNavigation />}
+          {view === "administration" && user.role === "ADMIN" && subscription && !platformAdmin && (
             <AdministrationView
               organizations={organizations}
               compliances={compliances}
@@ -832,7 +837,7 @@ export default function ComplianceApp({
           {view === "localization" && user.role === "ADMIN" && (
             <LocalizationAdmin />
           )}
-          {view === "subscription" && <TenantSubscription subscription={subscription} />}
+          {view === "subscription" && subscription && <TenantSubscription subscription={subscription} />}
           {view === "whiteLabel" && user.role === "ADMIN" && (
             <WhiteLabelSettings onDirtyChange={setBrandDirty} />
           )}
