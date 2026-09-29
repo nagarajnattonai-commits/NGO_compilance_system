@@ -211,7 +211,19 @@ def _next_cycle_scan(db, job, today: date):
 
 def _reminder_scan(db, job, today: date):
     from .runtime_cycles import dispatch_due_reminders
-    return {"queued": dispatch_due_reminders(db, job.tenant_id, today)}
+    from .workflow_service import queue_workflow_event
+    workflows = 0
+    for item in db.scalars(select(Compliance).where(
+        Compliance.tenant_id == job.tenant_id,
+        Compliance.statutory_deadline.between(today, today + timedelta(days=30)),
+    )).all():
+        if is_open(item.status):
+            workflows += queue_workflow_event(db, job.tenant_id, "DEADLINE_APPROACHING", "Compliance", item.id,
+                item.organization_id, f"deadline:{item.id}:{item.statutory_deadline}")
+    result = {"queued": dispatch_due_reminders(db, job.tenant_id, today)}
+    if workflows:
+        result["workflows"] = workflows
+    return result
 
 
 def _overdue_compliance_scan(db, job, today: date):
@@ -235,6 +247,7 @@ def _overdue_compliance_scan(db, job, today: date):
 
 
 def _task_overdue_scan(db, job, today: date):
+    from .workflow_service import queue_workflow_event
     produced = 0
     threshold = max(0, min(30, int(os.getenv("TASK_DUE_NOTICE_DAYS", "3"))))
     for task in db.scalars(select(Task).where(
@@ -252,11 +265,15 @@ def _task_overdue_scan(db, job, today: date):
             title, message, "WARNING" if overdue else "REMINDER",
             organization_id=task.organization_id,
             user_ids=(task.assignee_user_id,) if task.assignee_user_id else ()))
+        if overdue:
+            queue_workflow_event(db, job.tenant_id, "TASK_OVERDUE", "Task", task.id, task.organization_id,
+                                 f"task-overdue:{task.id}:{task.due_at}")
     return {"events": produced}
 
 
 def _document_expiry_scan(db, job, today: date):
     from .document_service import genuine_file
+    from .workflow_service import queue_workflow_event
     produced = 0
     threshold = max(1, min(365, int(os.getenv("DOCUMENT_EXPIRY_NOTICE_DAYS", "30"))))
     for document in db.scalars(select(Document).where(Document.tenant_id == job.tenant_id)).all():
@@ -270,6 +287,8 @@ def _document_expiry_scan(db, job, today: date):
         produced += int(emit_notice(db, job.tenant_id, f"document-expiry:{document.id}:{blob.version_id}:{state}", "DOCUMENT_EXPIRY",
             "Document expired" if state == "EXPIRED" else "Document expiry approaching",
             f"{document.name} {'expired' if state == 'EXPIRED' else 'expires'} on {blob.expiry_at.isoformat()}.", "DOCUMENT"))
+        queue_workflow_event(db, job.tenant_id, "DOCUMENT_EXPIRING", "Document", document.id,
+                             document.organization_id, f"document-expiry:{document.id}:{blob.version_id}:{state}")
     return {"events": produced}
 
 
@@ -295,6 +314,11 @@ def _calendar_sync(db, job, _today):
     return process_sync_job(db, job)
 
 
+def _workflow_execution(db, job, today):
+    from .workflow_service import execute_workflow
+    return execute_workflow(db, job, today)
+
+
 HANDLERS = {
     "COMPLIANCE_GENERATION_SCAN": _generation_scan,
     "NEXT_CYCLE_SCAN": _next_cycle_scan,
@@ -305,6 +329,7 @@ HANDLERS = {
     "APPLICABILITY_REEVALUATION": _applicability,
     "NOTIFICATION_DELIVERY": _notification_delivery,
     "CALENDAR_SYNC": _calendar_sync,
+    "AUTOMATION_WORKFLOW_EXECUTION": _workflow_execution,
 }
 
 
@@ -365,6 +390,9 @@ def fail_job(db, job: ScheduledJob, error: Exception, *, failed_at: datetime | N
     job.result_summary = ""
     if started_monotonic is not None:
         job.duration_ms = max(0, int((time.monotonic() - started_monotonic) * 1000))
+    if job.job_type == "AUTOMATION_WORKFLOW_EXECUTION":
+        from .workflow_service import mark_workflow_failure
+        mark_workflow_failure(db, job, job.last_error_code)
     from .notification_service import update_delivery_failure
     update_delivery_failure(db, job, failed_at, job.last_error_code)
     from .calendar_service import mark_sync_failure

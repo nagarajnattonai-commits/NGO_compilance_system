@@ -67,6 +67,7 @@
       "document_evidence": "Documents and evidence",
       "standard_reporting": "Standard reporting and analytics",
       "advanced_reporting": "CSV and print-ready report exports",
+      "advanced_automation": "Configurable compliance automation",
       "integrations": "Workspace integrations",
       "google_calendar_integration": "Google Calendar synchronization",
       "custom_email": "Custom email provider",

@@ -98,6 +98,7 @@ from .phase10_api import router as phase10_router
 from .reporting_api import router as reporting_router
 from .subscription_api import router as subscription_router
 from .phase13_api import router as phase13_router
+from .phase14_api import router as phase14_router
 
 
 @asynccontextmanager
@@ -149,6 +150,7 @@ app.include_router(phase10_router)
 app.include_router(reporting_router)
 app.include_router(subscription_router)
 app.include_router(phase13_router)
+app.include_router(phase14_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -188,7 +190,22 @@ def audit(db: Session, tenant_id: str, action: str, entity_type: str, entity_id:
     if event_type:
         enqueue_event(db, tenant_id, event_type, entity_id)
 
-    db.add(AuditEvent(tenant_id=tenant_id, actor_name=db.info.get("actor_name", "System"), action=action, entity_type=entity_type, entity_id=entity_id, summary=summary))
+    event = AuditEvent(tenant_id=tenant_id, actor_name=db.info.get("actor_name", "System"), action=action,
+                       entity_type=entity_type, entity_id=entity_id, summary=summary)
+    db.add(event); db.flush()
+    trigger = {
+        "COMPLIANCE_CREATED": "COMPLIANCE_CREATED", "COMPLIANCE_GENERATED": "COMPLIANCE_CREATED",
+        "STATUS_CHANGED": "COMPLIANCE_STATUS_CHANGED", "COMPLIANCE_OVERDUE": "COMPLIANCE_STATUS_CHANGED",
+        "TASK_CREATED": "TASK_CREATED", "TASK_UPDATED": "TASK_STATUS_CHANGED",
+        "DOCUMENT_UPLOADED": "DOCUMENT_UPLOADED", "DOCUMENT_VERSION_CREATED": "DOCUMENT_UPLOADED",
+    }.get(action)
+    entity = db.get({"Compliance": Compliance, "Task": Task, "Document": Document}.get(entity_type), entity_id) if entity_type in {"Compliance", "Task", "Document"} else None
+    organization_id = getattr(entity, "organization_id", None)
+    if action == "STATUS_CHANGED" and isinstance(entity, Compliance) and entity.status == "FILED":
+        trigger = "FILING_COMPLETED"
+    if trigger and entity:
+        from .workflow_service import queue_workflow_event
+        queue_workflow_event(db, tenant_id, trigger, entity_type, entity_id, organization_id, f"audit:{event.id}")
 
 
 def verify_org(db: Session, tenant_id: str, organization_id: str) -> Organization:

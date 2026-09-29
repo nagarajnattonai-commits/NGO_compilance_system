@@ -47,6 +47,7 @@ import {
 import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import GlobalSearch from "./global-search";
+import WorkflowBuilder from "./workflow-builder";
 import {
   addComplianceComment,
   addTaskAttachment,
@@ -815,7 +816,7 @@ export default function ComplianceApp({
                   setAuditEvents(data.auditEvents);
                 });
               }}
-            /></>
+            />{user.role === "ADMIN" && <WorkflowBuilder entitled={subscription.feature_access?.advanced_automation === true} />}</>
           )}
           {view === "administration" && user.role === "ADMIN" && (
             <AdministrationView

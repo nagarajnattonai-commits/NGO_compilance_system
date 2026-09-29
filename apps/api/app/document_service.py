@@ -35,7 +35,10 @@ def scan_required():
 def scanner_configured():return _scanner is not None
 
 def audit(db,tenant,actor,action,doc,summary):
-    db.add(AuditEvent(tenant_id=tenant,actor_name=actor.name,action=action,entity_type="Document",entity_id=doc.id,summary=summary))
+    event=AuditEvent(tenant_id=tenant,actor_name=actor.name,action=action,entity_type="Document",entity_id=doc.id,summary=summary);db.add(event);db.flush()
+    if action in {"DOCUMENT_UPLOADED","DOCUMENT_RENEWED"}:
+        from .workflow_service import queue_workflow_event
+        queue_workflow_event(db,tenant,"DOCUMENT_UPLOADED","Document",doc.id,doc.organization_id,f"audit:{event.id}")
 def owned_document(db,tenant,id):
     doc=db.scalar(select(Document).where(Document.id==id,Document.tenant_id==tenant))
     if not doc:raise HTTPException(404,"Document not found in this workspace")

@@ -33,13 +33,13 @@ PLAN_CATALOG = {
     ),
     "BUSINESS": PlanDefinition(
         "Business", 25, 10, 25, 10,
-        frozenset({"advanced_reporting", "custom_email", "custom_storage", "whatsapp_integration", "google_calendar_integration", "custom_webhooks", "public_api"}),
-        CORE_FEATURES + ("advanced_reporting", "integrations", "google_calendar_integration", "custom_webhooks", "public_api"),
+        frozenset({"advanced_reporting", "advanced_automation", "custom_email", "custom_storage", "whatsapp_integration", "google_calendar_integration", "custom_webhooks", "public_api"}),
+        CORE_FEATURES + ("advanced_reporting", "advanced_automation", "integrations", "google_calendar_integration", "custom_webhooks", "public_api"),
     ),
     "ENTERPRISE": PlanDefinition(
         "Enterprise", 250, 50, 250, 50,
-        frozenset({"advanced_reporting", "custom_email", "custom_storage", "whatsapp_integration", "google_calendar_integration", "custom_webhooks", "public_api", "white_label"}),
-        CORE_FEATURES + ("advanced_reporting", "integrations", "google_calendar_integration", "custom_webhooks", "public_api", "white_label"),
+        frozenset({"advanced_reporting", "advanced_automation", "custom_email", "custom_storage", "whatsapp_integration", "google_calendar_integration", "custom_webhooks", "public_api", "white_label"}),
+        CORE_FEATURES + ("advanced_reporting", "advanced_automation", "integrations", "google_calendar_integration", "custom_webhooks", "public_api", "white_label"),
     ),
 }
 
