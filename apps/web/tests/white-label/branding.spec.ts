@@ -33,6 +33,13 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
     { headers, data: { enabled: true } },
   );
   expect(grant.ok()).toBeTruthy();
+  expect((await request.put(`/api/v1/platform/subscriptions/${user.tenant_id}`, {
+    headers, data: { plan_name: "BUSINESS" },
+  })).ok()).toBeTruthy();
+  expect((await request.post("/api/v1/auth/login", {
+    headers,
+    data: { email: "white-label-qa@example.test", password: "WhiteLabel-browser-QA-2026!" },
+  })).ok()).toBeTruthy();
   await context.addCookies((await request.storageState()).cookies);
   await page.goto("/settings/white-label");
   await expect(
