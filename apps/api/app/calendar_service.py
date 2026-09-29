@@ -136,6 +136,8 @@ def queue_entity_sync(db, entity, connection_id: str | None = None) -> int:
     for connection, state, policy in _connected_policies(db, entity.tenant_id):
         if connection_id and connection.id != connection_id:
             continue
+        if state.organization_id and state.organization_id != entity.organization_id:
+            continue
         kinds = []
         if isinstance(entity, Compliance):
             if policy.sync_statutory_deadlines:
@@ -234,15 +236,16 @@ def _event(db, entity, kind: str) -> tuple[dict, bool]:
 def process_sync_job(db, job) -> dict:
     payload = json.loads(job.payload)
     from .integration_service import resolve_connection
-    connection, state = resolve_connection(db, job.tenant_id, payload.get("connection_id"), "CALENDAR", "calendar.events")
-    policy = db.get(CalendarSyncPolicy, connection.id)
     mapping = db.scalar(select(CalendarEventMapping).where(
         CalendarEventMapping.tenant_id == job.tenant_id,
-        CalendarEventMapping.connection_id == connection.id,
+        CalendarEventMapping.connection_id == payload.get("connection_id"),
         CalendarEventMapping.entity_type == payload.get("entity_type"),
         CalendarEventMapping.entity_id == payload.get("entity_id"),
         CalendarEventMapping.event_kind == payload.get("event_kind"),
     ))
+    connection, state = resolve_connection(db, job.tenant_id, payload.get("connection_id"), "CALENDAR", "calendar.events",
+                                            organization_id=mapping.organization_id if mapping else None)
+    policy = db.get(CalendarSyncPolicy, connection.id)
     if not state or not policy or not mapping:
         raise ValueError("Calendar sync context is missing")
     model = Compliance if mapping.entity_type == "Compliance" else Task if mapping.entity_type == "Task" else None

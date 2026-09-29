@@ -11,7 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import case, func, or_, select
 from .auth import CurrentUser, DB, aware, now, tenant_context
 from .features import can_use_feature, require_plan_capacity
-from .models import IntegrationConnection, TenantEntitlement, Workspace, uid
+from .models import IntegrationConnection, Organization, TenantEntitlement, Workspace, uid
+from .organization_access import require_organization_access
 from .permissions import has_permission, INTEGRATION_PERMISSIONS
 from .integration_models import ConnectionSettings, IntegrationProvider, IntegrationOperation
 from .integration_providers import CATEGORIES, REGISTRY, get_provider
@@ -30,11 +31,13 @@ class ConnectionInput(Strict):
     environment: Literal["SANDBOX","PRODUCTION"]="SANDBOX"
     configuration: dict
     fallback_allowed: bool=False
+    organization_id: str|None=Field(default=None,max_length=36)
 class ConnectionChange(Strict):
     display_name: str=Field(min_length=1,max_length=120)
     environment: Literal["SANDBOX","PRODUCTION"]
     configuration: dict
     fallback_allowed: bool=False
+    organization_id: str|None=Field(default=None,max_length=36)
 class CredentialInput(Strict):
     secret: SecretStr=Field(min_length=1,max_length=16000)
 class EnabledInput(Strict):
@@ -73,6 +76,13 @@ def definition_for(db,owner,key):
 def validate_config(definition,configuration):
     try:return definition.configuration_schema.model_validate(configuration).model_dump()
     except Exception:raise HTTPException(422,"Invalid non-secret provider configuration. Check the required fields.") from None
+def checked_organization(db,owner,user,organization_id):
+    if not organization_id:return None
+    if owner==PLATFORM_OWNER:raise HTTPException(422,"Platform connections cannot be organization scoped")
+    if not db.scalar(select(Organization.id).where(Organization.id==organization_id,Organization.tenant_id==owner)):
+        raise HTTPException(404,"Organization not found")
+    require_organization_access(db,owner,organization_id,write=True,user_id=user.id)
+    return organization_id
 def ensure_https(request):
     if os.getenv("APP_ENV")=="production" and request.url.scheme!="https":
         # Accept only the existing keyed internal Next.js proxy behind the HTTPS edge.
@@ -159,13 +169,14 @@ def connections(scope:Literal["platform","tenant"],db:DB,user:CurrentUser,tenant
 def create_connection(scope:Literal["platform","tenant"],payload:ConnectionInput,db:DB,user:CurrentUser,tenant:Tenant):
     permission(user,"integrations."+scope+".manage",scope=="platform")
     owner=owner_for(user,scope);definition=definition_for(db,owner,payload.provider_key)
+    organization_id=checked_organization(db,owner,user,payload.organization_id)
     if owner!=PLATFORM_OWNER:require_plan_capacity(db,owner,"integrations")
     if owner!=PLATFORM_OWNER and payload.fallback_allowed:raise HTTPException(422,"Only platform administrators can authorize platform fallback")
     config=validate_config(definition,payload.configuration)
     connection=IntegrationConnection(id=uid(),tenant_id=owner,provider=definition.key,category=definition.category,status="NOT_CONFIGURED")
     try:reference=secret_store().reference(owner,connection.id)
     except IntegrationError as error:public_error(error)
-    state=ConnectionSettings(connection_id=connection.id,scope=scope.upper(),display_name=payload.display_name,environment=payload.environment,
+    state=ConnectionSettings(connection_id=connection.id,organization_id=organization_id,scope=scope.upper(),display_name=payload.display_name,environment=payload.environment,
         configuration=json.dumps(config),credential_reference=reference,fallback_allowed=payload.fallback_allowed,created_by=user.name,updated_by=user.name)
     db.add(connection);db.flush();db.add(state)
     audit(db,user,"CONNECTION_CREATED",connection.id);db.commit();return connection_output(connection,state)
@@ -174,9 +185,11 @@ def create_connection(scope:Literal["platform","tenant"],payload:ConnectionInput
 def edit_connection(scope:Literal["platform","tenant"],connection_id:str,payload:ConnectionChange,db:DB,user:CurrentUser,tenant:Tenant):
     permission(user,"integrations."+scope+".manage",scope=="platform")
     owner=owner_for(user,scope);connection,state=owned_connection(db,owner,connection_id)
+    organization_id=checked_organization(db,owner,user,payload.organization_id)
     definition=definition_for(db,owner,connection.provider)
     if owner!=PLATFORM_OWNER and payload.fallback_allowed:raise HTTPException(422,"Only platform administrators can authorize platform fallback")
     state.configuration=json.dumps(validate_config(definition,payload.configuration))
+    state.organization_id=organization_id
     state.display_name=payload.display_name;state.environment=payload.environment;state.fallback_allowed=payload.fallback_allowed
     state.updated_by=user.name;state.updated_at=now();state.last_success_at=None;state.blocked_until=None;connection.status="CONFIGURED"
     audit(db,user,"CONNECTION_CHANGED",connection_id);db.commit();return connection_output(connection,state)
@@ -200,13 +213,18 @@ def delete_credential(scope:Literal["platform","tenant"],connection_id:str,db:DB
     audit(db,user,"CREDENTIAL_DELETED",connection_id);db.commit()
 
 @router.post("/integrations-management/{scope}/connections/{connection_id}/{action}")
-def connection_action(scope:Literal["platform","tenant"],connection_id:str,action:Literal["test","activate","disconnect"],db:DB,user:CurrentUser,tenant:Tenant):
+def connection_action(scope:Literal["platform","tenant"],connection_id:str,action:Literal["test","activate","disconnect","enable"],db:DB,user:CurrentUser,tenant:Tenant):
     permission(user,"integrations."+scope+".manage",scope=="platform")
     owner=owner_for(user,scope);connection,state=owned_connection(db,owner,connection_id)
     if action=="disconnect":
         connection.status="DISABLED";state.last_success_at=None
         audit(db,user,"CONNECTION_DISCONNECTED",connection_id);db.commit();return connection_output(connection,state)
     definition_for(db,owner,connection.provider)
+    if action=="enable":
+        if connection.status!="DISABLED":raise HTTPException(409,"Only disabled connections can be enabled")
+        connection.status="CONFIGURED" if state.credential_suffix else "NOT_CONFIGURED"
+        state.last_success_at=None;state.blocked_until=None;state.error_code="";state.updated_at=now()
+        audit(db,user,"CONNECTION_ENABLED",connection_id);db.commit();return connection_output(connection,state)
     if action=="test":
         result=test_connection(db,connection,state,user.tenant_id)
         audit(db,user,"CONNECTION_TESTED",connection_id);db.commit();return result

@@ -15,8 +15,13 @@ from .integration_providers import REGISTRY, get_provider
 from .integration_security import IntegrationError, secret_store
 
 PLATFORM_OWNER = "__platform__"
-EVENT_TYPES = ("compliance.created","compliance.completed","compliance.overdue","task.completed","document.uploaded","document.expiring","user.created","webhook.test")
-EVENT_ACTIONS = {"COMPLIANCE_CREATED":"compliance.created","COMPLIANCE_GENERATED":"compliance.created","COMPLIANCE_OVERDUE":"compliance.overdue","DOCUMENT_UPLOADED":"document.uploaded"}
+EVENT_TYPES = ("compliance.created","compliance.status_changed","compliance.completed","compliance.filed","compliance.overdue",
+               "task.created","task.status_changed","task.completed","task.overdue",
+               "document.uploaded","document.expiring","automation.executed","user.created","webhook.test")
+EVENT_ACTIONS = {"COMPLIANCE_CREATED":"compliance.created","COMPLIANCE_GENERATED":"compliance.created",
+                 "COMPLIANCE_OVERDUE":"compliance.overdue","TASK_CREATED":"task.created","TASK_UPDATED":"task.status_changed",
+                 "DOCUMENT_UPLOADED":"document.uploaded","DOCUMENT_VERSION_CREATED":"document.uploaded",
+                 "AUTOMATION_EXECUTED":"automation.executed"}
 
 def audit(db,user,action,entity_id,tenant_id=None):
     db.add(AuditEvent(tenant_id=tenant_id or user.tenant_id,actor_name=user.name,action=action,
@@ -49,7 +54,7 @@ def quota(db,scope,maximum,seconds=60):
 
 def connection_output(connection,state,enabled=True):
     health = "DISABLED" if not enabled or connection.status=="DISABLED" else ("OPERATIONAL" if connection.status=="CONNECTED" else "OUTAGE" if state.failure_count>=3 else "DEGRADED" if connection.status in {"ERROR","DEGRADED"} else "UNKNOWN")
-    return {"id":connection.id,"tenant_id":None if state.scope=="PLATFORM" else connection.tenant_id,"provider_key":connection.provider,"category":connection.category,
+    return {"id":connection.id,"tenant_id":None if state.scope=="PLATFORM" else connection.tenant_id,"organization_id":state.organization_id,"provider_key":connection.provider,"category":connection.category,
         "scope":state.scope,"display_name":state.display_name,"configuration":json.loads(state.configuration),"environment":state.environment,
         "status":connection.status,"health":health,"fallback_allowed":state.fallback_allowed,
         "credential_suffix":state.credential_suffix,"credential_configured":bool(state.last_success_at or state.credential_suffix),
@@ -71,7 +76,7 @@ def adapter_for(db,connection,state):
     secret=secret_store().get_secret_for_server_use(state.credential_reference)
     return definition.adapter(config,secret)
 
-def resolve_integration(db,tenant_id,category,capability,environment="PRODUCTION"):
+def resolve_integration(db,tenant_id,category,capability,environment="PRODUCTION",organization_id=None):
     """Tenant first; platform fallback opt-in on each platform connection."""
     definitions=[item for item in REGISTRY.values() if item.category==category and capability in item.capabilities]
     keys=[item.key for item in definitions]
@@ -80,9 +85,11 @@ def resolve_integration(db,tenant_id,category,capability,environment="PRODUCTION
             .where(IntegrationConnection.tenant_id==owner,IntegrationConnection.provider.in_(keys),IntegrationConnection.status=="CONNECTED",
                    ConnectionSettings.environment==environment)
             .order_by(ConnectionSettings.created_at)).all()
-        for connection,state in rows:
+        for connection,state in sorted(rows,key=lambda item: item[1].organization_id!=organization_id if organization_id else False):
             expected_scope="TENANT" if owner==tenant_id else "PLATFORM"
             if state.scope!=expected_scope or (owner==PLATFORM_OWNER and not state.fallback_allowed):
+                continue
+            if state.organization_id and state.organization_id!=organization_id:
                 continue
             if owner==tenant_id and not can_use_feature(db,tenant_id,get_provider(connection.provider).entitlement_key):
                 continue
@@ -94,7 +101,7 @@ def resolve_integration(db,tenant_id,category,capability,environment="PRODUCTION
                 continue
     raise IntegrationError("INTEGRATION_NOT_CONFIGURED")
 
-def resolve_connection(db,tenant_id,connection_id,category,capability):
+def resolve_connection(db,tenant_id,connection_id,category,capability,organization_id=None):
     """Resolve one tenant-selected connection through the same registry and entitlement gates."""
     row=db.execute(select(IntegrationConnection,ConnectionSettings).join(ConnectionSettings,ConnectionSettings.connection_id==IntegrationConnection.id)
         .where(IntegrationConnection.id==connection_id,IntegrationConnection.tenant_id==tenant_id,
@@ -103,6 +110,8 @@ def resolve_connection(db,tenant_id,connection_id,category,capability):
     if not row:
         raise IntegrationError("INTEGRATION_NOT_CONFIGURED")
     connection,state=row
+    if state.organization_id and state.organization_id!=organization_id:
+        raise IntegrationError("PERMISSION_DENIED")
     definition=get_provider(connection.provider)
     if capability not in definition.capabilities or not provider_enabled(db,connection.provider):
         raise IntegrationError("INTEGRATION_NOT_CONFIGURED")
@@ -155,11 +164,13 @@ def test_connection(db,connection,state,alert_tenant_id=None):
                                   error_code=state.error_code,duration_ms=duration))
     return {"success":not error,"error_code":state.error_code,"request_id":log.id,"connection":connection_output(connection,state)}
 
-def enqueue_event(db,tenant_id,event_type,entity_id,event_id=None):
+def enqueue_event(db,tenant_id,event_type,entity_id,event_id=None,organization_id=None):
     """Metadata only, committed in the same transaction as the business change."""
     event_id=event_id or uid()
     for subscription in db.scalars(select(WebhookSubscription).where(WebhookSubscription.tenant_id==tenant_id,WebhookSubscription.direction=="OUTBOUND",
         WebhookSubscription.enabled.is_(True),WebhookSubscription.deleted_at.is_(None))):
+        if subscription.organization_id and subscription.organization_id!=organization_id:
+            continue
         if event_type not in json.loads(subscription.event_types):
             continue
         if not db.scalar(select(WebhookDelivery.id).where(WebhookDelivery.subscription_id==subscription.id,WebhookDelivery.event_id==event_id)):

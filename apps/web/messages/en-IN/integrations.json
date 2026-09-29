@@ -166,6 +166,8 @@
     "platform": "Platform",
     "tenant": "Tenant",
     "scope": "Scope",
+    "organizationScope": "Organization scope",
+    "allOrganizations": "All organizations",
     "health": "Health",
     "lastTested": "Last tested",
     "never": "Never",
@@ -202,6 +204,8 @@
     "delete": "Delete",
     "deliveries": "Deliveries",
     "attempts": "Attempts",
+    "lastAttempt": "Last attempt",
+    "retryDelivery": "Retry delivery",
     "requestsToday": "API requests today",
     "operations": {
       "test_connection": "Test connection",

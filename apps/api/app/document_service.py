@@ -37,6 +37,8 @@ def scanner_configured():return _scanner is not None
 def audit(db,tenant,actor,action,doc,summary):
     event=AuditEvent(tenant_id=tenant,actor_name=actor.name,action=action,entity_type="Document",entity_id=doc.id,summary=summary);db.add(event);db.flush()
     if action in {"DOCUMENT_UPLOADED","DOCUMENT_RENEWED"}:
+        from .integration_service import enqueue_event
+        enqueue_event(db,tenant,"document.uploaded",doc.id,organization_id=doc.organization_id)
         from .workflow_service import queue_workflow_event
         queue_workflow_event(db,tenant,"DOCUMENT_UPLOADED","Document",doc.id,doc.organization_id,f"audit:{event.id}")
 def owned_document(db,tenant,id):
@@ -136,7 +138,7 @@ def upload(db,tenant,actor,metadata,filename,mime,content):
     else:
         doc=Document(id=uid(),tenant_id=tenant,organization_id=org.id,name=metadata.name,category=metadata.category,uploaded_by=actor.name,version=1);db.add(doc);db.flush();version_number=1
     version=DocumentVersion(id=uid(),tenant_id=tenant,document_id=doc.id,version=version_number,file_type=PurePath(original).suffix[1:].upper(),size_label=f"{len(content)} bytes",uploaded_by=actor.name);db.add(version);db.flush()
-    try:storage=DocumentStorage(db,tenant)
+    try:storage=DocumentStorage(db,tenant,organization_id=org.id)
     except Exception:raise HTTPException(503,"Private document storage is not configured or unavailable") from None
     key=f"tenants/{tenant}/organizations/{org.id}/documents/{doc.id}/versions/{version.id}/content"
     wrote=False

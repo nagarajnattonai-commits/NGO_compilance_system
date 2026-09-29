@@ -12,7 +12,7 @@ from app.main import app
 from app.database import SessionLocal
 from app.auth_models import AuthAccount, SessionContext
 from app.auth import digest, now
-from app.models import User, AuthSession, Workspace, Subscription, TenantEntitlement, IntegrationConnection, AuditEvent
+from app.models import User, AuthSession, Workspace, Subscription, TenantEntitlement, IntegrationConnection, AuditEvent, Organization
 from app.integration_models import ConnectionSettings, ApiKey, WebhookDelivery, WebhookEvent, IntegrationOperation
 from app.integration_security import IntegrationError, EnvironmentSecretStore, validate_url
 from app.integration_service import resolve_integration, enqueue_event, PLATFORM_OWNER
@@ -372,3 +372,77 @@ def test_health_summary_metrics_and_three_failure_alert(store,monkeypatch):
         notes=client.get("/api/v1/notifications").json()
         alerts=[item for item in notes if item.get("template_key")=="integration.providerAlert"]
         assert len(alerts)==1
+
+def test_phase15_organization_scoped_connection_and_webhook_events(store):
+    with client_for() as client:
+        with SessionLocal() as db:
+            db.add_all([Organization(id="org-a",tenant_id="tenant-a",name="A",legal_type="TRUST",registration_number="A"),
+                        Organization(id="org-b",tenant_id="tenant-a",name="B",legal_type="TRUST",registration_number="B")])
+            db.commit()
+        connection=create(client,organization_id="org-a")
+        credential(client,connection["id"])
+        path=BASE+"/tenant/connections/"+connection["id"]
+        assert client.post(path+"/test").json()["success"]
+        assert client.post(path+"/activate").status_code==200
+        assert client.post(path+"/disconnect").json()["status"]=="DISABLED"
+        assert client.post(path+"/enable").json()["status"]=="CONFIGURED"
+        assert client.post(path+"/activate").status_code==409
+        assert client.post(path+"/test").json()["success"]
+        assert client.post(path+"/activate").status_code==200
+        with SessionLocal() as db:
+            assert resolve_integration(db,"tenant-a","EMAIL","email.send",organization_id="org-a")[0].id==connection["id"]
+            with pytest.raises(IntegrationError):resolve_integration(db,"tenant-a","EMAIL","email.send",organization_id="org-b")
+        response=client.post("/api/v1/developer/webhooks",json={"name":"Org A events","direction":"OUTBOUND",
+            "organization_id":"org-a","endpoint_url":"https://hooks.example.org/events","event_types":["task.created"]})
+        assert response.status_code==201,response.text
+        hook=response.json()
+        with SessionLocal() as db:
+            enqueue_event(db,"tenant-a","task.created","task-b","event-b",organization_id="org-b")
+            enqueue_event(db,"tenant-a","task.created","task-a","event-a",organization_id="org-a")
+            db.commit()
+            rows=db.scalars(select(WebhookDelivery)).all()
+            assert [(row.event_id,row.subscription_id) for row in rows]==[("event-a",hook["id"])]
+        assert client.post("/api/v1/developer/webhooks",json={"name":"Bad","organization_id":"org-other",
+            "endpoint_url":"https://hooks.example.org/events","event_types":["task.created"]}).status_code==404
+        assert client.post(BASE+"/tenant/connections",json={"provider_key":"smtp","display_name":"Bad",
+            "organization_id":"org-other","configuration":CONFIG}).status_code==404
+
+def test_phase15_manual_retry_scoped_and_delivery_id_signed(store,monkeypatch):
+    calls=[]
+    monkeypatch.setattr("app.integration_worker.safe_http",lambda url,method,headers,body:(calls.append((headers,body)) or (204,60)))
+    with client_for() as client:
+        hook=webhook(client,"OUTBOUND")
+        with SessionLocal() as db:
+            row=WebhookDelivery(tenant_id="tenant-a",subscription_id=hook["id"],event_id="retry-event",
+                event_type="compliance.created",status="FAILED",attempt_count=5)
+            db.add(row);db.commit();delivery_id=row.id
+        route=f"/api/v1/developer/webhooks/{hook['id']}/deliveries/{delivery_id}/retry"
+        assert client.post(route).status_code==202
+        assert client.post(route).status_code==409
+        assert process_batch()==1
+        headers,body=calls[0]
+        assert headers["X-Setu-Delivery-ID"]==delivery_id
+        assert json.loads(body)["delivery_id"]==delivery_id
+        assert headers["X-Setu-Event-ID"]=="retry-event"
+        assert headers["X-Setu-Signature"]=="sha256="+hmac.new(hook["signing_secret"].encode(),
+            headers["X-Setu-Timestamp"].encode()+b"."+body,hashlib.sha256).hexdigest()
+        assert client.post(route).status_code==409
+        history=client.get(f"/api/v1/developer/webhooks/{hook['id']}/deliveries").json()
+        assert history[0]["last_attempt_at"] and history[0]["status"]=="SUCCESS"
+    with client_for("tenant-b") as other:
+        assert other.post(route).status_code==404
+    with client_for(role="VIEWER") as viewer:
+        assert viewer.post(route).status_code==403
+
+def test_phase15_additive_scope_migration_is_idempotent():
+    from sqlalchemy import create_engine, inspect, text
+    from app.migrate_phase15 import apply
+    target=create_engine("sqlite:///:memory:")
+    with target.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE integration_connection_settings (connection_id VARCHAR(36) PRIMARY KEY)")
+        connection.exec_driver_sql("CREATE TABLE webhook_subscriptions (id VARCHAR(36) PRIMARY KEY)")
+        connection.exec_driver_sql("INSERT INTO webhook_subscriptions (id) VALUES ('legacy-hook')")
+    assert apply(target)==apply(target)
+    assert "organization_id" in {column["name"] for column in inspect(target).get_columns("webhook_subscriptions")}
+    with target.connect() as connection:
+        assert connection.execute(text("SELECT id FROM webhook_subscriptions")).scalar()=="legacy-hook"

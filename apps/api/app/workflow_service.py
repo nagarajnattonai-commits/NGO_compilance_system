@@ -239,6 +239,9 @@ def execute_workflow(db, job, _today) -> dict:
     execution.result_summary = f"Completed {completed} actions"
     db.add(AuditEvent(tenant_id=job.tenant_id, actor_name="Automation worker", action="AUTOMATION_EXECUTED",
                       entity_type="AutomationDefinition", entity_id=definition.id, summary=execution.result_summary))
+    from .integration_service import enqueue_event
+    enqueue_event(db, job.tenant_id, "automation.executed", definition.id,
+                  event_id=f"workflow:{execution.id}", organization_id=organization.id)
     return {"status": "SUCCEEDED", "actions": completed}
 
 

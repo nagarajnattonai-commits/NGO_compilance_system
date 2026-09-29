@@ -14,6 +14,7 @@ class IntegrationProvider(Base):
 class ConnectionSettings(Base):
     __tablename__ = "integration_connection_settings"
     connection_id: Mapped[str] = mapped_column(ForeignKey("integration_connections.id"), primary_key=True)
+    organization_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     scope: Mapped[str] = mapped_column(String(20))
     display_name: Mapped[str] = mapped_column(String(120))
     environment: Mapped[str] = mapped_column(String(20), default="SANDBOX")
@@ -59,6 +60,7 @@ class WebhookSubscription(Base):
     __tablename__ = "webhook_subscriptions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(120))
     direction: Mapped[str] = mapped_column(String(20))
     endpoint_url: Mapped[str] = mapped_column(String(2000), default="")

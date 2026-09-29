@@ -166,6 +166,8 @@
     "platform": "प्लॅटफॉर्म",
     "tenant": "कार्यस्थान",
     "scope": "व्याप्ती",
+    "organizationScope": "संस्थेची व्याप्ती",
+    "allOrganizations": "सर्व संस्था",
     "health": "आरोग्य",
     "lastTested": "शेवटची चाचणी",
     "never": "कधीही नाही",
@@ -202,6 +204,8 @@
     "delete": "हटवा",
     "deliveries": "वितरणे",
     "attempts": "प्रयत्न",
+    "lastAttempt": "शेवटचा प्रयत्न",
+    "retryDelivery": "वितरण पुन्हा प्रयत्न करा",
     "requestsToday": "आजच्या API विनंत्या",
     "operations": {
       "test_connection": "जोडणी चाचणी",

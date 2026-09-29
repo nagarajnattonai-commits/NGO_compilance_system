@@ -13,10 +13,10 @@ def email_available(db):
         .join(ConnectionSettings,ConnectionSettings.connection_id==IntegrationConnection.id)
         .where(IntegrationConnection.category=="EMAIL",IntegrationConnection.status=="CONNECTED").limit(1)))
 
-def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",reply_to=""):
+def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",reply_to="",organization_id=None):
     connection=None
     try:
-        connection,state,adapter=resolve_integration(db,tenant_id,"EMAIL","email.send")
+        connection,state,adapter=resolve_integration(db,tenant_id,"EMAIL","email.send",organization_id=organization_id)
     except IntegrationError:
         # Backward-compatible platform deployment bridge. Only operators can set these env variables.
         # SMTP_FROM remains verified; a tenant's unavailable integration cannot supply a sender.
@@ -34,8 +34,8 @@ def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",r
         raise
     if connection:log_operation(db,connection,"email.send","SUCCESS",(time.perf_counter()-started)*1000)
 
-def deliver_whatsapp(db,tenant_id,recipient,text,template="",locale="en-IN"):
-    connection,state,adapter=resolve_integration(db,tenant_id,"WHATSAPP","whatsapp.send")
+def deliver_whatsapp(db,tenant_id,recipient,text,template="",locale="en-IN",organization_id=None):
+    connection,state,adapter=resolve_integration(db,tenant_id,"WHATSAPP","whatsapp.send",organization_id=organization_id)
     started=time.perf_counter()
     try:
         if template:

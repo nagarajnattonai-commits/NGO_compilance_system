@@ -35,7 +35,8 @@ def process_batch(limit=25):
             if row.attempt_count>5:
                 row.status="FAILED";row.error_code="PROVIDER_UNAVAILABLE";db.commit();continue
             timestamp=str(int(time.time()))
-            body=json.dumps({"id":row.event_id,"type":row.event_type,"tenant_id":row.tenant_id,"entity_id":row.entity_id},
+            body=json.dumps({"id":row.event_id,"delivery_id":row.id,"type":row.event_type,
+                "tenant_id":row.tenant_id,"entity_id":row.entity_id},
                 separators=(",",":"),sort_keys=True).encode()
             started=time.perf_counter()
             error=None
@@ -45,7 +46,8 @@ def process_batch(limit=25):
                 raw=secret_store().get_secret_for_server_use(subscription.secret_reference)
                 signature=hmac.new(raw.encode(),timestamp.encode()+b"."+body,hashlib.sha256).hexdigest()
                 status,retry=safe_http(subscription.endpoint_url,"POST",{"Content-Type":"application/json",
-                    "X-Setu-Timestamp":timestamp,"X-Setu-Signature":"sha256="+signature,"X-Setu-Event-ID":row.event_id},body)
+                    "X-Setu-Timestamp":timestamp,"X-Setu-Signature":"sha256="+signature,
+                    "X-Setu-Event-ID":row.event_id,"X-Setu-Delivery-ID":row.id},body)
                 row.response_status=status
                 if 200<=status<300:row.status="SUCCESS"
                 else:

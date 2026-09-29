@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from .auth import CurrentUser, DB, aware, now
 from .models import Organization, Compliance, Task, Document, uid
+from .organization_access import require_organization_access
 from .integration_models import ApiApplication, ApiKey, ApiUsage, WebhookSubscription, WebhookEvent, WebhookDelivery
 from .integration_api import Strict, EnabledInput, Tenant, PUBLIC_SCOPES, permission, feature, ensure_https, store_write
 from .integration_security import IntegrationError, public_error, secret_store, validate_url
@@ -25,6 +26,7 @@ class WebhookInput(Strict):
     direction: Literal["INBOUND","OUTBOUND"]="OUTBOUND"
     endpoint_url: str=Field(default="",max_length=2000)
     event_types: list[str]=Field(min_length=1,max_length=20)
+    organization_id: str|None=Field(default=None,max_length=36)
 class ApplicationInput(Strict):
     name: str=Field(min_length=1,max_length=120)
     description: str=Field(default="",max_length=500)
@@ -45,7 +47,7 @@ def webhook_owned(db,tenant,id):
     if not row:raise HTTPException(404,"Webhook not found")
     return row
 def webhook_output(row):
-    return {"id":row.id,"name":row.name,"direction":row.direction,"endpoint_url":row.endpoint_url,"event_types":json.loads(row.event_types),
+    return {"id":row.id,"name":row.name,"direction":row.direction,"endpoint_url":row.endpoint_url,"organization_id":row.organization_id,"event_types":json.loads(row.event_types),
             "enabled":row.enabled,"created_at":aware(row.created_at),"inbound_path":"/api/v1/inbound-webhooks/"+row.id if row.direction=="INBOUND" else None}
 
 @router.get("/developer/webhooks")
@@ -57,11 +59,15 @@ def create_webhook(payload:WebhookInput,request:Request,db:DB,user:CurrentUser,t
     permission(user,"integrations.webhooks.manage");feature(db,tenant,"custom_webhooks")
     if set(payload.event_types)-set(EVENT_TYPES) or len(set(payload.event_types))!=len(payload.event_types):
         raise HTTPException(422,"Choose unique supported webhook events")
+    if payload.organization_id:
+        if not db.scalar(select(Organization.id).where(Organization.id==payload.organization_id,Organization.tenant_id==tenant)):
+            raise HTTPException(404,"Organization not found")
+        require_organization_access(db,tenant,payload.organization_id,write=True,user_id=user.id)
     if payload.direction=="OUTBOUND":
         try:validate_url(payload.endpoint_url)
         except IntegrationError:raise HTTPException(422,"Use a public HTTPS endpoint without credentials, query parameters or fragments") from None
     elif payload.endpoint_url:raise HTTPException(422,"Inbound webhooks use the generated server endpoint")
-    row=WebhookSubscription(id=uid(),tenant_id=tenant,name=payload.name,direction=payload.direction,endpoint_url=payload.endpoint_url,
+    row=WebhookSubscription(id=uid(),tenant_id=tenant,organization_id=payload.organization_id,name=payload.name,direction=payload.direction,endpoint_url=payload.endpoint_url,
         event_types=json.dumps(payload.event_types),created_by=user.name)
     raw=secrets.token_urlsafe(48)
     try:
@@ -101,7 +107,22 @@ def webhook_test(id:str,db:DB,user:CurrentUser,tenant:Tenant):
 def deliveries(id:str,db:DB,user:CurrentUser,tenant:Tenant):
     permission(user,"integrations.logs.view");webhook_owned(db,tenant,id)
     return [{"id":x.id,"event_id":x.event_id,"event_type":x.event_type,"status":x.status,"attempt_count":x.attempt_count,"next_attempt_at":x.next_attempt_at,
-        "response_status":x.response_status,"error_code":x.error_code} for x in db.scalars(select(WebhookDelivery).where(WebhookDelivery.tenant_id==tenant,WebhookDelivery.subscription_id==id).order_by(WebhookDelivery.created_at.desc()).limit(100))]
+        "last_attempt_at":x.last_attempt_at,"response_status":x.response_status,"error_code":x.error_code} for x in db.scalars(select(WebhookDelivery).where(WebhookDelivery.tenant_id==tenant,WebhookDelivery.subscription_id==id).order_by(WebhookDelivery.created_at.desc()).limit(100))]
+
+@router.post("/developer/webhooks/{id}/deliveries/{delivery_id}/retry",status_code=202)
+def retry_delivery(id:str,delivery_id:str,db:DB,user:CurrentUser,tenant:Tenant):
+    permission(user,"integrations.webhooks.manage");feature(db,tenant,"custom_webhooks")
+    subscription=webhook_owned(db,tenant,id)
+    if subscription.direction!="OUTBOUND" or not subscription.enabled:
+        raise HTTPException(409,"Enable the outbound webhook before retrying")
+    row=db.scalar(select(WebhookDelivery).where(WebhookDelivery.id==delivery_id,WebhookDelivery.tenant_id==tenant,
+        WebhookDelivery.subscription_id==id))
+    if not row:raise HTTPException(404,"Delivery not found")
+    if row.status!="FAILED":raise HTTPException(409,"Only failed deliveries can be retried")
+    quota(db,"webhook-manual-retry:"+tenant,10,3600)
+    row.status="QUEUED";row.attempt_count=0;row.next_attempt_at=now();row.error_code="";row.response_status=None
+    audit(db,user,"WEBHOOK_DELIVERY_RETRIED",row.id);db.commit()
+    return {"id":row.id,"status":row.status}
 
 @router.post("/inbound-webhooks/{id}")
 async def inbound_webhook(id:str,request:Request,db:DB):
@@ -182,7 +203,8 @@ def documentation(user:CurrentUser,tenant:Tenant):
     return {"authentication":"Authorization: Bearer <one-time API key>","base_path":"/api/v1/public","scopes":PUBLIC_SCOPES,
         "endpoints":{"/organizations":"organization.read","/compliances":"compliance.read","/tasks":"tasks.read","/documents":"documents.read"},
         "rate_limits":{"per_key_per_minute":60,"per_tenant_per_minute":300},
-        "webhook_headers":["X-Setu-Timestamp","X-Setu-Signature"],"signature":"sha256=HMAC_SHA256(secret, timestamp + '.' + exact_body)",
+        "webhook_headers":["X-Setu-Timestamp","X-Setu-Signature","X-Setu-Event-ID","X-Setu-Delivery-ID"],
+        "signature":"sha256=HMAC_SHA256(secret, timestamp + '.' + exact_body)",
         "oauth":{"available":False,"reason":"Use an approved identity provider; custom OAuth clients and callbacks are not implemented."}}
 
 @router.get("/public/{resource}")

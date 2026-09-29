@@ -5,7 +5,7 @@ import { formatDateTime } from "@/i18n/format";
 import { apiRequest, ApiError } from "@/lib/http";
 import IntegrationShell from "./integration-shell";
 import DeveloperManagement from "./developer-management";
-import { connectionStates, type CalendarConnectionStatus, type Connection, type Provider, type IntegrationAccess, type IntegrationScope, type OperationLog, type TenantIntegration } from "@/lib/integrations";
+import { connectionStates, type CalendarConnectionStatus, type Connection, type Provider, type IntegrationAccess, type IntegrationScope, type OperationLog, type TenantIntegration, type IntegrationOrganization } from "@/lib/integrations";
 
 function CalendarConnectionControls({connection,manageable,onChanged}:{connection:Connection;manageable:boolean;onChanged:()=>Promise<void>}) {
  const t=useTranslations("Integrations");const [status,setStatus]=useState<CalendarConnectionStatus|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState("");
@@ -24,6 +24,7 @@ export default function IntegrationManagement({scope,section="connections"}:{sco
  const [access,setAccess]=useState<IntegrationAccess|null>(null);
  const [connections,setConnections]=useState<Connection[]>([]);
  const [providers,setProviders]=useState<Provider[]>([]);
+ const [organizations,setOrganizations]=useState<IntegrationOrganization[]>([]);
  const [logs,setLogs]=useState<OperationLog[]>([]);
  const [tenants,setTenants]=useState<TenantIntegration[]>([]);
  const [summary,setSummary]=useState<Record<string,number>>({});const [metrics,setMetrics]=useState<Array<{status:string;count:number;average_duration_ms:number}>>([]);
@@ -32,7 +33,7 @@ export default function IntegrationManagement({scope,section="connections"}:{sco
  const [page,setPage]=useState(1);const [total,setTotal]=useState(0);
  const [category,setCategory]=useState("");const [status,setStatus]=useState("");const [environment,setEnvironment]=useState("");const [tenantFilter,setTenantFilter]=useState("");
  const [editor,setEditor]=useState<Connection|"new"|null>(null);const [credential,setCredential]=useState<Connection|null>(null);
- const [providerKey,setProviderKey]=useState("");const [name,setName]=useState("");const [values,setValues]=useState<Record<string,string|number>>({});const [formEnvironment,setFormEnvironment]=useState("SANDBOX");const [fallback,setFallback]=useState(false);const [secret,setSecret]=useState("");
+ const [providerKey,setProviderKey]=useState("");const [name,setName]=useState("");const [organizationId,setOrganizationId]=useState("");const [values,setValues]=useState<Record<string,string|number>>({});const [formEnvironment,setFormEnvironment]=useState("SANDBOX");const [fallback,setFallback]=useState(false);const [secret,setSecret]=useState("");
  const can=(permission:string)=>access?.permissions.includes(permission)??false;
  const path="/integrations-management/"+scope;
  const manageable=can("integrations."+scope+".manage");
@@ -48,6 +49,7 @@ export default function IntegrationManagement({scope,section="connections"}:{sco
    const query=new URLSearchParams({page:String(page),category,status,environment,tenant_filter:tenantFilter});
    const [list,registry]=await Promise.all([apiRequest<{items:Connection[];total:number}>(path+"/connections?"+query),apiRequest<Provider[]>(path+"/providers")]);
    setConnections(list.items);setTotal(list.total);setProviders(registry);
+   if(scope==="tenant")setOrganizations(await apiRequest<IntegrationOrganization[]>("/organizations"));
    if(section==="health"){const health=await apiRequest<{summary:Record<string,number>;metrics:typeof metrics}>(path+"/health");setSummary(health.summary);setMetrics(health.metrics||[]);}
    if(section==="logs"){const result=await apiRequest<{items:OperationLog[];total:number}>(path+"/logs?page="+page);setLogs(result.items);setTotal(result.total);}
    if(section==="tenants")setTenants(await apiRequest<TenantIntegration[]>("/integrations-management/platform/tenants"));
@@ -59,9 +61,9 @@ export default function IntegrationManagement({scope,section="connections"}:{sco
  function defaults(item:Provider|undefined){return Object.fromEntries(Object.entries(item?.configuration_schema.properties||{}).map(([field,schema])=>[field,schema.default??""]));}
  function open(connection:Connection|"new"){
   const key=connection==="new"?providers.find(item=>item.enabled)?.key||"":connection.provider_key;setProviderKey(key);setName(connection==="new"?"":connection.display_name);setValues(connection==="new"?defaults(providers.find(item=>item.key===key)):connection.configuration);
-  setFormEnvironment(connection==="new"?"SANDBOX":connection.environment);setFallback(connection==="new"?false:connection.fallback_allowed);setEditor(connection);setCredential(null);setError("");
+  setFormEnvironment(connection==="new"?"SANDBOX":connection.environment);setOrganizationId(connection==="new"?"":connection.organization_id||"");setFallback(connection==="new"?false:connection.fallback_allowed);setEditor(connection);setCredential(null);setError("");
  }
- async function save(event:React.FormEvent){event.preventDefault();const body={display_name:name,environment:formEnvironment,configuration:values,fallback_allowed:fallback};
+ async function save(event:React.FormEvent){event.preventDefault();const body={display_name:name,environment:formEnvironment,configuration:values,fallback_allowed:fallback,organization_id:scope==="tenant"?organizationId||null:null};
   await run(async()=>{await apiRequest(path+"/connections"+(editor==="new"?"":"/"+(editor as Connection).id),editor==="new"?"POST":"PATCH",editor==="new"?{...body,provider_key:providerKey}:body);setEditor(null);});
  }
  function statusLabel(value:string){return t("statuses."+value);}
@@ -80,6 +82,7 @@ export default function IntegrationManagement({scope,section="connections"}:{sco
  {editor&&<form className="integration-form" onSubmit={save}><h2 className="full">{t(editor==="new"?"addConnection":"configure")}</h2>
  <label>{t("provider")}<select aria-label={t("provider")} value={providerKey} disabled={editor!=="new"} onChange={e=>{setProviderKey(e.target.value);setValues(defaults(providers.find(p=>p.key===e.target.value)));}}>{providers.filter(p=>p.enabled).map(p=><option key={p.key} value={p.key}>{t("providers."+p.key)}</option>)}</select></label>
  <label>{t("displayName")}<input required maxLength={120} value={name} onChange={e=>setName(e.target.value)}/></label>
+ {scope==="tenant"&&<label>{t("organizationScope")}<select aria-label={t("organizationScope")} value={organizationId} onChange={e=>setOrganizationId(e.target.value)}><option value="">{t("allOrganizations")}</option>{organizations.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
  <label>{t("environment")}<select aria-label={t("environment")} value={formEnvironment} onChange={e=>setFormEnvironment(e.target.value)}>{["SANDBOX","PRODUCTION"].map(x=><option key={x} value={x}>{t("environments."+x)}</option>)}</select></label>
  {provider&&Object.entries(provider.configuration_schema.properties).map(([field,schema])=><label key={field}>{t("fields."+field)}<input required={provider.configuration_schema.required?.includes(field)} aria-label={t("fields."+field)} type={schema.type==="integer"?"number":"text"} min={schema.minimum} max={schema.maximum} maxLength={schema.maxLength} value={values[field]??""} onChange={e=>setValues({...values,[field]:schema.type==="integer"?Number(e.target.value):e.target.value})}/></label>)}
  {scope==="platform"&&<label className="check-label full"><input type="checkbox" checked={fallback} onChange={e=>setFallback(e.target.checked)}/>{t("allowFallback")}</label>}
@@ -91,6 +94,7 @@ export default function IntegrationManagement({scope,section="connections"}:{sco
  :section==="audit"?<div className="integration-table"><table><thead><tr><th>{t("time")}</th><th>{t("actor")}</th><th>{t("operation")}</th></tr></thead><tbody>{audits.map(x=><tr key={x.id}><td>{formatDateTime(x.created_at)}</td><td>{x.actor_name}</td><td>{x.action}</td></tr>)}</tbody></table></div>
  :<div className="integration-grid">{connections.map(connection=><article className="integration-card" key={connection.id}><h2 title={connection.display_name}>{connection.display_name}</h2><p>{t("providers."+connection.provider_key)} · {t("environments."+connection.environment)}</p><p>{t("scope")}: {t(connection.scope==="PLATFORM"?"platform":"tenant")} {connection.tenant_id&&<code>{connection.tenant_id}</code>}</p><span className="integration-status">{statusLabel(connection.status)}</span><p>{t("health")}: {t("healthStates."+connection.health)}</p><p>{t("lastTested")}: {connection.last_tested_at?formatDateTime(connection.last_tested_at):t("never")}</p><p>{t("failures")}: {connection.failure_count}</p>{connection.error_code&&<p>{t("errors."+connection.error_code)}</p>}{connection.credential_suffix&&<p>{t("credential")}: ••••{connection.credential_suffix}</p>}
  {manageable&&(scope==="tenant"||connection.scope==="PLATFORM")&&<div className="integration-actions">{connection.provider_key!=="google_calendar"&&<button className="button secondary" disabled={busy} onClick={()=>open(connection)}>{t("configure")}</button>}{connection.provider_key!=="google_calendar"&&can("integrations.credentials.rotate")&&<button className="button secondary" disabled={busy||!access.secret_store_writable} onClick={()=>{setCredential(connection);setEditor(null);setSecret("");}}>{t("replaceCredential")}</button>}{connection.provider_key!=="google_calendar"&&<><button className="button secondary" disabled={busy} onClick={()=>void run(async()=>{const result=await apiRequest<{success:boolean;error_code:string}>(path+"/connections/"+connection.id+"/test","POST");return result;},"testComplete")}>{t("testConnection")}</button>{connection.status==="CONFIGURED"&&connection.last_success_at&&<button className="button" disabled={busy} onClick={()=>void run(()=>apiRequest(path+"/connections/"+connection.id+"/activate","POST"))}>{t("activate")}</button>}<button className="button secondary" disabled={busy} onClick={()=>void run(()=>apiRequest(path+"/connections/"+connection.id+"/disconnect","POST"))}>{t("disconnect")}</button></>}</div>}
+ {manageable&&connection.status==="DISABLED"&&<button className="button secondary" disabled={busy} onClick={()=>void run(()=>apiRequest(path+"/connections/"+connection.id+"/enable","POST"))}>{t("enable")}</button>}
  {scope==="tenant"&&connection.provider_key==="google_calendar"&&<CalendarConnectionControls connection={connection} manageable={manageable} onChanged={load}/>}
  </article>)}</div>}
  {!connections.length&&["connections","credentials","health"].includes(section)&&<p>{t("emptyConnections")}</p>}{!access.secret_store_writable&&<p>{t("environmentHelp")}</p>}

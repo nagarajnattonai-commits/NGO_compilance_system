@@ -178,29 +178,30 @@ Tenant = Annotated[str, Depends(get_tenant_id)]
 
 def audit(db: Session, tenant_id: str, action: str, entity_type: str, entity_id: str, summary: str) -> None:
     from .integration_service import enqueue_event, EVENT_ACTIONS
-    event_type = EVENT_ACTIONS.get(action)
+    event_types = [EVENT_ACTIONS[action]] if action in EVENT_ACTIONS else []
     if action == "STATUS_CHANGED":
         instance = db.get(Compliance, entity_id)
-        if instance and instance.status == "COMPLETED":
-            event_type = "compliance.completed"
+        event_types.append("compliance.status_changed")
+        if instance and instance.status in {"FILED", "COMPLETED"}:
+            event_types.append("compliance.filed" if instance.status == "FILED" else "compliance.completed")
     if action == "TASK_UPDATED":
         task = db.get(Task, entity_id)
-        if task and task.status == "DONE":
-            event_type = "task.completed"
-    if event_type:
-        enqueue_event(db, tenant_id, event_type, entity_id)
+        if task and task.status == "DONE": event_types.append("task.completed")
+    entity = db.get({"Compliance": Compliance, "Task": Task, "Document": Document}.get(entity_type), entity_id) if entity_type in {"Compliance", "Task", "Document"} else None
+    organization_id = getattr(entity, "organization_id", None)
 
     event = AuditEvent(tenant_id=tenant_id, actor_name=db.info.get("actor_name", "System"), action=action,
                        entity_type=entity_type, entity_id=entity_id, summary=summary)
     db.add(event); db.flush()
+    for event_type in event_types:
+        enqueue_event(db, tenant_id, event_type, entity_id,
+                      event_id=f"audit:{event.id}:{event_type}", organization_id=organization_id)
     trigger = {
         "COMPLIANCE_CREATED": "COMPLIANCE_CREATED", "COMPLIANCE_GENERATED": "COMPLIANCE_CREATED",
         "STATUS_CHANGED": "COMPLIANCE_STATUS_CHANGED", "COMPLIANCE_OVERDUE": "COMPLIANCE_STATUS_CHANGED",
         "TASK_CREATED": "TASK_CREATED", "TASK_UPDATED": "TASK_STATUS_CHANGED",
         "DOCUMENT_UPLOADED": "DOCUMENT_UPLOADED", "DOCUMENT_VERSION_CREATED": "DOCUMENT_UPLOADED",
     }.get(action)
-    entity = db.get({"Compliance": Compliance, "Task": Task, "Document": Document}.get(entity_type), entity_id) if entity_type in {"Compliance", "Task", "Document"} else None
-    organization_id = getattr(entity, "organization_id", None)
     if action == "STATUS_CHANGED" and isinstance(entity, Compliance) and entity.status == "FILED":
         trigger = "FILING_COMPLETED"
     if trigger and entity:

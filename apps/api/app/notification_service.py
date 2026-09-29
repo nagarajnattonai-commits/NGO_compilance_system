@@ -274,12 +274,14 @@ def execute_delivery(db, job) -> dict:
         raise ValueError("Notification delivery not found")
     if delivery.status in {"SENT", "DELIVERED", "READ"}:
         return {"delivery_id": delivery.id, "status": delivery.status, "duplicate": True}
+    context = db.get(NotificationContext, delivery.notification_id)
+    organization_id = context.organization_id if context else None
     if delivery.channel == "EMAIL":
         deliver_email(db, delivery.tenant_id, delivery.recipient_address, delivery.frozen_subject,
-                      delivery.frozen_text, delivery.frozen_html or None)
+                      delivery.frozen_text, delivery.frozen_html or None, organization_id=organization_id)
     elif delivery.channel == "WHATSAPP":
         deliver_whatsapp(db, delivery.tenant_id, delivery.recipient_address, delivery.frozen_text,
-                         delivery.provider_template, delivery.locale)
+                         delivery.provider_template, delivery.locale, organization_id=organization_id)
     else:
         raise ValueError("Unsupported external notification channel")
     return {"delivery_id": delivery.id, "status": "SENT"}

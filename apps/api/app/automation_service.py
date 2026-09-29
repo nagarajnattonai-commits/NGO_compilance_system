@@ -227,6 +227,7 @@ def _reminder_scan(db, job, today: date):
 
 
 def _overdue_compliance_scan(db, job, today: date):
+    from .integration_service import enqueue_event
     changed = 0
     for item in db.scalars(select(Compliance).where(
         Compliance.tenant_id == job.tenant_id,
@@ -240,6 +241,8 @@ def _overdue_compliance_scan(db, job, today: date):
             item.updated_at = utcnow()
             db.add(AuditEvent(tenant_id=job.tenant_id, actor_name="Automation worker", action="COMPLIANCE_OVERDUE",
                 entity_type="Compliance", entity_id=item.id, summary=f"{previous} -> OVERDUE at stored deadline {item.statutory_deadline}"))
+            enqueue_event(db, job.tenant_id, "compliance.overdue", item.id,
+                          event_id=f"compliance-overdue:{item.id}:{item.statutory_deadline}", organization_id=item.organization_id)
             changed += 1
         emit_notice(db, job.tenant_id, f"compliance-overdue:{item.id}:{item.statutory_deadline}", "COMPLIANCE_OVERDUE",
             f"{item.code} is overdue", f"{item.title} was due on {item.statutory_deadline.isoformat()}.", "WARNING")
@@ -248,6 +251,7 @@ def _overdue_compliance_scan(db, job, today: date):
 
 def _task_overdue_scan(db, job, today: date):
     from .workflow_service import queue_workflow_event
+    from .integration_service import enqueue_event
     produced = 0
     threshold = max(0, min(30, int(os.getenv("TASK_DUE_NOTICE_DAYS", "3"))))
     for task in db.scalars(select(Task).where(
@@ -266,6 +270,8 @@ def _task_overdue_scan(db, job, today: date):
             organization_id=task.organization_id,
             user_ids=(task.assignee_user_id,) if task.assignee_user_id else ()))
         if overdue:
+            enqueue_event(db, job.tenant_id, "task.overdue", task.id,
+                          event_id=f"task-overdue:{task.id}:{task.due_at}", organization_id=task.organization_id)
             queue_workflow_event(db, job.tenant_id, "TASK_OVERDUE", "Task", task.id, task.organization_id,
                                  f"task-overdue:{task.id}:{task.due_at}")
     return {"events": produced}
@@ -274,6 +280,7 @@ def _task_overdue_scan(db, job, today: date):
 def _document_expiry_scan(db, job, today: date):
     from .document_service import genuine_file
     from .workflow_service import queue_workflow_event
+    from .integration_service import enqueue_event
     produced = 0
     threshold = max(1, min(365, int(os.getenv("DOCUMENT_EXPIRY_NOTICE_DAYS", "30"))))
     for document in db.scalars(select(Document).where(Document.tenant_id == job.tenant_id)).all():
@@ -289,6 +296,8 @@ def _document_expiry_scan(db, job, today: date):
             f"{document.name} {'expired' if state == 'EXPIRED' else 'expires'} on {blob.expiry_at.isoformat()}.", "DOCUMENT"))
         queue_workflow_event(db, job.tenant_id, "DOCUMENT_EXPIRING", "Document", document.id,
                              document.organization_id, f"document-expiry:{document.id}:{blob.version_id}:{state}")
+        enqueue_event(db, job.tenant_id, "document.expiring", document.id,
+                      event_id=f"document-expiry:{document.id}:{blob.version_id}:{state}", organization_id=document.organization_id)
     return {"events": produced}
 
 

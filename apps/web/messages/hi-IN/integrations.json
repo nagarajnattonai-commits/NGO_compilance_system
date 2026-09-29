@@ -166,6 +166,8 @@
     "platform": "प्लेटफ़ॉर्म",
     "tenant": "कार्यस्थान",
     "scope": "दायरा",
+    "organizationScope": "संगठन दायरा",
+    "allOrganizations": "सभी संगठन",
     "health": "स्वास्थ्य",
     "lastTested": "अंतिम परीक्षण",
     "never": "कभी नहीं",
@@ -202,6 +204,8 @@
     "delete": "हटाएँ",
     "deliveries": "डिलीवरी",
     "attempts": "प्रयास",
+    "lastAttempt": "अंतिम प्रयास",
+    "retryDelivery": "डिलीवरी पुनः प्रयास करें",
     "requestsToday": "आज के API अनुरोध",
     "operations": {
       "test_connection": "कनेक्शन परीक्षण",

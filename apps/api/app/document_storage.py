@@ -8,8 +8,9 @@ from .database import DATA_DIR
 from .integration_security import IntegrationError, secret_store
 from .integration_providers import S3Adapter
 from .integration_service import resolve_integration
+from .integration_models import ConnectionSettings
 from .models import IntegrationConnection
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 def maximum_bytes():
     try:value=int(os.getenv("DOCUMENT_MAX_SIZE_MB","25"))
@@ -18,15 +19,17 @@ def maximum_bytes():
     return value*1024*1024
 
 class DocumentStorage:
-    def __init__(self,db,tenant,locator=None):
+    def __init__(self,db,tenant,locator=None,organization_id=None):
         self.adapter=None;self.client=None
         if locator is None:
             try:
-                connection,state,adapter=resolve_integration(db,tenant,"STORAGE","storage.objects")
+                connection,state,adapter=resolve_integration(db,tenant,"STORAGE","storage.objects",organization_id=organization_id)
                 locator={"provider":"managed_s3","configuration":adapter.config,"credential_reference":state.credential_reference}
                 self.adapter=adapter
             except IntegrationError:
-                if db.scalar(select(IntegrationConnection.id).where(IntegrationConnection.tenant_id==tenant,IntegrationConnection.provider=="aws_s3",IntegrationConnection.status=="CONNECTED")):
+                if db.scalar(select(IntegrationConnection.id).join(ConnectionSettings,ConnectionSettings.connection_id==IntegrationConnection.id)
+                    .where(IntegrationConnection.tenant_id==tenant,IntegrationConnection.provider=="aws_s3",IntegrationConnection.status=="CONNECTED",
+                           or_(ConnectionSettings.organization_id.is_(None),ConnectionSettings.organization_id==organization_id))):
                     raise RuntimeError("Configured document storage is unavailable") from None
                 bucket=os.getenv("DOCUMENT_S3_BUCKET","")
                 locator={"provider":"s3","bucket":bucket,"region":os.getenv("AWS_REGION","ap-south-1"),"endpoint":os.getenv("DOCUMENT_S3_ENDPOINT","")} if bucket else {"provider":"local"}

@@ -166,6 +166,8 @@
     "platform": "ಪ್ಲಾಟ್‌ಫಾರ್ಮ್",
     "tenant": "ಕಾರ್ಯಕ್ಷೇತ್ರ",
     "scope": "ವ್ಯಾಪ್ತಿ",
+    "organizationScope": "ಸಂಸ್ಥೆಯ ವ್ಯಾಪ್ತಿ",
+    "allOrganizations": "ಎಲ್ಲಾ ಸಂಸ್ಥೆಗಳು",
     "health": "ಆರೋಗ್ಯ",
     "lastTested": "ಕೊನೆಯ ಪರೀಕ್ಷೆ",
     "never": "ಎಂದಿಗೂ ಇಲ್ಲ",
@@ -202,6 +204,8 @@
     "delete": "ಅಳಿಸಿ",
     "deliveries": "ವಿತರಣೆಗಳು",
     "attempts": "ಪ್ರಯತ್ನಗಳು",
+    "lastAttempt": "ಕೊನೆಯ ಪ್ರಯತ್ನ",
+    "retryDelivery": "ವಿತರಣೆಯನ್ನು ಮರುಪ್ರಯತ್ನಿಸಿ",
     "requestsToday": "ಇಂದಿನ API ವಿನಂತಿಗಳು",
     "operations": {
       "test_connection": "ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ",
