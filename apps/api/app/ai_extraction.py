@@ -11,6 +11,8 @@ from xml.etree import ElementTree
 from .ai_provider import AiProviderError
 
 MAX_EXTRACTED_CHARACTERS = 2_000_000
+MAX_OCR_BYTES = 25 * 1024 * 1024
+MIN_READABLE_CHARACTERS = 80
 
 
 class OcrProvider(Protocol):
@@ -23,6 +25,26 @@ _ocr: OcrProvider | None = None
 def configure_ocr(provider: OcrProvider | None) -> None:
     global _ocr
     _ocr = provider
+
+
+def ocr_configured() -> bool:
+    return _ocr is not None
+
+
+def _ocr_text(content: bytes, mime_type: str) -> tuple[str, str]:
+    if len(content) > MAX_OCR_BYTES:
+        raise AiProviderError("OCR_PAYLOAD_TOO_LARGE")
+    if not _ocr:
+        raise AiProviderError("OCR_UNAVAILABLE")
+    try:
+        value = normalize_text(_ocr.extract(content, mime_type))
+    except AiProviderError:
+        raise
+    except Exception:
+        raise AiProviderError("OCR_FAILED") from None
+    if not value:
+        raise AiProviderError("OCR_FAILED")
+    return value, "ocr-v1"
 
 
 def normalize_text(value: str) -> str:
@@ -67,15 +89,17 @@ def extract_text(content: bytes, mime_type: str) -> tuple[str, str]:
         value, extractor = _office_xml(content, mime_type)
         return normalize_text(value), extractor
     if mime_type.startswith("image/"):
-        if not _ocr:
-            raise AiProviderError("EXTRACTION_UNSUPPORTED")
-        try:
-            return normalize_text(_ocr.extract(content, mime_type)), "ocr-v1"
-        except AiProviderError:
-            raise
-        except Exception:
-            raise AiProviderError("EXTRACTION_FAILED") from None
+        return _ocr_text(content, mime_type)
     raise AiProviderError("EXTRACTION_UNSUPPORTED")
+
+
+def extract_text_with_ocr_fallback(content: bytes, mime_type: str) -> tuple[str, str, bool]:
+    """Reuse normal extraction and invoke OCR only for images or text-poor PDFs."""
+    text, extractor = extract_text(content, mime_type)
+    if mime_type == "application/pdf" and len(re.sub(r"\s+", "", text)) < MIN_READABLE_CHARACTERS:
+        text, extractor = _ocr_text(content, mime_type)
+        return text, extractor, True
+    return text, extractor, extractor.startswith("ocr-")
 
 
 def deterministic_chunks(text: str, size: int = 1200, overlap: int = 150) -> list[str]:

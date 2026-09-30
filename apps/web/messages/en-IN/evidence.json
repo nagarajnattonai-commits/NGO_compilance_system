@@ -63,6 +63,22 @@
     "readOnly": "Your role can view and download available files.",
     "recordUnavailable": "Related record unavailable",
     "uploading": "Uploading?",
-    "version": "Version {number}"
+    "version": "Version {number}",
+    "intelligence": "Intelligence / extracted information",
+    "intelligenceLoading": "Loading document intelligence...",
+    "intelligenceRequest": "Extract document information",
+    "intelligenceError": "Document intelligence is unavailable. Check your plan and provider configuration.",
+    "intelligenceState": "Processing state",
+    "classification": "Suggested document type",
+    "classificationEvidence": "Classification evidence",
+    "reprocess": "Reprocess this version",
+    "noExtractedFacts": "No supported structured facts were found. The original document remains authoritative.",
+    "confidence": "Extraction confidence",
+    "reviewState": "Review state",
+    "proposedValue": "Proposed value",
+    "currentValue": "Current platform value",
+    "provenance": "Source and provenance",
+    "approveFact": "Approve this fact",
+    "rejectFact": "Reject this fact"
   }
 }

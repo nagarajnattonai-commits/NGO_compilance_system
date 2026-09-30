@@ -103,6 +103,7 @@ from .ai_api import router as ai_router
 from .ai_assistant_api import router as ai_assistant_router
 from .phase19_api import router as phase19_router
 from .phase20_api import router as phase20_router
+from .document_intelligence_api import router as document_intelligence_router
 from .production_security import (BoundedSensitiveBody, limit_expensive, ready_database, security_headers,
                                   validate_production_configuration, validate_production_schema)
 
@@ -163,6 +164,7 @@ app.include_router(ai_router)
 app.include_router(ai_assistant_router)
 app.include_router(phase19_router)
 app.include_router(phase20_router)
+app.include_router(document_intelligence_router)
 app.add_middleware(DocumentUploadLimit)
 
 

@@ -5,6 +5,8 @@ export type EvidenceLink={id:string;version_id:string;compliance_id:string|null;
 export type FileBundle={document:ComplianceDocument;files:FileVersion[];links:EvidenceLink[]};
 export type LinkTargets=Record<string,{id:string;label:string}[]>;
 export type StoragePolicy={maximum_bytes:number;mime_types:string[];scanning_required:boolean;scanner_configured:boolean};
+export type IntelligenceFact={id:string;fact_type:string;proposed_value:string;reviewed_value:string;current_value_snapshot:string;current_authoritative_value:string;source_location:string;source_excerpt:string;extraction_method:string;confidence:number;validation_state:string;status:string};
+export type IntelligenceRun={id:string;version_id:string;attempt:number;status:string;extraction_method:string;proposed_document_type:string;classification_confidence:number;classification_evidence:string;error_code:string;facts:IntelligenceFact[]};
 export type UploadInput={request_id:string;organization_id:string;name:string;category:string;document_id?:string;expected_version?:number;compliance_id?:string|null;task_id?:string|null;effective_at:string|null;expiry_at:string|null};
 export async function uploadOriginal(file:File,metadata:UploadInput){
  const body=new FormData();body.set("file",file);body.set("metadata",JSON.stringify(metadata));let response:Response;
@@ -15,3 +17,4 @@ export async function uploadOriginal(file:File,metadata:UploadInput){
 export const loadFiles=(id:string)=>apiRequest<FileBundle>(`/documents/${id}/files`);
 export const loadLinkTargets=(org:string)=>apiRequest<LinkTargets>(`/documents/link-targets?organization_id=${encodeURIComponent(org)}`);
 export const contentUrl=(id:string,version?:string,preview=false)=>`/api/v1/documents/${encodeURIComponent(id)}/content?${new URLSearchParams({...version?{version_id:version}:{},...preview?{preview:"true"}:{}})}`;
+export const loadIntelligence=(version:string)=>apiRequest<IntelligenceRun[]>(`/documents/versions/${encodeURIComponent(version)}/intelligence`);

@@ -18,6 +18,7 @@ from .ai_service import (
     retrieve,
 )
 from .document_models import DocumentCurrent, DocumentEvidenceLink
+from .document_intelligence_models import ExtractedDocumentFact
 from .models import AuditEvent, Compliance, ComplianceSnapshot, Document, Organization, Submission, Task, utcnow
 from .organization_access import require_organization_access
 from .phase9_models import ComplianceApproval, ComplianceReview
@@ -30,6 +31,7 @@ MAX_ANSWER_CHARACTERS = 20_000
 ASSISTANT_INSTRUCTIONS = TRUSTED_RAG_INSTRUCTIONS + """
 The trusted platform facts are authoritative for operational state. Never contradict or replace their values.
 Clearly distinguish platform facts, document-derived information, and advisory explanation.
+Document facts marked PROPOSED, NEEDS_REVIEW, CONFLICT, or APPROVED are non-authoritative suggestions; only APPLIED values are authoritative through the platform record.
 Do not invent records, citations, laws, forms, deadlines, approvals, applicability, or filing state.
 Do not give legal advice. If evidence is insufficient, say so plainly.
 Never claim to execute an action. Do not put proposed actions in the answer narrative.
@@ -267,6 +269,21 @@ def structured_sources(db, tenant_id: str, organization: Organization,
             "current_version_id": current_versions.get(row.id),
             "expiry_at": row.expiry_at.isoformat() if row.expiry_at else None,
         }))
+    extracted_facts = db.scalars(select(ExtractedDocumentFact).where(
+        ExtractedDocumentFact.tenant_id == tenant_id,
+        ExtractedDocumentFact.organization_id == organization.id,
+        ExtractedDocumentFact.document_id.in_(document_ids),
+        ExtractedDocumentFact.status.in_(("PROPOSED", "NEEDS_REVIEW", "CONFLICT", "APPROVED", "APPLIED")),
+    ).order_by(ExtractedDocumentFact.extracted_at.desc()).limit(100)).all() if document_ids else []
+    for row in extracted_facts:
+        output.append(_source(
+            "document_fact_applied" if row.status == "APPLIED" else "document_fact_proposed",
+            row.id, row.fact_type,
+            {"value": row.reviewed_value or row.proposed_value, "review_status": row.status,
+             "authoritative": row.status == "APPLIED", "document_id": row.document_id,
+             "version_id": row.version_id, "confidence": row.confidence,
+             "source_location": row.source_location},
+        ))
     document_names = {row.id: row.name for row in documents}
     for row in links:
         output.append(_source("evidence", row.id, document_names.get(row.document_id, "Evidence document"), {

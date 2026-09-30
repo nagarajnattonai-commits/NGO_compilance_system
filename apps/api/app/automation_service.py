@@ -342,6 +342,14 @@ HANDLERS = {
 }
 
 
+def _document_intelligence(db, job, today):
+    from .document_intelligence_service import process_job
+    return process_job(db, job, today)
+
+
+HANDLERS["DOCUMENT_INTELLIGENCE"] = _document_intelligence
+
+
 def execute_job(db, job: ScheduledJob, today: date | None = None) -> dict:
     if job.job_type not in HANDLERS:
         raise ValueError("Unsupported scheduled job type")

@@ -38,8 +38,8 @@ PLAN_CATALOG = {
     ),
     "ENTERPRISE": PlanDefinition(
         "Enterprise", 250, 50, 250, 50,
-        frozenset({"advanced_reporting", "advanced_automation", "custom_email", "custom_storage", "whatsapp_integration", "google_calendar_integration", "custom_webhooks", "public_api", "white_label", "ai_rag"}),
-        CORE_FEATURES + ("advanced_reporting", "advanced_automation", "integrations", "google_calendar_integration", "custom_webhooks", "public_api", "white_label", "ai_rag"),
+        frozenset({"advanced_reporting", "advanced_automation", "custom_email", "custom_storage", "whatsapp_integration", "google_calendar_integration", "custom_webhooks", "public_api", "white_label", "ai_rag", "document_intelligence"}),
+        CORE_FEATURES + ("advanced_reporting", "advanced_automation", "integrations", "google_calendar_integration", "custom_webhooks", "public_api", "white_label", "ai_rag", "document_intelligence"),
     ),
 }
 

@@ -20,6 +20,9 @@ PUBLIC_ERRORS = {
     "VECTOR_BACKEND_UNAVAILABLE": "The configured vector backend is unavailable.",
     "EXTRACTION_UNSUPPORTED": "Text extraction is not available for this document type.",
     "EXTRACTION_FAILED": "Document text extraction failed.",
+    "OCR_UNAVAILABLE": "OCR is not configured for this workspace.",
+    "OCR_FAILED": "OCR could not process this document.",
+    "OCR_PAYLOAD_TOO_LARGE": "The document is too large for OCR processing.",
 }
 
 
