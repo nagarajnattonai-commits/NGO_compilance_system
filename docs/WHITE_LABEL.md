@@ -128,6 +128,8 @@ Caddy as the only public service:
 ```powershell
 # Populate a private deploy/.env.white-label using the example; do not commit it.
 docker compose --env-file deploy/.env.white-label -f deploy/compose.white-label.yml config --quiet
+# New empty database only; use reviewed additive migrations for an existing database.
+docker compose --env-file deploy/.env.white-label -f deploy/compose.white-label.yml run --rm api python -m app.bootstrap_schema --apply
 docker compose --env-file deploy/.env.white-label -f deploy/compose.white-label.yml up --build -d
 ```
 
@@ -137,9 +139,9 @@ private bucket/IAM access, and supply ACME/SMTP operator values. `API_INTERNAL_U
 is required **at build time and runtime** for the website because Next rewrites
 are compiled into its route manifest. The Docker build now accepts that argument.
 
-Production startup does not seed demo tenants/data. Following the existing schema
-convention, startup creates the new tables if absent; take a database backup and
-run a single controlled schema/bootstrap step before horizontally scaling.
+Production startup does not seed demo tenants/data or create tables. The bootstrap
+command above requires an empty database; existing databases require reviewed
+additive phase migrations. See `docs/PRODUCTION_OPERATIONS.md` for backup and restore.
 Existing NGO rows are not migrated or modified. Changes to these new tables after
 their initial release should use a reviewed migration. Add managed backup,
 observability, secrets rotation, ACME staging/renewal monitoring, and an approved

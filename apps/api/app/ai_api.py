@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .ai_provider import AiProviderError
 from .ai_service import RetrievalFilters, index_document, index_status, public_error, retrieve, status
 from .auth import CurrentUser, get_db, tenant_context
+from .production_security import limit_expensive
 
 router = APIRouter(prefix="/api/v1/ai", tags=["Secure AI foundation"])
 DB = Annotated[Session, Depends(get_db)]
@@ -41,6 +42,7 @@ def ai_status(db: DB, tenant_id: Tenant, user: CurrentUser):
 
 @router.post("/index/document/{version_id}")
 def create_document_index(version_id: str, db: DB, tenant_id: Tenant, user: CurrentUser):
+    limit_expensive(db, tenant_id, user.id, "ai-index", 6)
     try:
         return index_document(db, tenant_id, user, version_id)
     except AiProviderError as error:
@@ -54,6 +56,7 @@ def document_index_status(version_id: str, db: DB, tenant_id: Tenant, user: Curr
 
 @router.post("/retrieve")
 def retrieve_context(payload: RetrievalInput, db: DB, tenant_id: Tenant, user: CurrentUser):
+    limit_expensive(db, tenant_id, user.id, "ai-retrieve", 30)
     try:
         return retrieve(db, tenant_id, user, payload.query, payload.top_k, RetrievalFilters(**payload.filters.model_dump()))
     except AiProviderError as error:

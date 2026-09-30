@@ -101,14 +101,17 @@ from .phase13_api import router as phase13_router
 from .phase14_api import router as phase14_router
 from .ai_api import router as ai_router
 from .ai_assistant_api import router as ai_assistant_router
+from .production_security import (BoundedSensitiveBody, limit_expensive, ready_database, security_headers,
+                                  validate_production_configuration, validate_production_schema)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if os.getenv("APP_ENV") == "production" and len(os.getenv("BRAND_PROXY_KEY", "")) < 32:
-        raise RuntimeError("Production requires a shared BRAND_PROXY_KEY of at least 32 characters")
-    Base.metadata.create_all(bind=engine)
-    if os.getenv("APP_ENV") != "production":
+    validate_production_configuration()
+    if os.getenv("APP_ENV") == "production":
+        validate_production_schema(engine, Base.metadata)
+    else:
+        Base.metadata.create_all(bind=engine)
         with SessionLocal() as db:
             seed_demo_data(db)
     yield
@@ -120,6 +123,7 @@ app = FastAPI(
     description="Tenant-scoped compliance operations API derived from the approved product documents.",
     lifespan=lifespan,
 )
+app.add_middleware(BoundedSensitiveBody)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(ALLOWED_ORIGINS),
@@ -170,6 +174,7 @@ async def validation_error_handler(_, error: RequestValidationError):
 @app.middleware("http")
 async def private_api_responses(request, call_next):
     response = await call_next(request)
+    security_headers(response, production=os.getenv("APP_ENV") == "production")
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
@@ -381,6 +386,14 @@ def apply_compliance_transition(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "ngo-compliance-api"}
+
+
+@app.get("/ready")
+def ready(response: Response) -> dict[str, str]:
+    if not ready_database(engine):
+        response.status_code = 503
+        return {"status": "unavailable"}
+    return {"status": "ready"}
 
 
 @app.get("/api/v1/organizations", response_model=list[OrganizationOut])
@@ -1254,6 +1267,7 @@ def assistant_query(payload: AssistantInput, db: DB, tenant_id: Tenant, user: Cu
     """Compatibility endpoint backed by the same secured Phase 17 service."""
     if not payload.organization_id:
         raise HTTPException(422, "An authorized organization is required")
+    limit_expensive(db, tenant_id, user.id, "ai-assistant", 12)
     from .ai_assistant_service import ask, create_conversation
     from .ai_provider import AiProviderError
     from .ai_service import public_error

@@ -9,6 +9,7 @@ from .ai_assistant_service import ask, create_conversation, get_conversation, li
 from .ai_provider import AiProviderError
 from .ai_service import public_error
 from .auth import CurrentUser, get_db, tenant_context
+from .production_security import limit_expensive
 
 router = APIRouter(prefix="/api/v1/ai/conversations", tags=["Compliance AI assistant"])
 DB = Annotated[Session, Depends(get_db)]
@@ -48,6 +49,7 @@ def conversation(conversation_id: str, db: DB, tenant_id: Tenant, user: CurrentU
 
 @router.post("/{conversation_id}/messages")
 def send_message(conversation_id: str, payload: MessageInput, db: DB, tenant_id: Tenant, user: CurrentUser):
+    limit_expensive(db, tenant_id, user.id, "ai-assistant", 12)
     try:
         return ask(db, tenant_id, user, conversation_id, payload.question, payload.compliance_id, payload.document_id)
     except AiProviderError as error:

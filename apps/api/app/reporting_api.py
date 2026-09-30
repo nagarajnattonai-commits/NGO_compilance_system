@@ -11,6 +11,7 @@ from .auth import CurrentUser
 from .features import can_use_feature
 from .organization_profile import DB, Tenant
 from .reporting_service import compliance_report_count, compliance_report_rows, management_analytics
+from .production_security import limit_expensive
 
 router = APIRouter(prefix="/api/v1/reports", tags=["Management reporting"])
 
@@ -91,6 +92,7 @@ def compliance_csv(
 ):
     if not can_use_feature(db, tenant, "advanced_reporting"):
         raise HTTPException(403, "UPGRADE_REQUIRED:advanced_reporting")
+    limit_expensive(db, tenant, user.id, "report-export", 5, 60)
     rows = []
     offset = 0
     while True:

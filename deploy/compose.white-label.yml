@@ -28,6 +28,8 @@ services:
       WHITE_LABEL_CNAME_TARGET: ${WHITE_LABEL_CNAME_TARGET:?Set the TLS edge DNS hostname}
       BRAND_S3_BUCKET: ${BRAND_S3_BUCKET:?Set a private S3-compatible asset bucket}
       BRAND_S3_ENDPOINT: ${BRAND_S3_ENDPOINT:-}
+      DOCUMENT_S3_BUCKET: ${DOCUMENT_S3_BUCKET:?Set a private document bucket}
+      DOCUMENT_S3_ENDPOINT: ${DOCUMENT_S3_ENDPOINT:-}
       AWS_REGION: ${AWS_REGION:-ap-south-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -46,7 +48,7 @@ services:
       INTEGRATION_SMTP_HOSTS: ${INTEGRATION_SMTP_HOSTS:-}
       INTEGRATION_LEGACY_EMAIL_FALLBACK: ${INTEGRATION_LEGACY_EMAIL_FALLBACK:-1}
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
       interval: 10s
       timeout: 3s
       retries: 10

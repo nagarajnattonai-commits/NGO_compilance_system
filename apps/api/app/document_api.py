@@ -14,12 +14,15 @@ from .document_models import DocumentBlob,DocumentCurrent,DocumentEvidenceLink
 from .document_storage import DocumentStorage,maximum_bytes
 from .document_validation import MIMES
 from . import document_service as service
+from .production_security import limit_expensive
+from .organization_access import require_organization_access
 router=APIRouter(prefix="/api/v1",tags=["Private document evidence"])
 @router.get("/documents/storage-policy")
 def storage_policy(tenant:Tenant):
     return {"maximum_bytes":maximum_bytes(),"mime_types":list(MIMES.values()),"scanning_required":service.scan_required(),"scanner_configured":service.scanner_configured()}
 @router.post("/documents/upload",status_code=201)
 async def upload_file(db:DB,tenant:Tenant,actor:CurrentUser,file:Annotated[UploadFile,File()],metadata:Annotated[str,Form()]):
+    limit_expensive(db,tenant,actor.id,"document-upload",30)
     try:values=service.UploadMetadata.model_validate_json(metadata)
     except ValidationError:raise HTTPException(422,"Invalid upload metadata") from None
     data=bytearray()
@@ -38,6 +41,7 @@ def files(document_id:str,db:DB,tenant:Tenant):
 def content(document_id:str,db:DB,tenant:Tenant,actor:CurrentUser,version_id:str|None=None,preview:bool=False):
     import hashlib
     doc=service.owned_document(db,tenant,document_id)
+    limit_expensive(db,tenant,actor.id,"document-download",120)
     blob=db.scalar(select(DocumentBlob).where(DocumentBlob.version_id==version_id,DocumentBlob.document_id==doc.id,DocumentBlob.tenant_id==tenant,DocumentBlob.organization_id==doc.organization_id)) if version_id else service.current_blob(db,doc)
     if not blob:raise HTTPException(404,"Original file is not available for this document record")
     if blob.status!="AVAILABLE":raise HTTPException(409,"File is processing, quarantined or unavailable")
@@ -53,7 +57,8 @@ class SelectFile(Strict):version_id:str=Field(max_length=36)
 @router.post("/documents/{document_id}/current-file")
 def select_file(document_id:str,payload:SelectFile,db:DB,tenant:Tenant,actor:CurrentUser):
     if actor.role!="ADMIN":raise HTTPException(403,"Administrator access is required")
-    doc=service.owned_document(db,tenant,document_id);blob=db.scalar(select(DocumentBlob).where(DocumentBlob.version_id==payload.version_id,DocumentBlob.document_id==doc.id,DocumentBlob.tenant_id==tenant,DocumentBlob.status=="AVAILABLE"))
+    doc=service.owned_document(db,tenant,document_id);require_organization_access(db,tenant,doc.organization_id,write=True,user_id=actor.id)
+    blob=db.scalar(select(DocumentBlob).where(DocumentBlob.version_id==payload.version_id,DocumentBlob.document_id==doc.id,DocumentBlob.tenant_id==tenant,DocumentBlob.status=="AVAILABLE"))
     if not blob:raise HTTPException(404,"Available file version not found")
     try:
         if not DocumentStorage(db,tenant,json.loads(blob.locator)).verify(blob.storage_key,blob.size_bytes,blob.checksum):raise RuntimeError()
@@ -67,20 +72,23 @@ class ArchiveFile(Strict):archived:bool
 @router.patch("/documents/{document_id}/archive")
 def archive(document_id:str,payload:ArchiveFile,db:DB,tenant:Tenant,actor:CurrentUser):
     if actor.role!="ADMIN":raise HTTPException(403,"Administrator access is required")
-    doc=service.owned_document(db,tenant,document_id);current=db.get(DocumentCurrent,doc.id) or DocumentCurrent(document_id=doc.id,tenant_id=tenant)
+    doc=service.owned_document(db,tenant,document_id);require_organization_access(db,tenant,doc.organization_id,write=True,user_id=actor.id)
+    current=db.get(DocumentCurrent,doc.id) or DocumentCurrent(document_id=doc.id,tenant_id=tenant)
     current.archived=payload.archived;db.add(current);service.audit(db,tenant,actor,"DOCUMENT_ARCHIVED" if payload.archived else "DOCUMENT_RESTORED",doc,"Changed evidence archive status");db.commit();return DocumentOut.model_validate(doc)
 class LinkInput(Strict):
     target_type:Literal["compliance","task","submission"]
     target_id:str=Field(min_length=1,max_length=36)
 @router.post("/documents/{document_id}/links",status_code=201)
 def link(document_id:str,payload:LinkInput,db:DB,tenant:Tenant,actor:CurrentUser):
-    doc=service.owned_document(db,tenant,document_id);blob=service.genuine_file(db,doc)
+    doc=service.owned_document(db,tenant,document_id);require_organization_access(db,tenant,doc.organization_id,write=True,user_id=actor.id)
+    blob=service.genuine_file(db,doc)
     if not blob:raise HTTPException(422,"Evidence requires an available stored file version")
     row=service.attach_link(db,tenant,doc.organization_id,doc,blob,actor,payload.target_type,payload.target_id);db.commit();return {"id":row.id,"version_id":row.version_id}
 @router.patch("/documents/{document_id}/links/{link_id}/archive")
 def unlink(document_id:str,link_id:str,db:DB,tenant:Tenant,actor:CurrentUser):
     if actor.role!="ADMIN":raise HTTPException(403,"Administrator access is required")
-    doc=service.owned_document(db,tenant,document_id);row=db.scalar(select(DocumentEvidenceLink).where(DocumentEvidenceLink.id==link_id,DocumentEvidenceLink.document_id==doc.id,DocumentEvidenceLink.tenant_id==tenant))
+    doc=service.owned_document(db,tenant,document_id);require_organization_access(db,tenant,doc.organization_id,write=True,user_id=actor.id)
+    row=db.scalar(select(DocumentEvidenceLink).where(DocumentEvidenceLink.id==link_id,DocumentEvidenceLink.document_id==doc.id,DocumentEvidenceLink.tenant_id==tenant))
     if not row:raise HTTPException(404,"Evidence link not found")
     row.active=False;service.audit(db,tenant,actor,"DOCUMENT_EVIDENCE_UNLINKED",doc,"Archived relationship; retained immutable file history");db.commit();return {"id":row.id,"active":False}
 

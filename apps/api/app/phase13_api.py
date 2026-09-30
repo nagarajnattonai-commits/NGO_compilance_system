@@ -17,6 +17,7 @@ from .models import Compliance, ComplianceSnapshot, Document, Organization, Subm
 from .organization_access import accessible_organization_ids
 from .organization_models import OrganizationRegistration
 from .phase13_models import SavedView
+from .production_security import limit_expensive
 from .runtime_models import ApplicabilityDecision
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
@@ -143,6 +144,7 @@ def global_search(
     }
     if unknown := set(request.query_params) - allowed_parameters:
         raise HTTPException(422, f"Unsupported search filter: {sorted(unknown)[0]}")
+    limit_expensive(db, tenant_id, user.id, "global-search", 90)
     try:
         state = FilterState(
             query=q.strip(), types=[item for item in types.split(",") if item], organization_id=organization_id,

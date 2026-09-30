@@ -100,6 +100,8 @@ def upload(db,tenant,actor,metadata,filename,mime,content):
     org=owned_org(db,tenant,metadata.organization_id)
     if org.status!="ACTIVE":raise HTTPException(409,"Upload evidence to an active organization")
     if actor.role=="VIEWER":raise HTTPException(403,"Read-only accounts cannot upload evidence")
+    from .organization_access import require_organization_access
+    require_organization_access(db,tenant,org.id,write=True,user_id=actor.id)
     if metadata.compliance_id and not db.scalar(select(Compliance.id).where(Compliance.id==metadata.compliance_id,Compliance.tenant_id==tenant,Compliance.organization_id==org.id)):raise HTTPException(404,"Compliance not found in this organization")
     if metadata.task_id and not db.scalar(select(Task.id).where(Task.id==metadata.task_id,Task.tenant_id==tenant,Task.organization_id==org.id)):raise HTTPException(404,"Task not found in this organization")
     checksum=hashlib.sha256(content).hexdigest()
