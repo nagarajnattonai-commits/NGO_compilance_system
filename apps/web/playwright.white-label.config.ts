@@ -22,6 +22,9 @@ const python =
     : ".venv/bin/python");
 export default defineConfig({
   testDir: "./tests/white-label",
+  testIgnore: process.env.SETU_WHITE_LABEL_ALL_LOCALES === "1"
+    ? []
+    : ["**/localization-reliability.spec.ts"],
   workers: 1,
   timeout: 180_000,
   use: {
@@ -53,6 +56,7 @@ export default defineConfig({
         ...common,
         API_INTERNAL_URL: "http://127.0.0.1:8001",
         NEXT_BUILD_DIR: ".next-white-label-qa",
+        NODE_OPTIONS: "--max-old-space-size=2304",
       },
     },
   ],

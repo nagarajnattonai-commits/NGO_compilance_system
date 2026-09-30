@@ -1,5 +1,6 @@
 import {test,expect} from "@playwright/test";
 import {cleanSignupFixtureQuota} from "./platform-operator";
+import {browserLocales} from "./locale-scope";
 test.afterAll(()=>cleanSignupFixtureQuota());
 const headers={"X-Setu-Request":"1"};
 test("organization profile edits persist, cancel protects drafts and branded layouts fit all viewports",async({page,request,context})=>{
@@ -15,7 +16,7 @@ test("organization profile edits persist, cancel protects drafts and branded lay
  await page.getByRole("button",{name:"Save",exact:true}).click();await expect(page.getByRole("status").filter({hasText:"Profile saved"})).toBeVisible();
  await page.getByRole("tab",{name:"Registration",exact:true}).click();await page.getByRole("button",{name:"Edit profile",exact:true}).click();await page.getByLabel("Registration date",{exact:true}).fill("2020-01-01");await page.getByLabel("Registration authority",{exact:true}).fill("Sample authority");await page.getByRole("button",{name:"Save",exact:true}).click();await expect(page.getByRole("status").filter({hasText:"Profile saved"})).toBeVisible();
  await page.reload();await expect(page.getByRole("heading",{name:"Updated Sample Profile NGO",exact:true})).toBeVisible();
- for(const locale of ["en-IN","hi-IN","kn-IN","mr-IN"]) {
+ for(const locale of browserLocales) {
   expect((await request.patch("/api/v1/localization/preferences",{headers,data:{locale,timezone:"Asia/Kolkata",time_format:"12h"}})).ok()).toBeTruthy();await page.reload();
   for(const width of [320,768,1024,1440]){await page.setViewportSize({width,height:900});await expect(page.getByRole("heading",{name:"Updated Sample Profile NGO",exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();}
  }

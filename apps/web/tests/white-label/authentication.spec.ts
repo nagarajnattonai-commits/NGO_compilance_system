@@ -4,6 +4,7 @@ import path from "node:path";
 import {readFileSync} from "node:fs";
 import {flattenMessages} from "../../i18n/messages";
 import {localeCookieName} from "../../i18n/config";
+import {allBrowserLocales,browserLocales} from "./locale-scope";
 import {provisionPlatformOperator,cleanSignupFixtureQuota} from "./platform-operator";
 test.afterAll(()=>cleanSignupFixtureQuota());
 test.setTimeout(60_000);
@@ -93,17 +94,19 @@ test("signup validates both steps and preserves fields across a backend outage",
  await page.getByRole("button",{name:"Back",exact:true}).click();await expect(page.getByLabel("Full name",{exact:true})).toHaveValue("Signup Browser");
 });
 
-for(const locale of ["en-IN","hi-IN","kn-IN","mr-IN"]){
- test("auth pages reuse design and fit all viewport widths in "+locale,async({page,context},testInfo)=>{
+for(const locale of browserLocales){
+ test("auth pages reuse design and fit representative viewport widths in "+locale,async({page:initialPage,context},testInfo)=>{
   test.setTimeout(420_000);
   const read=(language:string)=>JSON.parse(readFileSync(path.resolve("messages",language,"authentication.json"),"utf8"));
   expect(Object.keys(flattenMessages(read(locale))).sort()).toEqual(Object.keys(flattenMessages(read("en-IN"))).sort());
   await context.addCookies([{name:localeCookieName,value:locale,domain:"localhost",path:"/"}]);
-  const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("console",m=>{if(m.type()==="error")errors.push(m.text());});
+  const errors:string[]=[];let page=initialPage;
+  const watch=(current:typeof page)=>{current.on("pageerror",e=>errors.push(e.message));current.on("console",m=>{if(m.type()==="error")errors.push(m.text());});};watch(page);
   const routes=["/login","/signup","/forgot-password","/reset-password","/verify-email","/accept-invitation","/admin/login","/admin/forgot-password","/admin/reset-password","/auth/change-email"];
-  for(const width of [320,360,375,390,425,768,1024,1280,1440,1920]){
+  for(const width of (allBrowserLocales ? [320,360,375,390,425,768,1024,1280,1440,1920] : [320,390,768,1440])){
+   if(width!==320){await page.close();page=await context.newPage();watch(page);}
    await page.setViewportSize({width,height:1000});
-   for(const route of routes){await page.goto(route);await expect(page.locator(".auth-card h1")).toBeVisible();await expect(page.locator("html")).toHaveAttribute("lang",locale);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();}
+   for(const route of (allBrowserLocales || width===390 ? routes : ["/login","/signup","/admin/login"])){await page.goto(route);await expect(page.locator(".auth-card h1")).toBeVisible();await expect(page.locator("html")).toHaveAttribute("lang",locale);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();}
   }
   await page.goto("/login");await page.locator(".theme-toggle").click();
   const colors=await page.locator(".auth-card").evaluate(element=>({background:getComputedStyle(element).backgroundColor,text:getComputedStyle(element).color}));

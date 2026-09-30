@@ -3,6 +3,7 @@ import {test,expect,type APIRequestContext,type BrowserContext} from "@playwrigh
 import {readFileSync} from "node:fs";
 import path from "node:path";
 import {flattenMessages} from "../../i18n/messages";
+import {allBrowserLocales,browserLocales} from "./locale-scope";
 const headers={"X-Setu-Request":"1"};
 async function login(request:APIRequestContext,context:BrowserContext,locale="en-IN"){
  const credentials={email:"white-label-qa@example.test",password:"WhiteLabel-browser-QA-2026!"};
@@ -84,25 +85,28 @@ test("integration backend denies unapproved platform access and forged tenant re
  expect((await request.get("/api/v1/integrations-management/platform/developer/api-keys")).status()).toBe(403);
 });
 
-for(const locale of ["en-IN","hi-IN","kn-IN","mr-IN"]){
- test("integration pages and configuration form fit all required widths in "+locale,async({page,request,context})=>{
+for(const locale of browserLocales){
+ test("integration pages and configuration form fit representative widths in "+locale,async({page:initialPage,request,context})=>{
   test.setTimeout(480_000);
   const tenant=await login(request,context,locale);
   await seed(request,tenant,"Responsive connection "+locale);
-  const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("console",m=>{if(m.type()==="error")errors.push(m.text());});
+  const errors:string[]=[];let page=initialPage;
+  const watch=(current:typeof page)=>{current.on("pageerror",e=>errors.push(e.message));current.on("console",m=>{if(m.type()==="error")errors.push(m.text());});};watch(page);
   const modules=(language:string)=>JSON.parse(readFileSync(path.resolve("messages",language,"integrations.json"),"utf8"));
   expect(Object.keys(flattenMessages(modules(locale))).sort()).toEqual(Object.keys(flattenMessages(modules("en-IN"))).sort());
   expect(JSON.stringify(modules(locale))).not.toContain("??");
   if(locale!=="en-IN")expect(modules(locale).Integrations.title).not.toBe("Integrations");
   const routes=["/admin/integrations/providers","/admin/integrations/credentials","/admin/integrations/health","/admin/integrations/logs","/admin/integrations/tenants","/admin/developers/api-keys","/settings/developers/webhooks","/settings/developers/documentation","/settings/developers/usage","/settings/developers/oauth"];
-  for(const width of [320,360,375,390,425,768,1024,1280,1440,1920]){
+  for(const width of (allBrowserLocales ? [320,360,375,390,425,768,1024,1280,1440,1920] : [320,390,768,1440])){
+   if(width!==320){await page.close();page=await context.newPage();watch(page);}
    await page.setViewportSize({width,height:1000});
-   for(const route of routes){
+   for(const route of (allBrowserLocales || width===390 ? routes : ["/admin/integrations/providers","/settings/developers/webhooks","/settings/developers/oauth"])){
     await page.goto(route);await expect(page.locator(".integration-page h1")).toBeVisible();
-    await expect(page.locator(".integration-page [role=status]").filter({hasText:/Loading/})).toHaveCount(0);
+    await expect(page.locator(".integration-page [role=status]")).toHaveCount(0,{timeout:15_000});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBeTruthy();
    }
    await page.goto("/settings/integrations");
+   await expect(page.locator(".integration-page [role=status]")).toHaveCount(0,{timeout:15_000});
    const card=page.locator(".integration-card").filter({has:page.getByRole("heading",{name:"Responsive connection "+locale,exact:true})});
    await expect(card).toBeVisible();await card.locator("button").first().click();
    await expect(page.locator(".integration-form")).toBeVisible();

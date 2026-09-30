@@ -25,10 +25,17 @@ export async function requireSession(loginPath = "/login"): Promise<AuthSession>
 export async function requirePlatformSession(): Promise<AuthSession> {
   const session = await requireSession("/admin/login");
   const token = (await cookies()).get("setu_session")?.value;
-  const response = await fetch(`${process.env.API_INTERNAL_URL || "http://127.0.0.1:8000"}/api/v1/admin/auth/access`, {
+  const checkAccess = async () => fetch(`${process.env.API_INTERNAL_URL || "http://127.0.0.1:8000"}/api/v1/admin/auth/access`, {
     headers: { ...(await brandingRequestHeaders()), Cookie: `setu_session=${encodeURIComponent(token || "")}` },
     cache: "no-store", signal: AbortSignal.timeout(8000),
   });
+  let response: Response;
+  try {
+    response = await checkAccess();
+  } catch (error) {
+    if ((error as { cause?: { code?: string } })?.cause?.code !== "UND_ERR_SOCKET") throw error;
+    response = await checkAccess();
+  }
   if (!response.ok || !(await response.json()).allowed) redirect("/access-denied?admin=1");
   return session;
 }

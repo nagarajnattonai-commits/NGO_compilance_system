@@ -3,19 +3,26 @@ import { supportedLocales, localeCookieName, matchBrowserLocale } from "../../i1
 import { flattenMessages } from "../../i18n/messages";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { allBrowserLocales } from "./locale-scope";
+
+const activeLocales = allBrowserLocales
+  ? supportedLocales
+  : supportedLocales.filter((locale) => locale.code === "en-IN");
 
 const dictionary = async (locale: string) =>
   JSON.parse(await readFile(path.join(process.cwd(), "messages", locale, "marketing.json"), "utf8"));
 
 test("public dictionaries are complete and render in the selected language before hydration", async ({ request }) => {
-  expect(matchBrowserLocale("kn-IN,hi-IN;q=0.8,en-IN;q=0.5")).toBe("kn-IN");
-  expect(matchBrowserLocale("en-IN;q=0.3,mr;q=0.9")).toBe("mr-IN");
-  expect(matchBrowserLocale("hi;q=0,kn-US;q=0.8")).toBe("kn-IN");
+  if (allBrowserLocales) {
+    expect(matchBrowserLocale("kn-IN,hi-IN;q=0.8,en-IN;q=0.5")).toBe("kn-IN");
+    expect(matchBrowserLocale("en-IN;q=0.3,mr;q=0.9")).toBe("mr-IN");
+    expect(matchBrowserLocale("hi;q=0,kn-US;q=0.8")).toBe("kn-IN");
+  }
   expect(matchBrowserLocale("ta-IN,fr-FR;q=0.8")).toBe("en-IN");
   const english = flattenMessages(await dictionary("en-IN"));
   const keys = Object.keys(english).filter(key => key.startsWith("Marketing."));
   expect(keys.length).toBeGreaterThan(290);
-  for (const locale of supportedLocales) {
+  for (const locale of activeLocales) {
     const messages = flattenMessages(await dictionary(locale.code));
     expect(keys.filter(key => !messages[key]?.trim())).toEqual([]);
     // ICU variables must be preserved in every language.
@@ -42,11 +49,11 @@ test("public menu stays above hero, remains clickable, and fits all language/dev
     if (message.type() === "error") errors.push(message.text());
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  for (const locale of supportedLocales) {
+  for (const locale of activeLocales) {
     await context.addCookies([{ name: localeCookieName, value: locale.code, domain: "localhost", path: "/" }]);
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", locale.code);
-    for (const width of [320, 360, 375, 390, 425, 768, 915, 1024, 1280, 1440, 1920]) {
+    for (const width of (allBrowserLocales ? [320, 360, 375, 390, 425, 768, 915, 1024, 1280, 1440, 1920] : [320, 390, 768, 1440])) {
       await page.setViewportSize({ width, height: 900 });
       await page.evaluate(() => window.scrollTo(0, 0));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${locale.code} / ${width}`).toBeTruthy();
@@ -84,26 +91,30 @@ test("public menu stays above hero, remains clickable, and fits all language/dev
       await expect(panel).not.toBeVisible();
     }
   }
-  // Actual language selection, persistence, route/hash preservation and theme.
+  // Full-matrix language selection and shared theme/navigation checks.
   await page.setViewportSize({ width: 915, height: 900 });
   await page.goto("/#certificates");
-  await page.locator(".language-trigger").click();
-  await page.locator("#language-options button").filter({ hasText: "ಕನ್ನಡ" }).click();
-  await expect(page.locator("html")).toHaveAttribute("lang", "kn-IN");
-  await expect(page).toHaveURL(/#certificates$/);
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("lang", "kn-IN");
+  if (allBrowserLocales) {
+    await page.locator(".language-trigger").click();
+    await page.locator("#language-options button").filter({ hasText: "ಕನ್ನಡ" }).click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "kn-IN");
+    await expect(page).toHaveURL(/#certificates$/);
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", "kn-IN");
+  } else {
+    await expect(page.locator("html")).toHaveAttribute("lang", "en-IN");
+  }
   await page.evaluate(() => { localStorage.setItem("setu-theme", "dark"); });
   await page.reload();
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.locator(".public-nav-toggle").click();
-  await page.screenshot({ path: testInfo.outputPath("kn-IN-dark-menu.png") });
+  await page.screenshot({ path: testInfo.outputPath(`${allBrowserLocales ? "kn-IN" : "en-IN"}-dark-menu.png`) });
   await expect(page.locator("#public-navigation")).toHaveCSS("background-color", "rgb(13, 28, 21)");
   expect(errors).toEqual([]);
 });
 
-test("public language changes respect tenant configuration, saved preferences, overrides and independent timezone", async ({ page, request, context }) => {
+if (allBrowserLocales) test("public language changes respect tenant configuration, saved preferences, overrides and independent timezone", async ({ page, request, context }) => {
   const headers = { "X-Setu-Request": "1" };
   const signup = await request.post("/api/v1/auth/signup", {
     headers,

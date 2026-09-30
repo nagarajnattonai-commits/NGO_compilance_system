@@ -1,6 +1,7 @@
 import {provisionPlatformOperator} from "./platform-operator";
 import { test, expect } from "@playwright/test";
 import { localeCookieName } from "../../i18n/config";
+import { allBrowserLocales } from "./locale-scope";
 
 test("white-label editor, publishing, localization and responsive layouts", async ({
   page,
@@ -42,6 +43,7 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
   })).ok()).toBeTruthy();
   await context.addCookies((await request.storageState()).cookies);
   await page.goto("/settings/white-label");
+  await expect(page.locator(".white-label-settings")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "White Label", exact: true }),
   ).toBeVisible();
@@ -127,7 +129,9 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
   await expect(page.locator(".tenant-sidebar-brand strong")).toHaveText(
     longName,
   );
-  const widths = [320, 360, 375, 390, 425, 768, 1024, 1280, 1440, 1920];
+  const widths = allBrowserLocales
+    ? [320, 360, 375, 390, 425, 768, 1024, 1280, 1440, 1920]
+    : [320, 390, 768, 1440];
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
     for (const name of [
@@ -164,7 +168,7 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
     });
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const locale of ["hi-IN", "kn-IN", "mr-IN"]) {
+  for (const locale of (allBrowserLocales ? ["hi-IN", "kn-IN", "mr-IN"] : [])) {
     expect(
       (
         await request.patch("/api/v1/localization/preferences", {

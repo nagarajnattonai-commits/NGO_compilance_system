@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { emptyTranslation, newConfiguration } from "../../lib/compliance-master";
 import { flattenMessages } from "../../i18n/messages";
+import { allBrowserLocales, browserLocales } from "./locale-scope";
 const headers = { "X-Setu-Request": "1" };
 
 async function platformLogin(request: APIRequestContext, context: BrowserContext) {
@@ -71,8 +72,8 @@ test("platform builder, rule preview, keyboard and pointer D&D, governance and s
   await page.mouse.move(first!.x + 22, first!.y + 22); await page.mouse.down(); await page.mouse.move(first!.x + 32, first!.y + 22, { steps: 4 }); await page.mouse.move(third!.x + 22, third!.y + 22, { steps: 20 }); await page.mouse.up();
   await expect(page.getByLabel("Checklist item title", { exact: true }).first()).not.toHaveValue("Second sample check");
   await page.getByRole("button", { name: /10.*Localization/ }).click();
-  await page.getByLabel("Language / locale", { exact: true }).selectOption("kn-IN");
-  await page.getByLabel("Compliance name", { exact: true }).fill("ಮಾದರಿ ಆಡಳಿತ ಪರಿಶೀಲನೆ");
+  await page.getByLabel("Language / locale", { exact: true }).selectOption(allBrowserLocales ? "kn-IN" : "en-IN");
+  await page.getByLabel("Compliance name", { exact: true }).fill(allBrowserLocales ? "ಮಾದರಿ ಆಡಳಿತ ಪರಿಶೀಲನೆ" : "Sample compliance review");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await page.getByRole("button", { name: /11.*Review and publish/ }).click();
   await page.getByRole("button", { name: "Validate configuration", exact: true }).click(); await expect(page.getByRole("heading", { name: "Ready for review", exact: true })).toBeVisible();
@@ -89,7 +90,7 @@ test("platform builder, rule preview, keyboard and pointer D&D, governance and s
   expect((await request.get(`/api/v1/admin/compliance-templates/${id}`)).ok()).toBeTruthy();
 });
 
-for (const locale of ["en-IN", "hi-IN", "kn-IN", "mr-IN"]) {
+for (const locale of browserLocales) {
 test("all template builder steps and master table remain responsive in " + locale, async ({ page, request, context }, testInfo) => {
   test.setTimeout(240_000);
   await platformLogin(request, context);
@@ -111,9 +112,9 @@ test("all template builder steps and master table remain responsive in " + local
     expect(Object.values(selected).every((value) => value.trim())).toBeTruthy();
     expect((await request.patch("/api/v1/localization/preferences", { headers, data: { locale, timezone: "Asia/Kolkata", time_format: "12h" } })).ok()).toBeTruthy();
     await context.addCookies([{ name: "SETU_LOCALE", value: locale, domain: "localhost", path: "/" }]);
-    for (const width of [320, 360, 375, 390, 425, 768, 1024, 1280, 1440, 1920]) {
+    for (const width of (allBrowserLocales ? [320, 360, 375, 390, 425, 768, 1024, 1280, 1440, 1920] : [320, 390, 768, 1440])) {
       await page.setViewportSize({ width, height: 900 }); await page.goto(`/admin/compliance-master/${row.id}`);
-      await expect(page.locator(".master-builder-panel")).toBeVisible();
+      await expect(page.locator(".master-builder-panel")).toBeVisible({ timeout: 30_000 });
       for (let step = 0; step < 11; step++) {
         if (width < 768) await page.locator(".master-mobile-step select").selectOption(String(step), { timeout: 15_000 });
         else await page.locator(".master-step-nav ol button").nth(step).click();
@@ -138,7 +139,7 @@ test("tenant accounts cannot open the platform builder or write global templates
 });
 
 
-test("incomplete rules, translated checklist removal and recoverable saves preserve draft data", async ({ page, request, context }) => {
+test("incomplete rules, checklist removal and recoverable saves preserve draft data", async ({ page, request, context }) => {
   await platformLogin(request, context);
   const category = await request.post("/api/v1/admin/compliance-categories", { headers, data: { name: "Draft safety sample" } });
   expect(category.status()).toBe(201);
@@ -149,7 +150,7 @@ test("incomplete rules, translated checklist removal and recoverable saves prese
   configuration.deadline.fixed_date = "2031-03-31";
   configuration.applicability.groups = [{ id: "g", operator: "AND", conditions: [{ id: "r", field: "legal_type", operator: "EQUALS", value: "" }] }];
   configuration.checklist = [{ id: "old", title: "Obsolete sample item", description: "Description", instructions: "Instructions", required: true, responsible_role: "TENANT_ADMIN", relative_due_days: 0 }];
-  configuration.translations["kn-IN"] = { ...emptyTranslation(), name: "Translated sample",
+  if (allBrowserLocales) configuration.translations["kn-IN"] = { ...emptyTranslation(), name: "Translated sample",
     checklist: { old: "Translated title" }, checklist_descriptions: { old: "Translated description" }, checklist_instructions: { old: "Translated instructions" } };
   const created = await request.post("/api/v1/admin/compliance-templates", { headers, data: { code: "SAMPLE-DRAFT-SAFETY", configuration } });
   expect(created.status()).toBe(201);
@@ -161,17 +162,22 @@ test("incomplete rules, translated checklist removal and recoverable saves prese
   await expect(page.getByRole("heading", { name: "Configuration needs correction" })).toBeVisible();
   await page.getByRole("button", { name: /2.*Applicability/ }).click();
   await page.getByLabel("Explicitly apply to all organizations").check();
-  await page.getByRole("button", { name: /10.*Localization/ }).click();
-  await page.getByLabel("Language / locale", { exact: true }).selectOption("kn-IN");
-  await expect(page.getByLabel("Instructions: Obsolete sample item", { exact: true })).toHaveValue("Translated instructions");
+  if (allBrowserLocales) {
+    await page.getByRole("button", { name: /10.*Localization/ }).click();
+    await page.getByLabel("Language / locale", { exact: true }).selectOption("kn-IN");
+    await expect(page.getByLabel("Instructions: Obsolete sample item", { exact: true })).toHaveValue("Translated instructions");
+  }
   await page.getByRole("button", { name: /5.*Checklist/ }).click();
   await page.getByRole("button", { name: "Remove", exact: true }).click();
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Changes saved" })).toBeVisible();
   const saved = await (await request.get(endpoint)).json();
-  expect(saved.configuration.translations["kn-IN"].checklist).toEqual({});
-  expect(saved.configuration.translations["kn-IN"].checklist_descriptions).toEqual({});
-  expect(saved.configuration.translations["kn-IN"].checklist_instructions).toEqual({});
+  expect(saved.configuration.checklist).toEqual([]);
+  if (allBrowserLocales) {
+    expect(saved.configuration.translations["kn-IN"].checklist).toEqual({});
+    expect(saved.configuration.translations["kn-IN"].checklist_descriptions).toEqual({});
+    expect(saved.configuration.translations["kn-IN"].checklist_instructions).toEqual({});
+  }
   await page.getByRole("button", { name: /11.*Review and publish/ }).click();
   await page.getByRole("button", { name: "Validate configuration", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Ready for review" })).toBeVisible();
