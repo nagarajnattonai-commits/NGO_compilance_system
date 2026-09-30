@@ -12,6 +12,7 @@
     },
     "nav": {
       "dashboard": "Dashboard",
+      "portfolio": "Portfolio",
       "compliance": "Compliance",
       "tasks": "Tasks",
       "calendar": "Calendar",

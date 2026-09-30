@@ -1,0 +1,18 @@
+{
+  "Portfolio": {
+    "eyebrow": "Consultant workspace",
+    "title": "Client portfolio",
+    "description": "Monitor authorized NGOs, prioritize compliance work and switch client context without signing in again.",
+    "loading": "Loading portfolio…",
+    "loadError": "Could not load the portfolio.",
+    "metrics": { "organizations": "Authorized NGOs", "activeCompliances": "Active compliances", "overdue": "Overdue", "incompleteTasks": "Incomplete tasks", "underReview": "Under review", "attention": "Clients needing attention" },
+    "clients": "Client directory", "clientsHelp": "{count} authorized clients", "search": "Search clients", "searchPlaceholder": "Name, city or legal type", "attentionOnly": "Portfolio scope", "allClients": "All clients", "needsAttention": "Needs attention", "apply": "Apply filters",
+    "client": "Client", "health": "Health", "consultant": "Responsible consultant", "compliances": "Compliances", "overdue": "Overdue", "openTasks": "Open tasks", "expiring": "Expiring records", "activity": "Last activity", "action": "Action", "openClient": "Open client", "unassigned": "Unassigned", "emptyClients": "No authorized clients match these filters.",
+    "healthValues": { "ATTENTION": "Needs attention", "ON_TRACK": "On track", "SETUP": "Setup required" },
+    "workQueue": "Portfolio work queue", "workQueueHelp": "{count} tasks in the authorized portfolio", "organization": "Organization", "dueWindow": "Due window", "assignTo": "Assign to", "chooseConsultant": "Choose consultant", "assignSelected": "Assign selected ({count})", "assignmentSaved": "Reassigned {count} tasks.", "assignmentError": "Could not reassign the selected tasks.",
+    "timing": { "ALL": "All dates", "OVERDUE": "Overdue", "TODAY": "Due today", "WEEK": "Next 7 days", "MONTH": "Next 30 days" },
+    "select": "Select", "selectTask": "Select task {title}", "task": "Task", "compliance": "Compliance", "assignee": "Assignee", "due": "Due", "status": "Status",
+    "deadlines": "Compliance deadlines", "deadlinesHelp": "{count} deadlines in the selected scope", "owner": "Owner", "daysRemaining": "Days remaining",
+    "inviteClientUser": "Invite a client user", "inviteHelp": "Grant access only to the selected organization. Workspace activation remains required.", "name": "Full name", "email": "Email address", "chooseClient": "Choose client", "access": "Client access", "viewer": "Read-only viewer", "contributor": "Contributor", "invite": "Create client invitation", "inviteSaved": "Client invitation created.", "inviteError": "Could not create the client invitation."
+  }
+}

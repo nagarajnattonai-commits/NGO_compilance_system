@@ -43,6 +43,7 @@ import {
   Languages,
   Palette,
   CreditCard,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -114,6 +115,7 @@ import OrganizationComplianceProfile from "@/components/organization-compliance-
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 import { TenantSubscription } from "@/components/subscriptions";
 import ComplianceAssistant from "@/components/compliance-assistant";
+import PortfolioManagement from "@/components/portfolio-management";
 
 import { isOpenCompliance } from "@/lib/compliance-states";
 
@@ -126,6 +128,7 @@ function useCurrentUser() {
 
 type View =
   | "overview"
+  | "portfolio"
   | "compliance"
   | "tasks"
   | "calendar"
@@ -142,6 +145,7 @@ type View =
 
 const nav = [
   { id: "overview" as View, labelKey: "dashboard", icon: LayoutDashboard },
+  { id: "portfolio" as View, labelKey: "portfolio", icon: BriefcaseBusiness },
   { id: "compliance" as View, labelKey: "compliance", icon: ClipboardCheck },
   { id: "tasks" as View, labelKey: "tasks", icon: ListChecks },
   { id: "calendar" as View, labelKey: "calendar", icon: CalendarDays },
@@ -487,9 +491,8 @@ export default function ComplianceApp({
             {nav
               .filter(
                 (item) => platformAdmin ? item.id === "administration" :
-                  !["operations", "administration", "localization", "whiteLabel"].includes(
-                    item.id,
-                  ) || user.role === "ADMIN",
+                  item.id === "portfolio" ? organizations.length > 1 :
+                    !["operations", "administration", "localization", "whiteLabel"].includes(item.id) || user.role === "ADMIN",
               )
               .map(({ id, labelKey, icon: Icon }) => (
                 <button
@@ -704,6 +707,18 @@ export default function ComplianceApp({
               onSelectCompliance={(id) => {
                 const item = scopedCompliances.find((compliance) => compliance.id === id);
                 if (item) setSelectedCompliance(item);
+              }}
+            />
+          )}
+          {view === "portfolio" && organizations.length > 1 && (
+            <PortfolioManagement
+              organizations={organizations}
+              memberships={memberships}
+              role={user.role}
+              onOpenClient={(id) => { setSelectedOrg(id); go("overview"); }}
+              onOpenCompliance={(id) => {
+                const item = compliances.find((compliance) => compliance.id === id);
+                if (item) { setSelectedOrg(item.organization_id); setSelectedCompliance(item); }
               }}
             />
           )}

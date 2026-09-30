@@ -227,6 +227,14 @@ class TokenInput(PasswordInput):
 class InvitationInput(EmailInput):
     name: str = Field(min_length=2, max_length=120)
     role: Literal["ADMIN", "MEMBER", "VIEWER"] = "MEMBER"
+    organization_ids: list[str] = Field(default_factory=list, max_length=50)
+
+    @field_validator("organization_ids")
+    @classmethod
+    def valid_organization_ids(cls, value: list[str]):
+        if len(set(value)) != len(value) or any(not item or len(item) > 36 for item in value):
+            raise ValueError("Organization identifiers must be unique and valid")
+        return value
 
 
 class AccessInput(InputModel):
@@ -483,6 +491,37 @@ def list_users(admin: AdminUser, db: DB):
 @router.post("/admin/users/invite", status_code=201)
 def invite_user(payload: InvitationInput, admin: AdminUser, db: DB):
     from .auth_experience import seat_available,invitation_email
+    if payload.organization_ids and payload.role == "ADMIN":
+        raise HTTPException(422, "Organization-scoped invitations cannot grant workspace administrator access")
+    def grant_organization_access(user_id: str):
+        if not payload.organization_ids:
+            return
+        from .models import Organization
+        from .phase8_models import OrganizationAccess
+        organizations = list(db.scalars(select(Organization).where(
+            Organization.tenant_id == admin.tenant_id,
+            Organization.id.in_(payload.organization_ids),
+            Organization.status != "ARCHIVED",
+        )).all())
+        if len(organizations) != len(payload.organization_ids):
+            raise HTTPException(404, "One or more organizations were not found")
+        access_role = "VIEWER" if payload.role == "VIEWER" else "CONTRIBUTOR"
+        for organization in organizations:
+            access = db.scalar(select(OrganizationAccess).where(
+                OrganizationAccess.tenant_id == admin.tenant_id,
+                OrganizationAccess.organization_id == organization.id,
+                OrganizationAccess.user_id == user_id,
+            ))
+            if not access:
+                access = OrganizationAccess(tenant_id=admin.tenant_id, organization_id=organization.id,
+                                            user_id=user_id, granted_by=admin.id)
+                db.add(access)
+            access.access_role, access.status, access.updated_at = access_role, "ACTIVE", now()
+            db.flush()
+            db.add(AuditEvent(tenant_id=admin.tenant_id, actor_name=admin.name,
+                              action="CLIENT_ORGANIZATION_ACCESS_GRANTED", entity_type="OrganizationAccess",
+                              entity_id=access.id,
+                              summary=f"Invited user {user_id} to organization {organization.id} as {access_role}"))
     seat_available(db,admin.tenant_id)
     existing=db.scalar(select(User).where(User.email==payload.email))
     if existing:
@@ -491,6 +530,7 @@ def invite_user(payload: InvitationInput, admin: AdminUser, db: DB):
             raise HTTPException(409,"This email already has an account or invitation")
         token=issue_token(db,existing,"JOIN",48);db.flush()
         db.add(WorkspaceInvitation(token_hash=digest(token),tenant_id=admin.tenant_id,role=payload.role))
+        grant_organization_access(existing.id)
         invitation_email(db,existing,token,admin.tenant_id)
         record_event(db,admin,"USER_INVITED","Invited an existing identity to the workspace",existing.id);db.commit()
         return {"user":UserOut.model_validate(existing),"token":token,"expires_in_hours":48}
@@ -498,6 +538,7 @@ def invite_user(payload: InvitationInput, admin: AdminUser, db: DB):
     db.add(user)
     try:
         db.flush()
+        grant_organization_access(user.id)
         token = issue_token(db, user, "INVITE", 48)
         invitation_email(db,user,token,admin.tenant_id)
         record_event(db, admin, "USER_INVITED", f"Invited {user.email} as {user.role}", user.id)
