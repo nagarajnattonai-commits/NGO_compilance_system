@@ -1,0 +1,14 @@
+{
+  "PortfolioImport": {
+    "title": "Bulk NGO onboarding and imports", "description": "Upload data, review field mapping, run a dry validation and explicitly confirm before anything is changed.", "workflow": "Import workflow",
+    "steps": { "upload": "1. Upload", "map": "2. Map fields", "validate": "3. Validate", "review": "4. Review errors", "confirm": "5. Confirm import", "results": "6. Results" },
+    "importType": "Import type", "types": { "ORGANIZATIONS": "Organizations / NGO clients", "REGISTRATIONS": "Registration facts", "INVITATIONS": "Client invitations", "TASK_ASSIGNMENTS": "Task assignments" },
+    "file": "CSV or XLSX file", "downloadTemplate": "Download CSV template", "upload": "Upload for review", "uploading": "Uploading…", "uploadError": "Could not upload the import file.",
+    "mapping": "Map fields", "mappingHelp": "Suggested matches are shown below. Required fields are marked with an asterisk; unsupported columns remain unmapped.", "fieldLabel": "Platform field: {field}", "unmapped": "Do not import this column",
+    "review": "Dry-run review", "total": "Total rows", "valid": "Valid rows", "invalid": "Invalid rows", "warnings": "Warnings", "row": "Row", "result": "Result", "issues": "Errors and warnings", "resolution": "Duplicate resolution",
+    "resolutionFor": "Resolution for row {row}", "existingOrganizationFor": "Existing organization for row {row}", "chooseResolution": "Choose resolution", "chooseExisting": "Choose existing organization", "map": "Map to existing", "skip": "Skip row", "create": "Create explicitly",
+    "validate": "Run dry validation", "validationError": "Dry-run validation failed.", "working": "Working…", "confirmImport": "Confirm Import", "importError": "Import could not be completed.", "startOver": "Start over",
+    "results": "Import results", "created": "Created", "mapped": "Mapped", "skipped": "Skipped", "failed": "Failed", "downloadResults": "Download result CSV", "refreshWorkspace": "Refresh workspace",
+    "statuses": { "UPLOADED": "Uploaded", "VALIDATING": "Validating", "VALIDATION_FAILED": "Resolve errors", "READY": "Ready to import", "IMPORTING": "Importing", "COMPLETED": "Completed", "COMPLETED_WITH_ERRORS": "Completed with errors", "FAILED": "Failed", "CANCELLED": "Cancelled" }
+  }
+}

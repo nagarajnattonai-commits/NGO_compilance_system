@@ -116,6 +116,7 @@ import { BrandIdentity, useTenantBrand } from "@/branding/client";
 import { TenantSubscription } from "@/components/subscriptions";
 import ComplianceAssistant from "@/components/compliance-assistant";
 import PortfolioManagement from "@/components/portfolio-management";
+import BulkImport from "@/components/bulk-import";
 
 import { isOpenCompliance } from "@/lib/compliance-states";
 
@@ -840,15 +841,18 @@ export default function ComplianceApp({
           )}
           {view === "administration" && platformAdmin && <PlatformNavigation />}
           {view === "administration" && user.role === "ADMIN" && subscription && !platformAdmin && (
-            <AdministrationView
-              organizations={organizations}
-              compliances={compliances}
-              definitions={complianceDefinitions}
-              memberships={memberships}
-              subscription={subscription}
-              setShowNewOrganization={setShowNewOrganization}
-              setShowInvite={setShowInvite}
-            />
+            <>
+              <AdministrationView
+                organizations={organizations}
+                compliances={compliances}
+                definitions={complianceDefinitions}
+                memberships={memberships}
+                subscription={subscription}
+                setShowNewOrganization={setShowNewOrganization}
+                setShowInvite={setShowInvite}
+              />
+              <BulkImport />
+            </>
           )}
           {view === "localization" && user.role === "ADMIN" && (
             <LocalizationAdmin />

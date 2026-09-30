@@ -24,6 +24,7 @@ export const messageModules = [
   "globalSearch",
   "workflow",
   "portfolio",
+  "portfolioImport",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -53,6 +54,7 @@ const loaders = {
       import("../messages/en-IN/global-search.json"),
       import("../messages/en-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
+      import("../messages/en-IN/portfolio-import.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -79,6 +81,7 @@ const loaders = {
       import("../messages/hi-IN/global-search.json"),
       import("../messages/hi-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
+      import("../messages/en-IN/portfolio-import.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -105,6 +108,7 @@ const loaders = {
       import("../messages/kn-IN/global-search.json"),
       import("../messages/kn-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
+      import("../messages/en-IN/portfolio-import.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -131,6 +135,7 @@ const loaders = {
       import("../messages/mr-IN/global-search.json"),
       import("../messages/mr-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
+      import("../messages/en-IN/portfolio-import.json"),
     ]),
 } satisfies Record<
   AppLocale,
