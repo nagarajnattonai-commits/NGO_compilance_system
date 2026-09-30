@@ -335,13 +335,33 @@ def test_daily_automation_is_idempotent_and_rolls_forward_completed_work():
         assert len(matches) == 2
 
 
-def test_grounded_assistant_returns_only_tenant_record_sources():
-    with authenticated_client() as client:
-        response = client.post("/api/v1/assistant/query", json={"question": "Which tasks need attention?", "organization_id": "org-udaan"})
-        assert response.status_code == 200
-        body = response.json()
-        assert "Operational assistance only" in body["disclaimer"]
-        assert all(source["type"] == "task" for source in body["sources"])
+def test_grounded_assistant_returns_only_entitled_tenant_record_sources(monkeypatch):
+    from app.ai_models import AiProviderConfiguration
+    from app.ai_provider import clear_providers, register_provider
+    from app.models import TenantEntitlement
+    class Provider:
+        def __init__(self, credential): assert credential == "assistant-test-secret"
+        def embed(self, **values): return [[1.0, 0.0] for _ in values["texts"]]
+        def generate(self, **_): return "Grounded task summary"
+    monkeypatch.setenv("SETU_SECRET_33333333333333333333333333333333", "assistant-test-secret")
+    register_provider("test-api", Provider)
+    try:
+        with authenticated_client() as client:
+            with SessionLocal() as db:
+                db.add(TenantEntitlement(tenant_id="tenant-demo", feature_key="ai_rag", enabled=True))
+                db.add(AiProviderConfiguration(
+                    tenant_id="tenant-demo", provider="test-api", generation_model="grounded-test",
+                    embedding_model="embedding-test", timeout_seconds=10, enabled=True,
+                    credential_reference="env://SETU_SECRET_33333333333333333333333333333333",
+                ))
+                db.commit()
+            response = client.post("/api/v1/assistant/query", json={"question": "Which tasks need attention?", "organization_id": "org-udaan"})
+            assert response.status_code == 200, response.text
+            body = response.json()
+            assert "Advisory AI" in body["disclaimer"]
+            assert any(source["type"] == "task" for source in body["sources"])
+    finally:
+        clear_providers()
 
 
 def test_localization_preferences_tenant_configuration_and_overrides():

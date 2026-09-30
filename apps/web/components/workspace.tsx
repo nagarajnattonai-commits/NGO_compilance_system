@@ -53,7 +53,6 @@ import {
   addTaskAttachment,
   addTaskComment,
   archiveTaskAttachment,
-  askAssistant,
   createCompliance,
   createOrganization,
   createPortfolioRecord,
@@ -80,7 +79,6 @@ import { apiRequest } from "@/lib/http";
 import { roleLabel, type AuthUser } from "@/lib/auth-types";
 import UserManagement from "@/components/user-management";
 import type {
-  AssistantAnswer,
   AuditEvent,
   Compliance,
   ComplianceComment,
@@ -115,6 +113,7 @@ import { ComplianceNotificationMessage, ComplianceNotificationTitle } from "@/co
 import OrganizationComplianceProfile from "@/components/organization-compliance-profile";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 import { TenantSubscription } from "@/components/subscriptions";
+import ComplianceAssistant from "@/components/compliance-assistant";
 
 import { isOpenCompliance } from "@/lib/compliance-states";
 
@@ -795,8 +794,10 @@ export default function ComplianceApp({
             />
           )}
           {view === "assistant" && (
-            <AssistantView
-              organizationId={selectedOrg === "all" ? undefined : selectedOrg}
+            <ComplianceAssistant
+              organization={org}
+              entitled={subscription?.feature_access?.ai_rag === true}
+              readOnly={user.role === "VIEWER"}
             />
           )}
           {view === "integrations" && (
@@ -4837,106 +4838,6 @@ function NewOperationModal({
         </div>
       </form>
     </Modal>
-  );
-}
-
-function AssistantView({ organizationId }: { organizationId?: string }) {
-  const [question, setQuestion] = useState("What needs attention right now?");
-  const [result, setResult] = useState<AssistantAnswer | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  async function ask(value = question) {
-    setQuestion(value);
-    setLoading(true);
-    setError("");
-    try {
-      setResult(await askAssistant(value, organizationId));
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Assistant unavailable",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-  return (
-    <div className="page">
-      <PageHeading
-        eyebrow="Grounded intelligence"
-        title="Compliance assistant"
-        text="Ask operational questions against authorized workspace records. Answers cite the records used."
-      />
-      <section className="assistant-shell">
-        <div className="assistant-prompts">
-          <strong>Suggested questions</strong>
-          {[
-            "What needs attention right now?",
-            "Which tasks are still open?",
-            "Which documents expire soon?",
-          ].map((prompt) => (
-            <button key={prompt} onClick={() => void ask(prompt)}>
-              {prompt}
-              <ArrowRight size={14} />
-            </button>
-          ))}
-        </div>
-        <div className="assistant-main">
-          <div className="assistant-intro">
-            <Bot size={26} />
-            <div>
-              <strong>Setu operational assistant</strong>
-              <p>
-                Tenant-grounded summaries with human review for consequential
-                decisions.
-              </p>
-            </div>
-          </div>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void ask();
-            }}
-          >
-            <textarea
-              aria-label="Question for the compliance assistant"
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-            />
-            <button
-              className="button primary"
-              disabled={loading || question.trim().length < 3}
-            >
-              {loading ? "Reviewing records..." : "Ask assistant"}
-            </button>
-          </form>
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          {result && (
-            <div className="assistant-answer" aria-live="polite">
-              <h3>Answer</h3>
-              <p>{result.answer}</p>
-              <strong>Records used</strong>
-              {result.sources.length ? (
-                <ul>
-                  {result.sources.map((source) => (
-                    <li key={`${source.type}-${source.id}`}>
-                      <span>{source.type}</span>
-                      {source.label}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="muted">No matching records were required.</p>
-              )}
-              <small>{result.disclaimer}</small>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
   );
 }
 

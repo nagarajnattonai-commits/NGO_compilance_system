@@ -24,6 +24,7 @@ export async function apiRequest<T>(path: string, method = "GET", body?: unknown
     try {
       const data = await response.json();
       if (typeof data.detail === "string") message = data.detail;
+      else if (data.detail && typeof data.detail.message === "string") message = data.detail.message;
       else if (Array.isArray(data.detail)) message = data.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(", ");
     } catch { /* An upstream failure may return HTML, not JSON. */ }
     if (response.status === 401 && !path.startsWith("/auth/") && !explicitLogoutInProgress && typeof window !== "undefined") window.location.assign("/login?expired=1");

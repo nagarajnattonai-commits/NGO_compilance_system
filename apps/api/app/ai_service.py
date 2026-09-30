@@ -283,6 +283,11 @@ Do not perform or claim to perform workflow, filing, task, integration, subscrip
 State uncertainty. Cite only the supplied source identifiers and do not present legal statements as verified truth."""
 
 
+def boundary_json(value) -> str:
+    """Encode untrusted values without allowing them to forge markup boundaries."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c").replace(">", "\\u003e")
+
+
 def build_context(question: str, retrieval: dict) -> str:
     sources = []
     for item in retrieval["results"]:
@@ -292,9 +297,6 @@ def build_context(question: str, retrieval: dict) -> str:
             "version_id": source["version_id"], "chunk_index": source["chunk_index"],
             "content": item["content"],
         })
-    # JSON plus escaped markup prevents document text from closing or forging the trust-boundary tags.
-    def boundary_json(value) -> str:
-        return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c").replace(">", "\\u003e")
     return (
         '<user_request_json trust="application_input">\n'
         + boundary_json(question.strip())

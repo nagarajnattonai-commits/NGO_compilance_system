@@ -100,6 +100,7 @@ from .subscription_api import router as subscription_router
 from .phase13_api import router as phase13_router
 from .phase14_api import router as phase14_router
 from .ai_api import router as ai_router
+from .ai_assistant_api import router as ai_assistant_router
 
 
 @asynccontextmanager
@@ -153,6 +154,7 @@ app.include_router(subscription_router)
 app.include_router(phase13_router)
 app.include_router(phase14_router)
 app.include_router(ai_router)
+app.include_router(ai_assistant_router)
 app.add_middleware(DocumentUploadLimit)
 
 
@@ -1248,35 +1250,29 @@ def run_daily_automation(db: DB, tenant_id: Tenant, _: AdminUser):
 
 
 @app.post("/api/v1/assistant/query")
-def assistant_query(payload: AssistantInput, db: DB, tenant_id: Tenant):
-    filters = [Compliance.tenant_id == tenant_id]
-    task_filters = [Task.tenant_id == tenant_id]
-    document_filters = [Document.tenant_id == tenant_id]
-    if payload.organization_id:
-        verify_org(db, tenant_id, payload.organization_id)
-        filters.append(Compliance.organization_id == payload.organization_id)
-        task_filters.append(Task.organization_id == payload.organization_id)
-        document_filters.append(Document.organization_id == payload.organization_id)
-    today = date.today()
-    compliances = list(db.scalars(select(Compliance).where(*filters)).all())
-    question = payload.question.lower()
-    sources: list[dict[str, str]] = []
-    if "document" in question or "expir" in question:
-        rows = [item for item in db.scalars(select(Document).where(*document_filters)).all() if item.expiry_at and item.expiry_at <= today + timedelta(days=90)]
-        sources = [{"type": "document", "id": item.id, "label": item.name} for item in rows[:8]]
-        answer = f"I found {len(rows)} document(s) expiring within 90 days. Review their renewal owners and evidence links."
-    elif "task" in question:
-        rows = list(db.scalars(select(Task).where(*task_filters, Task.status != "DONE").order_by(Task.due_at)).all())
-        sources = [{"type": "task", "id": item.id, "label": item.title} for item in rows[:8]]
-        answer = f"There are {len(rows)} open task(s). The earliest due task is {rows[0].title} on {rows[0].due_at.isoformat()}." if rows else "There are no open tasks in this scope."
-    else:
-        rows = [item for item in compliances if item.status == "OVERDUE" or (is_open(item.status) and item.statutory_deadline < today)]
-        high = [item for item in compliances if is_open(item.status) and item.priority in {"HIGH", "CRITICAL"}]
-        sources = [{"type": "compliance", "id": item.id, "label": f"{item.code} - {item.title}"} for item in (rows or high)[:8]]
-        answer = f"This scope has {len(compliances)} compliance record(s), {len(rows)} overdue and {len(high)} open high-risk item(s). Open the cited records to validate deadlines, evidence and accountable owners."
-    audit(db, tenant_id, "ASSISTANT_QUERIED", "Assistant", tenant_id, "Generated a tenant-grounded operational answer")
-    db.commit()
-    return {"answer": answer, "sources": sources, "disclaimer": "Operational assistance only. Validate statutory requirements with a qualified professional."}
+def assistant_query(payload: AssistantInput, db: DB, tenant_id: Tenant, user: CurrentUser):
+    """Compatibility endpoint backed by the same secured Phase 17 service."""
+    if not payload.organization_id:
+        raise HTTPException(422, "An authorized organization is required")
+    from .ai_assistant_service import ask, create_conversation
+    from .ai_provider import AiProviderError
+    from .ai_service import public_error
+    try:
+        conversation = create_conversation(db, tenant_id, user, payload.organization_id)
+        message = ask(db, tenant_id, user, conversation["id"], payload.question)
+    except AiProviderError as error:
+        raise public_error(error) from None
+    sources = [
+        {"type": row["type"], "id": row["id"], "label": row["label"]}
+        for row in message["structured_sources"]
+    ] + [
+        {"type": row["type"], "id": row["chunk_id"], "label": row["document_name"]}
+        for row in message["document_sources"]
+    ]
+    return {
+        "answer": message["content"], "sources": sources,
+        "disclaimer": "Advisory AI explanation only. Platform records remain authoritative; validate legal requirements with a qualified professional.",
+    }
 
 @app.middleware("http")
 async def authentication_response_headers(request,call_next):

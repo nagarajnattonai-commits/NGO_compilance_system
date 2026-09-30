@@ -355,6 +355,10 @@ html[data-theme="dark"] :is(.operation-groups strong, .operation-module-grid b) 
 html[data-theme="dark"] .operation-module-grid strong { color: #e5efe9; }
 html[data-theme="dark"] .operations-table select { border-color: #355044; color: #9fe0bb; background: #13271d; }
 html[data-theme="dark"] .assistant-prompts { border-color: #294036; background: #0d1813; }
+html[data-theme="dark"] :is(.assistant-message, .assistant-suggestions button, .assistant-message li) { border-color: #294036; background: #13221b; color: #dce8e1; }
+html[data-theme="dark"] .assistant-message.user { background: #173024; }
+html[data-theme="dark"] .assistant-insufficient { background: #332b16; color: #f0d99b !important; }
+html[data-theme="dark"] .assistant-proposal { border-color: #294036; background: #10281d; }
 html[data-theme="dark"] .readonly-banner { color: #f0d99b; background: #332b16; }
 
 @media (max-width: 1050px) {

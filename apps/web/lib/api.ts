@@ -1,5 +1,5 @@
 import { apiRequest } from "./http";
-import type { AssistantAnswer, AuditEvent, Compliance, ComplianceComment, ComplianceDefinition, ComplianceDocument, ComplianceTask, DocumentVersion, EligibleAssignee, IntegrationConnection, LocalizationSettings, Membership, Notification, NotificationPreference, Organization, OrganizationAccess, PortfolioRecord, Subscription, TaskAttachment, TaskComment, TenantLocale, TranslationOverride, UserPreference } from "./types";
+import type { AiConversation, AiMessage, AssistantAnswer, AuditEvent, Compliance, ComplianceComment, ComplianceDefinition, ComplianceDocument, ComplianceTask, DocumentVersion, EligibleAssignee, IntegrationConnection, LocalizationSettings, Membership, Notification, NotificationPreference, Organization, OrganizationAccess, PortfolioRecord, Subscription, TaskAttachment, TaskComment, TenantLocale, TranslationOverride, UserPreference } from "./types";
 
 export type ComplianceCreateInput = Pick<
   Compliance,
@@ -76,6 +76,10 @@ export const deletePortfolioRecord = (id: string) => apiRequest<void>(`/portfoli
 export const patchIntegration = (id: string, status: IntegrationConnection["status"]) => apiRequest<IntegrationConnection>(`/integrations/${id}`, "PATCH", { status });
 export const runAutomation = () => apiRequest<{ run_date: string; overdue_compliances: number; overdue_tasks: number; upcoming: number; expiring_documents: number; recurring_created: number }>("/automation/run", "POST");
 export const askAssistant = (question: string, organization_id?: string) => apiRequest<AssistantAnswer>("/assistant/query", "POST", { question, organization_id });
+export const loadAiConversations = (organizationId: string) => apiRequest<AiConversation[]>(`/ai/conversations?organization_id=${encodeURIComponent(organizationId)}`);
+export const createAiConversation = (organizationId: string) => apiRequest<AiConversation>("/ai/conversations", "POST", { organization_id: organizationId });
+export const loadAiConversation = (id: string) => apiRequest<AiConversation>(`/ai/conversations/${id}`);
+export const sendAiMessage = (id: string, question: string) => apiRequest<AiMessage>(`/ai/conversations/${id}/messages`, "POST", { question });
 export const loadComplianceComments = (complianceId: string) => apiRequest<ComplianceComment[]>(`/compliances/${complianceId}/comments`);
 export const addComplianceComment = (complianceId: string, body: string, kind: ComplianceComment["kind"]) => apiRequest<ComplianceComment>(`/compliances/${complianceId}/comments`, "POST", { body, kind });
 export const loadLocalizationSettings = () => apiRequest<LocalizationSettings>("/localization/settings");

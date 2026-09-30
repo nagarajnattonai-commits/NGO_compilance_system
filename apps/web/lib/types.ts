@@ -191,6 +191,49 @@ export type AssistantAnswer = {
   disclaimer: string;
 };
 
+export type AiStructuredSource = {
+  type: string;
+  id: string;
+  label: string;
+  facts: Record<string, unknown>;
+};
+
+export type AiDocumentSource = {
+  type: string;
+  document_id: string;
+  document_name: string;
+  version_id: string;
+  version: number;
+  organization_id: string;
+  compliance_id: string | null;
+  chunk_index: number;
+  chunk_id: string;
+};
+
+export type AiMessage = {
+  id: string;
+  conversation_id: string;
+  role: "USER" | "ASSISTANT";
+  content: string;
+  structured_sources: AiStructuredSource[];
+  document_sources: AiDocumentSource[];
+  proposed_actions: { type: "PROPOSED_ACTION"; description: string; executable: false }[];
+  insufficient_evidence: boolean;
+  provider: string;
+  model: string;
+  created_at: string;
+};
+
+export type AiConversation = {
+  id: string;
+  organization_id: string;
+  title: string;
+  status: "ACTIVE";
+  created_at: string;
+  updated_at: string;
+  messages?: AiMessage[];
+};
+
 export type ComplianceComment = {
   id: string;
   compliance_id: string;
