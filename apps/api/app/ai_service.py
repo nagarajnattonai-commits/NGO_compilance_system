@@ -10,7 +10,7 @@ from sqlalchemy import delete, or_, select
 
 from .ai_extraction import deterministic_chunks, extract_text
 from .ai_models import AiProviderConfiguration, DocumentChunk, DocumentExtraction
-from .ai_provider import AiProviderError, PUBLIC_ERRORS, configured_provider, safe_provider_call
+from .ai_provider import AiProviderError, PUBLIC_ERRORS, _configured_integrations, configured_provider, safe_provider_call
 from .ai_vector import cosine, decode_vector, encode_vector, vector_backend
 from .document_models import DocumentBlob, DocumentCurrent, DocumentEvidenceLink
 from .document_storage import DocumentStorage
@@ -324,6 +324,10 @@ def advisory_answer(db, tenant_id: str, user, question: str, top_k: int = 5,
 def status(db, tenant_id: str, user) -> dict:
     if getattr(user, "_admin_audience", False):
         raise HTTPException(403, "Workspace AI is not available to platform administrator sessions")
+    production = sorted(
+        _configured_integrations(db, tenant_id, "AI"),
+        key=lambda item: (item[0].tenant_id != tenant_id, item[1].created_at),
+    )
     row = db.scalar(select(AiProviderConfiguration).where(AiProviderConfiguration.tenant_id == tenant_id))
     entitled = can_use_feature(db, tenant_id, AI_FEATURE)
     backend = "portable_exact"
@@ -331,10 +335,26 @@ def status(db, tenant_id: str, user) -> dict:
         backend = vector_backend()
     except AiProviderError:
         backend = "unavailable"
+    if production:
+        connection, settings = production[0]
+        configuration = json.loads(settings.configuration)
+        provider = connection.provider
+        generation_model = configuration.get("generation_model", "")
+        embedding_model = configuration.get("embedding_model", "")
+        timeout_seconds = configuration.get("timeout_seconds")
+        configured = True
+        enabled = connection.status != "DISABLED"
+    else:
+        provider = row.provider if row else ""
+        generation_model = row.generation_model if row else ""
+        embedding_model = row.embedding_model if row else ""
+        timeout_seconds = row.timeout_seconds if row else None
+        configured = bool(row)
+        enabled = bool(row and row.enabled)
     return {
-        "entitled": entitled, "configured": bool(row), "enabled": bool(row and row.enabled),
-        "provider": row.provider if row else "", "generation_model": row.generation_model if row else "",
-        "embedding_model": row.embedding_model if row else "", "timeout_seconds": row.timeout_seconds if row else None,
+        "entitled": entitled, "configured": configured, "enabled": enabled,
+        "provider": provider, "generation_model": generation_model,
+        "embedding_model": embedding_model, "timeout_seconds": timeout_seconds,
         "vector_backend": backend, "credentials_exposed": False,
     }
 

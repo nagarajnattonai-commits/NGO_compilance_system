@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 
 from .ai_extraction import extract_text_with_ocr_fallback
 from .ai_models import DocumentExtraction
-from .ai_provider import AiProviderError
+from .ai_provider import AiProviderError, configured_ocr_provider
 from .ai_service import _content, _extraction, _owned_version
 from .automation_service import queue_job
 from .document_intelligence_models import DocumentIntelligenceRun, ExtractedDocumentFact
@@ -187,7 +187,7 @@ def _candidates(text: str, category: str) -> list[tuple[str, str, float, str, st
     return candidates[:20]
 
 
-def process_run(db, run_id: str) -> dict:
+def process_run(db, run_id: str, *, retry_attempt: int | None = None, max_attempts: int | None = None) -> dict:
     run = db.get(DocumentIntelligenceRun, run_id)
     if not run:
         raise ValueError("Document intelligence run not found")
@@ -203,7 +203,11 @@ def process_run(db, run_id: str) -> dict:
         if blob.checksum != run.source_checksum:
             raise ValueError("Immutable source checksum changed")
         content = _content(db, run.tenant_id, blob)
-        text, extractor, used_ocr = extract_text_with_ocr_fallback(content, blob.mime_type)
+        text, extractor, used_ocr = extract_text_with_ocr_fallback(
+            content,
+            blob.mime_type,
+            lambda: configured_ocr_provider(db, run.tenant_id),
+        )
         extraction = _extraction(db, blob)
         extraction.normalized_text = text
         extraction.text_checksum = hashlib.sha256(text.encode()).hexdigest()
@@ -246,16 +250,22 @@ def process_run(db, run_id: str) -> dict:
                f"Extraction completed with {extractor}; OCR used: {used_ocr}; classification: {category}")
         return {"run_id": run.id, "status": run.status, "ocr_used": used_ocr}
     except AiProviderError as error:
-        run.status = "FAILED"
+        retryable = error.code in {"RATE_LIMITED", "PROVIDER_UNAVAILABLE", "TIMEOUT"}
+        will_retry = retryable and retry_attempt is not None and max_attempts is not None and retry_attempt < max_attempts
+        run.status = "RETRYING" if will_retry else "FAILED"
         run.error_code = error.code
-        run.completed_at = run.updated_at = utcnow()
+        run.completed_at = None if will_retry else utcnow()
+        run.updated_at = utcnow()
         extraction = db.get(DocumentExtraction, run.version_id)
         if extraction:
-            extraction.status = "FAILED"
+            extraction.status = "RETRYING" if will_retry else "FAILED"
             extraction.error_code = error.code
             extraction.updated_at = utcnow()
         _audit(db, run.tenant_id, user.name, "DOCUMENT_INTELLIGENCE_FAILED", run.id,
                f"Document intelligence failed with safe error {error.code}")
+        if will_retry:
+            db.commit()
+            raise
         return {"run_id": run.id, "status": run.status, "error_code": error.code}
 
 
@@ -267,7 +277,7 @@ def process_job(db, job, _today) -> dict:
     ))
     if not run or run.id != job.entity_id:
         raise ValueError("Invalid document intelligence job context")
-    return process_run(db, run.id)
+    return process_run(db, run.id, retry_attempt=job.attempt_count, max_attempts=job.max_attempts)
 
 
 def fact_data(fact: ExtractedDocumentFact, db=None) -> dict:

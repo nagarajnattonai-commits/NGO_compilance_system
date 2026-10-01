@@ -18,6 +18,9 @@ ERROR_MESSAGES = {
     "PROVIDER_UNAVAILABLE": "The provider is unavailable. Please try again later.",
     "TIMEOUT": "The provider did not respond in time.",
     "INVALID_CONFIGURATION": "Check the provider configuration.",
+    "UNSUPPORTED_MODEL": "The configured provider model is not supported.",
+    "MALFORMED_REQUEST": "The provider rejected the bounded request configuration.",
+    "PROVIDER_DISABLED": "The configured provider is disabled.",
     "PERMISSION_DENIED": "This integration is not available to this account.",
     "SECRET_STORE_UNAVAILABLE": "The server secret store is unavailable or read-only.",
 }
@@ -148,8 +151,8 @@ def validate_url(url: str, resolve=True):
         raise IntegrationError("INVALID_CONFIGURATION") from None
 
 class PinnedHTTPSConnection(http.client.HTTPSConnection):
-    def __init__(self, hostname, address):
-        super().__init__(hostname, timeout=10, context=ssl.create_default_context())
+    def __init__(self, hostname, address, timeout=10):
+        super().__init__(hostname, timeout=timeout, context=ssl.create_default_context())
         self.address = address
     def connect(self):
         sock = socket.create_connection((self.address,443),timeout=self.timeout)
@@ -177,13 +180,44 @@ def safe_http(url, method="GET", headers=None, body=None):
     finally:
         connection.close()
 
+def safe_json_http(url, *, body, headers=None, timeout_seconds=30, max_response_bytes=1_000_000):
+    """DNS-pinned JSON transport with no redirects and bounded response data."""
+    host,path,addresses = validate_url(url)
+    timeout_seconds=max(1,min(int(timeout_seconds),120))
+    max_response_bytes=max(1024,min(int(max_response_bytes),2_000_000))
+    connection = PinnedHTTPSConnection(host, addresses[0], timeout=timeout_seconds)
+    try:
+        request_headers={"Content-Type":"application/json","Accept":"application/json",**(headers or {})}
+        connection.request("POST",path,body=json.dumps(body,separators=(",",":"),ensure_ascii=False).encode(),headers=request_headers)
+        response=connection.getresponse()
+        if 300 <= response.status < 400:
+            raise IntegrationError("INVALID_CONFIGURATION")
+        raw=response.read(max_response_bytes+1)
+        if len(raw)>max_response_bytes:
+            raise IntegrationError("PROVIDER_UNAVAILABLE")
+        retry=response.getheader("Retry-After","60")
+        retry=int(retry) if retry.isdigit() else 60
+        try:
+            value=json.loads(raw.decode("utf-8")) if raw else {}
+        except (UnicodeDecodeError,json.JSONDecodeError):
+            value={}
+        return response.status,min(retry,3600),value
+    except IntegrationError:
+        raise
+    except (TimeoutError,socket.timeout):
+        raise IntegrationError("TIMEOUT") from None
+    except (OSError,http.client.HTTPException):
+        raise IntegrationError("PROVIDER_UNAVAILABLE") from None
+    finally:
+        connection.close()
+
 def require_success(status, retry_after=60):
     if status in (401,403):
         raise IntegrationError("AUTHENTICATION_FAILED")
     if status == 429:
         raise IntegrationError("RATE_LIMITED", retry_after)
     if not 200 <= status < 300:
-        raise IntegrationError("PROVIDER_UNAVAILABLE" if status >=500 else "INVALID_CONFIGURATION")
+        raise IntegrationError("PROVIDER_UNAVAILABLE" if status >=500 else "MALFORMED_REQUEST")
 
 def public_error(error):
     raise HTTPException(503, ERROR_MESSAGES[error.code]) from None

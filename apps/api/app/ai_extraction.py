@@ -5,7 +5,7 @@ import io
 import re
 import unicodedata
 import zipfile
-from typing import Protocol
+from typing import Callable, Protocol
 from xml.etree import ElementTree
 
 from .ai_provider import AiProviderError
@@ -31,13 +31,19 @@ def ocr_configured() -> bool:
     return _ocr is not None
 
 
-def _ocr_text(content: bytes, mime_type: str) -> tuple[str, str]:
+def _ocr_text(
+    content: bytes,
+    mime_type: str,
+    ocr_provider: OcrProvider | Callable[[], OcrProvider | None] | None = None,
+) -> tuple[str, str]:
     if len(content) > MAX_OCR_BYTES:
         raise AiProviderError("OCR_PAYLOAD_TOO_LARGE")
-    if not _ocr:
+    resolved = ocr_provider() if callable(ocr_provider) else ocr_provider
+    selected = resolved or _ocr
+    if not selected:
         raise AiProviderError("OCR_UNAVAILABLE")
     try:
-        value = normalize_text(_ocr.extract(content, mime_type))
+        value = normalize_text(selected.extract(content, mime_type))
     except AiProviderError:
         raise
     except Exception:
@@ -70,7 +76,11 @@ def _office_xml(content: bytes, mime_type: str) -> tuple[str, str]:
         raise AiProviderError("EXTRACTION_FAILED") from None
 
 
-def extract_text(content: bytes, mime_type: str) -> tuple[str, str]:
+def extract_text(
+    content: bytes,
+    mime_type: str,
+    ocr_provider: OcrProvider | Callable[[], OcrProvider | None] | None = None,
+) -> tuple[str, str]:
     if mime_type == "application/pdf":
         try:
             from pypdf import PdfReader
@@ -89,15 +99,19 @@ def extract_text(content: bytes, mime_type: str) -> tuple[str, str]:
         value, extractor = _office_xml(content, mime_type)
         return normalize_text(value), extractor
     if mime_type.startswith("image/"):
-        return _ocr_text(content, mime_type)
+        return _ocr_text(content, mime_type, ocr_provider)
     raise AiProviderError("EXTRACTION_UNSUPPORTED")
 
 
-def extract_text_with_ocr_fallback(content: bytes, mime_type: str) -> tuple[str, str, bool]:
+def extract_text_with_ocr_fallback(
+    content: bytes,
+    mime_type: str,
+    ocr_provider: OcrProvider | Callable[[], OcrProvider | None] | None = None,
+) -> tuple[str, str, bool]:
     """Reuse normal extraction and invoke OCR only for images or text-poor PDFs."""
-    text, extractor = extract_text(content, mime_type)
+    text, extractor = extract_text(content, mime_type, ocr_provider)
     if mime_type == "application/pdf" and len(re.sub(r"\s+", "", text)) < MIN_READABLE_CHARACTERS:
-        text, extractor = _ocr_text(content, mime_type)
+        text, extractor = _ocr_text(content, mime_type, ocr_provider)
         return text, extractor, True
     return text, extractor, extractor.startswith("ocr-")
 

@@ -60,7 +60,9 @@
       "smtp": "SMTP Email",
       "meta_whatsapp": "WhatsApp Business",
       "google_calendar": "Google Calendar",
-      "aws_s3": "Amazon S3"
+      "aws_s3": "Amazon S3",
+      "openai_compatible": "OpenAI-compatible AI",
+      "openai_responses_ocr": "OpenAI document OCR"
     },
     "fields": {
       "host": "SMTP host",
@@ -73,7 +75,17 @@
       "calendar_id": "Calendar ID",
       "bucket": "Bucket",
       "region": "Region",
-      "prefix": "Object prefix"
+      "prefix": "Object prefix",
+      "endpoint": "Provider API endpoint",
+      "generation_model": "Generation model",
+      "embedding_model": "Embedding model",
+      "embedding_dimensions": "Embedding dimensions",
+      "timeout_seconds": "Request timeout (seconds)",
+      "max_output_tokens": "Maximum output tokens",
+      "max_batch_size": "Maximum embedding batch",
+      "model": "OCR model",
+      "max_pages": "Maximum PDF pages",
+      "max_output_characters": "Maximum OCR characters"
     },
     "categories": {
       "EMAIL": "Email",
@@ -127,7 +139,10 @@
       "TIMEOUT": "The provider did not respond in time.",
       "INVALID_CONFIGURATION": "Check the provider configuration.",
       "PERMISSION_DENIED": "You do not have access to this capability.",
-      "SECRET_STORE_UNAVAILABLE": "The secret store is unavailable or read-only."
+      "SECRET_STORE_UNAVAILABLE": "The secret store is unavailable or read-only.",
+      "UNSUPPORTED_MODEL": "The configured model is not supported.",
+      "MALFORMED_REQUEST": "The provider rejected the bounded request configuration.",
+      "PROVIDER_DISABLED": "The configured provider is disabled."
     },
     "entitlements": {
       "custom_email": "Custom email",
@@ -135,7 +150,9 @@
       "whatsapp_integration": "WhatsApp integration",
       "google_calendar_integration": "Google Calendar integration",
       "custom_webhooks": "Custom webhooks",
-      "public_api": "Public API"
+      "public_api": "Public API",
+      "ai_rag": "Secure AI and retrieval",
+      "document_intelligence": "Document intelligence and OCR"
     },
     "retry": "Retry",
     "loading": "Loading…",
@@ -213,6 +230,9 @@
       "email_send": "Send email"
       ,"calendar_sync": "Synchronize calendar event"
       ,"calendar_test": "Test calendar connection"
+      ,"ai_generation": "AI generation"
+      ,"ai_embedding": "AI embedding"
+      ,"ocr_extraction": "OCR extraction"
     },
     "healthRecorded": "Recorded health from explicit connection tests. Pages do not call external providers automatically.",
     "metricsToday": "Operations in the last 24 hours",

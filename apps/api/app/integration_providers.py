@@ -33,6 +33,23 @@ class S3Configuration(Configuration):
     region: str = Field(pattern=r"^[a-z]{2}(?:-[a-z]+){1,3}-[0-9]$")
     prefix: str = Field(default="",max_length=200,pattern=r"^[A-Za-z0-9/_-]*$")
 
+class OpenAIConfiguration(Configuration):
+    endpoint: str = Field(default="https://api.openai.com/v1",min_length=12,max_length=500)
+    generation_model: str = Field(default="gpt-4.1-mini",pattern=r"^[A-Za-z0-9._:-]{1,120}$")
+    embedding_model: str = Field(default="text-embedding-3-small",pattern=r"^[A-Za-z0-9._:-]{1,120}$")
+    embedding_dimensions: int = Field(default=1536,ge=64,le=8192)
+    timeout_seconds: int = Field(default=30,ge=5,le=120)
+    max_output_tokens: int = Field(default=800,ge=64,le=4096)
+    max_batch_size: int = Field(default=32,ge=1,le=64)
+
+class OpenAIOcrConfiguration(Configuration):
+    endpoint: str = Field(default="https://api.openai.com/v1",min_length=12,max_length=500)
+    model: str = Field(default="gpt-4.1-mini",pattern=r"^[A-Za-z0-9._:-]{1,120}$")
+    timeout_seconds: int = Field(default=45,ge=5,le=120)
+    max_pages: int = Field(default=50,ge=1,le=100)
+    max_output_tokens: int = Field(default=4096,ge=256,le=16384)
+    max_output_characters: int = Field(default=500000,ge=1000,le=500000)
+
 class Provider(Protocol):
     def test_connection(self) -> None: ...
     def get_health(self) -> str: ...
@@ -181,6 +198,8 @@ class S3Adapter(BaseAdapter):
     def head(self,key):
         return self._run("head_object",Key=self._key(key))
 
+from .production_ai_adapters import OpenAICompatibleAdapter, OpenAIResponsesOcrAdapter
+
 
 @dataclass(frozen=True)
 class ProviderDefinition:
@@ -199,6 +218,8 @@ REGISTRY = {
         ProviderDefinition("meta_whatsapp","WHATSAPP",True,"whatsapp_integration",("whatsapp.send",),WhatsAppConfiguration,WhatsAppAdapter),
         ProviderDefinition("google_calendar","CALENDAR",True,"google_calendar_integration",("calendar.events",),CalendarConfiguration,GoogleCalendarAdapter),
         ProviderDefinition("aws_s3","STORAGE",True,"custom_storage",("storage.objects",),S3Configuration,S3Adapter),
+        ProviderDefinition("openai_compatible","AI",True,"ai_rag",("ai.generate","ai.embed"),OpenAIConfiguration,OpenAICompatibleAdapter),
+        ProviderDefinition("openai_responses_ocr","OCR",True,"document_intelligence",("ocr.extract",),OpenAIOcrConfiguration,OpenAIResponsesOcrAdapter),
     )
 }
 CATEGORIES = ("EMAIL","WHATSAPP","CALENDAR","STORAGE","AI","OCR","TRANSLATION","PAYMENT","ANALYTICS","OTHER")

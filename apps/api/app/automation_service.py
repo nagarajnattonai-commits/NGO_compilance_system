@@ -368,6 +368,9 @@ def execute_job(db, job: ScheduledJob, today: date | None = None) -> dict:
 
 
 def error_code(error: Exception) -> tuple[str, bool]:
+    from .ai_provider import AiProviderError
+    if isinstance(error, AiProviderError):
+        return error.code, error.code in RETRYABLE_CODES
     if isinstance(error, IntegrationError):
         return error.code, error.code in RETRYABLE_CODES
     if isinstance(error, OperationalError):
