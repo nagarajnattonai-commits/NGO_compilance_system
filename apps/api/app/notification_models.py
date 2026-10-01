@@ -43,6 +43,7 @@ class NotificationDelivery(Base):
     __table_args__ = (
         UniqueConstraint("notification_id", "user_id", "channel", name="uq_notification_delivery_channel"),
         Index("ix_notification_delivery_status", "tenant_id", "status", "created_at"),
+        Index("ix_notification_deliveries_provider_identity", "provider_connection_id", "provider_message_id"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
@@ -60,6 +61,9 @@ class NotificationDelivery(Base):
     status: Mapped[str] = mapped_column(String(20), default="PENDING", index=True)
     attempt_count: Mapped[int] = mapped_column(default=0)
     provider_message_id: Mapped[str] = mapped_column(String(200), default="")
+    provider_key: Mapped[str] = mapped_column(String(80), default="")
+    provider_connection_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    provider_status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error_code: Mapped[str] = mapped_column(String(80), default="")
     queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

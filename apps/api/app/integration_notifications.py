@@ -13,7 +13,7 @@ def email_available(db):
         .join(ConnectionSettings,ConnectionSettings.connection_id==IntegrationConnection.id)
         .where(IntegrationConnection.category=="EMAIL",IntegrationConnection.status=="CONNECTED").limit(1)))
 
-def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",reply_to="",organization_id=None):
+def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",reply_to="",organization_id=None,idempotency_key=""):
     connection=None
     try:
         connection,state,adapter=resolve_integration(db,tenant_id,"EMAIL","email.send",organization_id=organization_id)
@@ -28,21 +28,24 @@ def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",r
             "username":os.getenv("SMTP_USER",""),"from_address":os.environ["SMTP_FROM"]},os.getenv("SMTP_PASSWORD",""))
     started=time.perf_counter()
     try:
-        adapter.send_email(recipient,subject,text,html,sender_name,reply_to)
+        message_id=adapter.send_email(recipient,subject,text,html,sender_name,reply_to,idempotency_key)
     except IntegrationError as error:
         if connection:log_operation(db,connection,"email.send","FAILED",(time.perf_counter()-started)*1000,error.code)
         raise
     if connection:log_operation(db,connection,"email.send","SUCCESS",(time.perf_counter()-started)*1000)
+    return {"provider_message_id":message_id or "","provider_key":connection.provider if connection else "legacy_smtp",
+            "connection_id":connection.id if connection else None}
 
-def deliver_whatsapp(db,tenant_id,recipient,text,template="",locale="en-IN",organization_id=None):
+def deliver_whatsapp(db,tenant_id,recipient,text,template="",locale="en-IN",organization_id=None,idempotency_key=""):
     connection,state,adapter=resolve_integration(db,tenant_id,"WHATSAPP","whatsapp.send",organization_id=organization_id)
     started=time.perf_counter()
     try:
         if template:
-            adapter.send_template(recipient,template,locale.replace("-","_"))
+            message_id=adapter.send_template(recipient,template,locale.replace("-","_"),idempotency_key=idempotency_key)
         else:
-            adapter.send_message(recipient,text)
+            message_id=adapter.send_message(recipient,text,idempotency_key=idempotency_key)
     except IntegrationError as error:
         log_operation(db,connection,"whatsapp.send","FAILED",(time.perf_counter()-started)*1000,error.code)
         raise
     log_operation(db,connection,"whatsapp.send","SUCCESS",(time.perf_counter()-started)*1000)
+    return {"provider_message_id":message_id,"provider_key":connection.provider,"connection_id":connection.id}

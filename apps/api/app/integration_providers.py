@@ -6,7 +6,7 @@ import smtplib
 import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
-from typing import Protocol
+from typing import Literal, Protocol
 from urllib.parse import quote
 from pydantic import BaseModel, ConfigDict, Field
 from .integration_security import IntegrationError, safe_http, require_success
@@ -16,14 +16,22 @@ class Configuration(BaseModel):
 
 class SMTPConfiguration(Configuration):
     host: str = Field(pattern=r"^[a-zA-Z0-9.-]{1,253}$")
-    port: int = Field(default=465, ge=465, le=465)
-    username: str = Field(min_length=1,max_length=200)
+    port: int = Field(default=465, ge=1, le=65535)
+    security: Literal["SSL", "STARTTLS"] = "SSL"
+    timeout_seconds: int = Field(default=15, ge=5, le=60)
+    username: str = Field(default="",max_length=200)
     from_address: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$",max_length=200)
+    sender_name: str = Field(default="",max_length=120)
+    reply_to: str = Field(default="",max_length=200,pattern=r"^$|^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 class WhatsAppConfiguration(Configuration):
     phone_number_id: str = Field(pattern=r"^[0-9]{1,40}$")
     business_account_id: str = Field(pattern=r"^[0-9]{1,40}$")
     api_version: str = Field(pattern=r"^v[0-9]{1,2}\.0$")
+    default_language: str = Field(default="en_US",pattern=r"^[a-z]{2}(?:_[A-Z]{2})?$")
+    template_namespace: str = Field(default="",max_length=120,pattern=r"^[A-Za-z0-9_.-]*$")
+    allow_freeform_text: bool = False
+    timeout_seconds: int = Field(default=20,ge=5,le=60)
 
 class CalendarConfiguration(Configuration):
     calendar_id: str = Field(min_length=1,max_length=200)
@@ -55,10 +63,10 @@ class Provider(Protocol):
     def get_health(self) -> str: ...
 
 class EmailProvider(Provider, Protocol):
-    def send_email(self,recipient,subject,text,html=None,sender_name="",reply_to=""): ...
+    def send_email(self,recipient,subject,text,html=None,sender_name="",reply_to="",idempotency_key=""): ...
 class WhatsAppProvider(Provider, Protocol):
-    def send_message(self,recipient,text): ...
-    def send_template(self,recipient,template,language,components=None): ...
+    def send_message(self,recipient,text,idempotency_key=""): ...
+    def send_template(self,recipient,template,language="",components=None,idempotency_key=""): ...
 class CalendarProvider(Provider, Protocol):
     def create_event(self,event_id,payload): ...
     def update_event(self,event_id,payload): ...
@@ -82,7 +90,19 @@ class SMTPAdapter(BaseAdapter):
         if os.getenv("SMTP_HOST"):approved.add(os.environ["SMTP_HOST"].lower())
         if self.config["host"].lower() not in approved:
             raise IntegrationError("INVALID_CONFIGURATION")
-        return smtplib.SMTP_SSL(self.config["host"],self.config.get("port",465),timeout=10,context=ssl.create_default_context())
+        timeout=self.config.get("timeout_seconds",15)
+        if self.config.get("security","SSL")=="SSL":
+            return smtplib.SMTP_SSL(self.config["host"],self.config.get("port",465),timeout=timeout,context=ssl.create_default_context())
+        client=None
+        try:
+            client=smtplib.SMTP(self.config["host"],self.config.get("port",587),timeout=timeout)
+            client.ehlo();client.starttls(context=ssl.create_default_context());client.ehlo()
+            return client
+        except Exception:
+            try:
+                if client:client.close()
+            except Exception:pass
+            raise
     def test_connection(self):
         try:
             with self._client() as client:
@@ -90,24 +110,35 @@ class SMTPAdapter(BaseAdapter):
                 code,_ = client.noop()
                 if code != 250:
                     raise IntegrationError("PROVIDER_UNAVAILABLE")
+        except (TimeoutError, smtplib.SMTPServerDisconnected):
+            raise IntegrationError("TIMEOUT") from None
         except smtplib.SMTPAuthenticationError:
             raise IntegrationError("AUTHENTICATION_FAILED") from None
         except (OSError,smtplib.SMTPException):
             raise IntegrationError("PROVIDER_UNAVAILABLE") from None
-    def send_email(self, recipient, subject, text, html=None, sender_name="", reply_to=""):
+    def send_email(self, recipient, subject, text, html=None, sender_name="", reply_to="", idempotency_key=""):
         from email.utils import formataddr
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+",recipient) or len(subject)>240 or len(text)>200000:
+            raise IntegrationError("INVALID_RECIPIENT")
         message = EmailMessage()
-        message["From"] = formataddr((sender_name,self.config["from_address"]))
+        message["From"] = formataddr((sender_name or self.config.get("sender_name",""),self.config["from_address"]))
         message["To"],message["Subject"] = recipient,subject
-        if reply_to:
-            message["Reply-To"] = reply_to
+        reply_to=reply_to or self.config.get("reply_to","")
+        if reply_to:message["Reply-To"] = reply_to
+        if idempotency_key:
+            domain=self.config["from_address"].rsplit("@",1)[1]
+            message["Message-ID"]=f"<setu-{idempotency_key.replace('-', '')}@{domain}>"
         message.set_content(text)
         if html:
             message.add_alternative(html,subtype="html")
         try:
             with self._client() as client:
                 if self.config["username"]:client.login(self.config["username"],self.secret)
-                client.send_message(message)
+                refused=client.send_message(message)
+                if refused:raise IntegrationError("INVALID_RECIPIENT")
+            return message.get("Message-ID","")
+        except (TimeoutError, smtplib.SMTPServerDisconnected):
+            raise IntegrationError("TIMEOUT") from None
         except smtplib.SMTPAuthenticationError:
             raise IntegrationError("AUTHENTICATION_FAILED") from None
         except (OSError,smtplib.SMTPException):
@@ -116,15 +147,36 @@ class SMTPAdapter(BaseAdapter):
 class WhatsAppAdapter(BaseAdapter):
     def _url(self):
         return "https://graph.facebook.com/" + self.config["api_version"] + "/" + self.config["phone_number_id"]
+    def _credentials(self):
+        try:
+            value=json.loads(self.secret)
+            if isinstance(value,dict) and value.get("access_token"):return value
+        except (TypeError,ValueError,json.JSONDecodeError):pass
+        return {"access_token":self.secret}
+    def _recipient(self,recipient):
+        value=re.sub(r"[ +()-]","",recipient)
+        if not re.fullmatch(r"[1-9][0-9]{7,14}",value):raise IntegrationError("INVALID_RECIPIENT")
+        return value
+    def _post(self,payload):
+        from .integration_security import safe_json_http
+        status,retry,data=safe_json_http(self._url()+"/messages",body=payload,
+            headers={"Authorization":"Bearer "+self._credentials()["access_token"]},timeout_seconds=self.config.get("timeout_seconds",20))
+        require_success(status,retry)
+        try:return str(data["messages"][0]["id"])
+        except (KeyError,IndexError,TypeError):raise IntegrationError("PROVIDER_UNAVAILABLE") from None
     def test_connection(self):
-        require_success(*safe_http(self._url(),headers={"Authorization":"Bearer "+self.secret}))
-    def send_template(self, recipient, template, language, components=None):
+        require_success(*safe_http(self._url(),headers={"Authorization":"Bearer "+self._credentials()["access_token"]}))
+    def send_template(self, recipient, template, language="", components=None, idempotency_key=""):
+        if not re.fullmatch(r"[A-Za-z0-9_]{1,120}",template):raise IntegrationError("INVALID_TEMPLATE")
+        components=components or []
+        if len(components)>10 or len(json.dumps(components,separators=(",",":")))>8000:raise IntegrationError("INVALID_TEMPLATE")
         payload = {"messaging_product":"whatsapp","to":recipient,"type":"template",
-                   "template":{"name":template,"language":{"code":language},"components":components or []}}
-        require_success(*safe_http(self._url()+"/messages","POST",{"Authorization":"Bearer "+self.secret,"Content-Type":"application/json"},json.dumps(payload).encode()))
-    def send_message(self, recipient, text):
-        payload={"messaging_product":"whatsapp","to":recipient,"type":"text","text":{"body":text}}
-        require_success(*safe_http(self._url()+"/messages","POST",{"Authorization":"Bearer "+self.secret,"Content-Type":"application/json"},json.dumps(payload).encode()))
+                   "template":{"name":template,"language":{"code":language or self.config.get("default_language","en_US")},"components":components}}
+        payload["to"]=self._recipient(recipient)
+        return self._post(payload)
+    def send_message(self, recipient, text, idempotency_key=""):
+        if not self.config.get("allow_freeform_text",False) or not text or len(text)>4096:raise IntegrationError("INVALID_TEMPLATE")
+        return self._post({"messaging_product":"whatsapp","to":self._recipient(recipient),"type":"text","text":{"body":text,"preview_url":False}})
 
 class GoogleCalendarAdapter(BaseAdapter):
     def _token(self):

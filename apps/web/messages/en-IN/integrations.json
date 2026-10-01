@@ -47,6 +47,7 @@
       "credentials": "Credentials",
       "webhooks": "Webhooks",
       "logs": "API Logs",
+      "deliveries": "Delivery Operations",
       "health": "Health",
       "tenants": "Tenant access",
       "audit": "Audit Logs",
@@ -69,9 +70,15 @@
       "port": "Port",
       "username": "Username",
       "from_address": "Verified sender email",
+      "security": "Secure transport",
+      "sender_name": "Sender name",
+      "reply_to": "Reply-to address",
       "phone_number_id": "Phone number ID",
       "business_account_id": "Business account ID",
       "api_version": "Provider API version",
+      "default_language": "Default template language",
+      "template_namespace": "Template namespace",
+      "allow_freeform_text": "Allow supported free-form messages",
       "calendar_id": "Calendar ID",
       "bucket": "Bucket",
       "region": "Region",
@@ -125,7 +132,10 @@
       "PROCESSING": "Processing",
       "SUCCESS": "Success",
       "FAILED": "Failed",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "SENT": "Sent/accepted",
+      "DELIVERED": "Delivered",
+      "READ": "Read"
     },
     "environments": {
       "SANDBOX": "Sandbox",
@@ -142,7 +152,10 @@
       "SECRET_STORE_UNAVAILABLE": "The secret store is unavailable or read-only.",
       "UNSUPPORTED_MODEL": "The configured model is not supported.",
       "MALFORMED_REQUEST": "The provider rejected the bounded request configuration.",
-      "PROVIDER_DISABLED": "The configured provider is disabled."
+      "PROVIDER_DISABLED": "The configured provider is disabled.",
+      "INVALID_RECIPIENT": "The recipient address is invalid.",
+      "INVALID_TEMPLATE": "The approved provider template is invalid or unavailable.",
+      "PROVIDER_REJECTED": "The provider permanently rejected the delivery."
     },
     "entitlements": {
       "custom_email": "Custom email",
@@ -224,6 +237,14 @@
     "lastAttempt": "Last attempt",
     "retryDelivery": "Retry delivery",
     "requestsToday": "API requests today",
+    "channel": "Channel",
+    "event": "Event",
+    "recipient": "Recipient",
+    "actions": "Actions",
+    "nextRetry": "Next retry",
+    "none": "None",
+    "emptyDeliveries": "No communication deliveries match this workspace.",
+    "retryQueued": "Delivery retry queued",
     "operations": {
       "test_connection": "Test connection",
       "webhook_delivery": "Webhook delivery",
@@ -233,6 +254,7 @@
       ,"ai_generation": "AI generation"
       ,"ai_embedding": "AI embedding"
       ,"ocr_extraction": "OCR extraction"
+      ,"whatsapp_callback": "WhatsApp delivery callback"
     },
     "healthRecorded": "Recorded health from explicit connection tests. Pages do not call external providers automatically.",
     "metricsToday": "Operations in the last 24 hours",

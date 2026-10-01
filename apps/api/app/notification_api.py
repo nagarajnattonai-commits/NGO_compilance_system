@@ -9,6 +9,9 @@ from sqlalchemy import select
 
 from .auth import AdminUser, CurrentUser, DB, check_mutation, tenant_context
 from .models import AuditEvent, utcnow
+from .automation_models import ScheduledJob
+from .automation_service import retry_job
+from .notification_models import NotificationContext
 from .notification_models import NotificationDelivery, UserNotificationPreference, WorkspaceNotificationPolicy
 from .notification_service import preference_for
 
@@ -38,7 +41,7 @@ class PolicyInput(BaseModel):
     mandatory_channels: list[Literal["IN_APP", "EMAIL", "WHATSAPP"]]
 
 
-def delivery_output(row: NotificationDelivery, *, admin: bool = False) -> dict:
+def delivery_output(row: NotificationDelivery, *, admin: bool = False, job=None, context=None) -> dict:
     address = row.recipient_address
     if admin and address:
         if "@" in address:
@@ -50,6 +53,8 @@ def delivery_output(row: NotificationDelivery, *, admin: bool = False) -> dict:
         "id": row.id, "notification_id": row.notification_id, "user_id": row.user_id,
         "channel": row.channel, "recipient": address, "locale": row.locale,
         "template_key": row.template_key, "status": row.status, "attempt_count": row.attempt_count,
+        "provider": row.provider_key, "provider_message_id": row.provider_message_id,
+        "event": context.event_type if context else "", "next_retry_at": job.next_attempt_at if job else None,
         "error_code": row.last_error_code, "queued_at": row.queued_at, "sent_at": row.sent_at,
         "delivered_at": row.delivered_at, "read_at": row.read_at, "failed_at": row.failed_at,
         "created_at": row.created_at,
@@ -117,6 +122,35 @@ def operational_deliveries(db: DB, tenant_id: Tenant, _: AdminUser,
         filters.append(NotificationDelivery.status == status.upper())
     if channel:
         filters.append(NotificationDelivery.channel == channel.upper())
-    rows = db.scalars(select(NotificationDelivery).where(*filters).order_by(
-        NotificationDelivery.created_at.desc()).limit(limit)).all()
-    return [delivery_output(row, admin=True) for row in rows]
+    rows = db.execute(select(NotificationDelivery, ScheduledJob, NotificationContext).outerjoin(
+        ScheduledJob, (ScheduledJob.entity_id == NotificationDelivery.id) &
+        (ScheduledJob.job_type == "NOTIFICATION_DELIVERY") &
+        (ScheduledJob.tenant_id == NotificationDelivery.tenant_id)
+    ).outerjoin(NotificationContext, (NotificationContext.notification_id == NotificationDelivery.notification_id) &
+        (NotificationContext.tenant_id == NotificationDelivery.tenant_id))
+      .where(*filters).order_by(NotificationDelivery.created_at.desc()).limit(limit)).all()
+    return [delivery_output(row, admin=True, job=job, context=context) for row, job, context in rows]
+
+
+@router.post("/admin/notification-deliveries/{delivery_id}/retry", status_code=202)
+def retry_delivery(delivery_id: str, db: DB, tenant_id: Tenant, admin: AdminUser):
+    delivery = db.scalar(select(NotificationDelivery).where(
+        NotificationDelivery.id == delivery_id,
+        NotificationDelivery.tenant_id == tenant_id,
+    ))
+    if not delivery:
+        raise HTTPException(404, "Delivery not found")
+    job = db.scalar(select(ScheduledJob).where(
+        ScheduledJob.entity_id == delivery.id,
+        ScheduledJob.tenant_id == tenant_id,
+        ScheduledJob.job_type == "NOTIFICATION_DELIVERY",
+    ))
+    if not job:
+        raise HTTPException(409, "Delivery job is unavailable")
+    safe_error = delivery.last_error_code or "none"
+    retry_job(db, job)
+    db.add(AuditEvent(tenant_id=tenant_id, actor_name=admin.name, action="NOTIFICATION_DELIVERY_RETRIED",
+        entity_type="NotificationDelivery", entity_id=delivery.id,
+        summary=f"Retried failed {delivery.channel.lower()} delivery with safe error {safe_error}"))
+    db.commit()
+    return delivery_output(delivery, admin=True, job=job)

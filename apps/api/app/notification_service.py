@@ -275,28 +275,44 @@ def execute_delivery(db, job) -> dict:
     if delivery.status in {"SENT", "DELIVERED", "READ"}:
         return {"delivery_id": delivery.id, "status": delivery.status, "duplicate": True}
     context = db.get(NotificationContext, delivery.notification_id)
+    if context and context.tenant_id != delivery.tenant_id:
+        raise ValueError("Notification context workspace mismatch")
+    preference = preference_for(db, delivery.tenant_id, delivery.user_id)
+    category = context.category if context else "SYSTEM"
+    if not _enabled(preference, category, delivery.channel) and delivery.channel not in _mandatory_channels(db, delivery.tenant_id):
+        delivery.status = "CANCELLED"
+        delivery.last_error_code = "CHANNEL_DISABLED"
+        delivery.updated_at = now()
+        return {"delivery_id": delivery.id, "status": "CANCELLED"}
     organization_id = context.organization_id if context else None
     if delivery.channel == "EMAIL":
-        deliver_email(db, delivery.tenant_id, delivery.recipient_address, delivery.frozen_subject,
-                      delivery.frozen_text, delivery.frozen_html or None, organization_id=organization_id)
+        provider = deliver_email(db, delivery.tenant_id, delivery.recipient_address, delivery.frozen_subject,
+                      delivery.frozen_text, delivery.frozen_html or None, organization_id=organization_id,
+                      idempotency_key=delivery.id) or {}
     elif delivery.channel == "WHATSAPP":
-        deliver_whatsapp(db, delivery.tenant_id, delivery.recipient_address, delivery.frozen_text,
-                         delivery.provider_template, delivery.locale, organization_id=organization_id)
+        provider = deliver_whatsapp(db, delivery.tenant_id, delivery.recipient_address, delivery.frozen_text,
+                         delivery.provider_template, delivery.locale, organization_id=organization_id,
+                         idempotency_key=delivery.id) or {}
     else:
         raise ValueError("Unsupported external notification channel")
-    return {"delivery_id": delivery.id, "status": "SENT"}
+    return {"delivery_id": delivery.id, "status": "SENT", **provider}
 
 
-def update_delivery_success(db, job, completed_at):
+def update_delivery_success(db, job, completed_at, result=None):
     if job.job_type != "NOTIFICATION_DELIVERY":
         return
     delivery = db.get(NotificationDelivery, job.entity_id)
     if delivery:
-        delivery.status = "SENT"
+        result = result or {}
+        delivery.status = result.get("status", "SENT")
         delivery.attempt_count = job.attempt_count
-        delivery.sent_at = completed_at
+        delivery.sent_at = completed_at if delivery.status == "SENT" else delivery.sent_at
         delivery.updated_at = completed_at
         delivery.last_error_code = ""
+        delivery.provider_message_id = result.get("provider_message_id", delivery.provider_message_id)
+        delivery.provider_key = result.get("provider_key", delivery.provider_key)
+        delivery.provider_connection_id = result.get("connection_id", delivery.provider_connection_id)
+        delivery.provider_status_at = completed_at if delivery.provider_message_id else delivery.provider_status_at
 
 
 def update_delivery_failure(db, job, failed_at, code: str):

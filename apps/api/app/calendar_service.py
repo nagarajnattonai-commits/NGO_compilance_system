@@ -301,3 +301,11 @@ def mark_sync_failure(db, job, code: str) -> None:
         mapping.sync_status = "FAILED" if job.status in {"FAILED", "DEAD_LETTER"} else "RETRY"
         mapping.error_code = code
         mapping.updated_at = now()
+        if code in {"AUTHENTICATION_FAILED", "INVALID_CREDENTIAL"}:
+            connection = db.get(IntegrationConnection, mapping.connection_id)
+            state = db.get(ConnectionSettings, mapping.connection_id)
+            if connection and connection.tenant_id == job.tenant_id:
+                connection.status = "ERROR"
+            if state:
+                state.error_code = "AUTHENTICATION_FAILED"
+                state.last_error_at = now()

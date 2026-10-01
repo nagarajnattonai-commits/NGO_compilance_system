@@ -21,6 +21,8 @@ ERROR_MESSAGES = {
     "UNSUPPORTED_MODEL": "The configured provider model is not supported.",
     "MALFORMED_REQUEST": "The provider rejected the bounded request configuration.",
     "PROVIDER_DISABLED": "The configured provider is disabled.",
+    "INVALID_RECIPIENT": "The recipient address is invalid.",
+    "INVALID_TEMPLATE": "The approved provider template is invalid or unavailable.",
     "PERMISSION_DENIED": "This integration is not available to this account.",
     "SECRET_STORE_UNAVAILABLE": "The server secret store is unavailable or read-only.",
 }

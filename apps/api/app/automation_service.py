@@ -400,7 +400,7 @@ def finish_job(db, job: ScheduledJob, result: dict, *, completed_at: datetime | 
     if started_monotonic is not None:
         job.duration_ms = max(0, int((time.monotonic() - started_monotonic) * 1000))
     from .notification_service import update_delivery_success
-    update_delivery_success(db, job, completed_at)
+    update_delivery_success(db, job, completed_at, result)
 
 
 def fail_job(db, job: ScheduledJob, error: Exception, *, failed_at: datetime | None = None, started_monotonic: float | None = None):
