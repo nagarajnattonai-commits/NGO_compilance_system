@@ -33,7 +33,8 @@ const emptyFilters: Filters = {
   priority: null, owner: null, assignee: null, date_from: null, date_to: null,
   timing: "ALL", document_expiry: "ALL", applicability: "ALL", upcoming_days: 30,
 };
-const groupOrder = ["organizations", "compliances", "tasks", "documents", "registrations", "filings"];
+const groupOrder = ["organizations", "compliances", "tasks", "documents", "registrations", "filings", "csr_partners", "csr_projects", "due_diligence"];
+const searchType = (group: string) => group === "due_diligence" ? group : group.endsWith("ies") ? `${group.slice(0, -3)}y` : group.slice(0, -1);
 
 function setOrNull(value: string) { return value || null; }
 
@@ -129,7 +130,7 @@ export default function GlobalSearch({ organizations, compliances }: { organizat
         <label>{t("groups.compliances")}<select value={filters.compliance_id || ""} onChange={(e) => update("compliance_id", setOrNull(e.target.value))}>
           <option value="">{t("all")}</option>{compliances.filter((row) => !filters.organization_id || row.organization_id === filters.organization_id).map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}</select></label>
         <label>{t("type")}<select value={filters.types[0] || ""} onChange={(e) => update("types", e.target.value ? [e.target.value] : [])}>
-          <option value="">{t("all")}</option>{groupOrder.map((type) => <option key={type} value={type.slice(0, -1)}>{t(`groups.${type}`)}</option>)}</select></label>
+          <option value="">{t("all")}</option>{groupOrder.map((type) => <option key={type} value={searchType(type)}>{t(`groups.${type}`)}</option>)}</select></label>
         <label>{t("status")}<input value={filters.status || ""} onChange={(e) => update("status", setOrNull(e.target.value))} /></label>
         <label>{t("priority")}<select value={filters.priority || ""} onChange={(e) => update("priority", setOrNull(e.target.value))}>
           <option value="">{t("all")}</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>

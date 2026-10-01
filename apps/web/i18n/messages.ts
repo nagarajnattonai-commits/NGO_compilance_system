@@ -25,6 +25,7 @@ export const messageModules = [
   "workflow",
   "portfolio",
   "portfolioImport",
+  "csr",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -55,6 +56,7 @@ const loaders = {
       import("../messages/en-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
       import("../messages/en-IN/portfolio-import.json"),
+      import("../messages/en-IN/csr.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -82,6 +84,7 @@ const loaders = {
       import("../messages/hi-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
       import("../messages/en-IN/portfolio-import.json"),
+      import("../messages/en-IN/csr.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -109,6 +112,7 @@ const loaders = {
       import("../messages/kn-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
       import("../messages/en-IN/portfolio-import.json"),
+      import("../messages/en-IN/csr.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -136,6 +140,7 @@ const loaders = {
       import("../messages/mr-IN/workflow.json"),
       import("../messages/en-IN/portfolio.json"),
       import("../messages/en-IN/portfolio-import.json"),
+      import("../messages/en-IN/csr.json"),
     ]),
 } satisfies Record<
   AppLocale,

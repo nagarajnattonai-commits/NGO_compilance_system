@@ -33,6 +33,7 @@ SCAN_TYPES = (
     "OVERDUE_COMPLIANCE_SCAN",
     "TASK_OVERDUE_SCAN",
     "DOCUMENT_EXPIRY_SCAN",
+    "CSR_EVIDENCE_EXPIRY_SCAN",
 )
 RETRYABLE_CODES = {"RATE_LIMITED", "PROVIDER_UNAVAILABLE", "TIMEOUT", "TEMPORARY_DATABASE_CONTENTION", "SECRET_STORE_UNAVAILABLE"}
 
@@ -348,6 +349,14 @@ def _document_intelligence(db, job, today):
 
 
 HANDLERS["DOCUMENT_INTELLIGENCE"] = _document_intelligence
+
+
+def _csr_evidence_expiry(db, job, today):
+    from .csr_service import expiry_scan
+    return expiry_scan(db, job, today)
+
+
+HANDLERS["CSR_EVIDENCE_EXPIRY_SCAN"] = _csr_evidence_expiry
 
 
 def execute_job(db, job: ScheduledJob, today: date | None = None) -> dict:

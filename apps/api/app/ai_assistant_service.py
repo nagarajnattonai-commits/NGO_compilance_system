@@ -23,6 +23,8 @@ from .models import AuditEvent, Compliance, ComplianceSnapshot, Document, Organi
 from .organization_access import require_organization_access
 from .phase9_models import ComplianceApproval, ComplianceReview
 from .runtime_models import ApplicabilityDecision
+from .features import can_use_feature
+from .csr_models import CsrDueDiligenceItem, CsrDueDiligenceReview, CsrPartnerCollaborator, CsrPartnerRelationship, CsrProject
 
 MAX_HISTORY = 12
 MAX_STRUCTURED_SOURCES = 250
@@ -35,6 +37,7 @@ Document facts marked PROPOSED, NEEDS_REVIEW, CONFLICT, or APPROVED are non-auth
 Do not invent records, citations, laws, forms, deadlines, approvals, applicability, or filing state.
 Do not give legal advice. If evidence is insufficient, say so plainly.
 Never claim to execute an action. Do not put proposed actions in the answer narrative.
+CSR partner, project, and due-diligence states are operational only. Never certify legal compliance or make an approval decision.
 If a useful next step is warranted, put it on a separate line beginning exactly 'PROPOSED ACTION:'.
 Do not emit source identifiers or citations in the narrative; the application attaches verified sources separately."""
 
@@ -171,7 +174,7 @@ def _source(kind: str, identifier: str, label: str, facts: dict) -> dict:
 
 
 def structured_sources(db, tenant_id: str, organization: Organization,
-                       compliance: Compliance | None, document: Document | None) -> list[dict]:
+                       compliance: Compliance | None, document: Document | None, user=None) -> list[dict]:
     compliance_query = select(Compliance).where(
         Compliance.tenant_id == tenant_id, Compliance.organization_id == organization.id,
     )
@@ -284,6 +287,50 @@ def structured_sources(db, tenant_id: str, organization: Organization,
              "version_id": row.version_id, "confidence": row.confidence,
              "source_location": row.source_location},
         ))
+    if can_use_feature(db, tenant_id, "csr_partner_management"):
+        partner = db.scalar(select(CsrPartnerRelationship).where(
+            CsrPartnerRelationship.tenant_id == tenant_id,
+            CsrPartnerRelationship.organization_id == organization.id))
+        collaborator = bool(partner and user and user.role != "ADMIN" and db.scalar(select(CsrPartnerCollaborator.id).where(
+            CsrPartnerCollaborator.tenant_id == tenant_id,
+            CsrPartnerCollaborator.relationship_id == partner.id,
+            CsrPartnerCollaborator.user_id == user.id,
+            CsrPartnerCollaborator.active.is_(True))))
+        if partner:
+            output.append(_source("csr_partner", partner.id, organization.name, {
+                "status": partner.status, "review_status": partner.review_status,
+                "operational_status_only": True,
+            }))
+            project_query = select(CsrProject).where(
+                CsrProject.tenant_id == tenant_id, CsrProject.relationship_id == partner.id)
+            review_query = select(CsrDueDiligenceReview).where(
+                CsrDueDiligenceReview.tenant_id == tenant_id,
+                CsrDueDiligenceReview.relationship_id == partner.id)
+            if collaborator:
+                project_query = project_query.where(CsrProject.shared_with_ngo.is_(True))
+                review_query = review_query.where(CsrDueDiligenceReview.shared_with_ngo.is_(True))
+            csr_projects = db.scalars(project_query.order_by(CsrProject.updated_at.desc()).limit(50)).all()
+            csr_reviews = db.scalars(review_query.order_by(CsrDueDiligenceReview.updated_at.desc()).limit(50)).all()
+            for project in csr_projects:
+                output.append(_source("csr_project", project.id, project.name, {
+                    "code": project.code, "status": project.status,
+                    "start_date": project.start_date.isoformat() if project.start_date else None,
+                    "end_date": project.end_date.isoformat() if project.end_date else None,
+                    "category": project.category, "location": project.location,
+                    "operational_status_only": True,
+                }))
+            review_ids = [row.id for row in csr_reviews]
+            item_query = select(CsrDueDiligenceItem).where(
+                CsrDueDiligenceItem.tenant_id == tenant_id,
+                CsrDueDiligenceItem.review_id.in_(review_ids))
+            if collaborator:
+                item_query = item_query.where(CsrDueDiligenceItem.shared_with_ngo.is_(True))
+            for item in db.scalars(item_query.order_by(CsrDueDiligenceItem.updated_at.desc()).limit(100)).all() if review_ids else []:
+                output.append(_source("csr_due_diligence", item.id, item.title, {
+                    "status": item.status, "category": item.category, "required": item.required,
+                    "expiry_at": item.expiry_at.isoformat() if item.expiry_at else None,
+                    "operational_status_only": True, "legal_certification": False,
+                }))
     document_names = {row.id: row.name for row in documents}
     for row in links:
         output.append(_source("evidence", row.id, document_names.get(row.document_id, "Evidence document"), {
@@ -352,7 +399,7 @@ def ask(db, tenant_id: str, user, conversation_id: str, question: str,
         db, tenant_id, organization.id, compliance_id, document_id,
     )
     configured = configured_provider(db, tenant_id)
-    facts = structured_sources(db, tenant_id, organization, compliance, document)
+    facts = structured_sources(db, tenant_id, organization, compliance, document, user)
     retrieval = retrieve(db, tenant_id, user, question, 6, RetrievalFilters(
         organization_id=organization.id,
         compliance_id=compliance.id if compliance else None,

@@ -1,0 +1,20 @@
+{
+  "Csr": {
+    "eyebrow": "CSR operations",
+    "title": "NGO partner management",
+    "subtitle": "Manage partner onboarding, projects and operational due diligence in one workspace.",
+    "operationalNotice": "Statuses support operational review and do not constitute legal compliance certification.",
+    "loadError": "CSR workspace could not be loaded.",
+    "saveError": "The CSR record could not be saved.",
+    "saved": "CSR record saved.",
+    "export": "Export portfolio CSV",
+    "partners": "Partners", "activeProjects": "Active projects", "incomplete": "Incomplete checks", "attention": "Needs attention",
+    "projects": "Projects", "reviews": "Due diligence", "templates": "Checklist templates",
+    "partnerDirectory": "Partner directory", "organization": "Organization", "addPartner": "Add NGO partner",
+    "status": "Status", "reviewStatus": "Review status", "profile": "Profile", "partner": "NGO partner",
+    "projectName": "Project name", "projectCode": "Project code", "shareWithNgo": "Share with NGO collaborator",
+    "createProject": "Create project", "shared": "Shared", "yes": "Yes", "no": "No", "internal": "Internal",
+    "templateName": "Template name", "description": "Description", "category": "Category", "requirement": "Requirement",
+    "createTemplate": "Create template", "requirements": "requirements", "reviewTitle": "Review title", "startReview": "Start review"
+  }
+}

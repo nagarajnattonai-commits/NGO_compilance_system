@@ -18,14 +18,19 @@ from .organization_access import accessible_organization_ids
 from .organization_models import OrganizationRegistration
 from .phase13_models import SavedView
 from .production_security import limit_expensive
+from .features import can_use_feature
+from .csr_models import CsrDueDiligenceItem, CsrDueDiligenceReview, CsrPartnerRelationship, CsrProject
+from .csr_service import csr_search_scope
 from .runtime_models import ApplicabilityDecision
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
 DB = Annotated[Session, Depends(get_db)]
 Tenant = Annotated[str, Depends(tenant_context)]
-SearchType = Literal["organization", "compliance", "task", "document", "registration", "filing"]
+SearchType = Literal["organization", "compliance", "task", "document", "registration", "filing",
+                     "csr_partner", "csr_project", "due_diligence"]
 ViewScope = Literal["GLOBAL_SEARCH", "COMPLIANCES", "TASKS", "DOCUMENTS", "REPORTS"]
-ALL_TYPES = ("organization", "compliance", "task", "document", "registration", "filing")
+ALL_TYPES = ("organization", "compliance", "task", "document", "registration", "filing",
+             "csr_partner", "csr_project", "due_diligence")
 
 
 class StrictModel(BaseModel):
@@ -34,7 +39,7 @@ class StrictModel(BaseModel):
 
 class FilterState(StrictModel):
     query: str = Field(default="", max_length=120)
-    types: list[SearchType] = Field(default_factory=list, max_length=6)
+    types: list[SearchType] = Field(default_factory=list, max_length=9)
     organization_id: str | None = Field(default=None, max_length=36)
     compliance_id: str | None = Field(default=None, max_length=36)
     status: str | None = Field(default=None, max_length=30)
@@ -168,7 +173,8 @@ def global_search(
             raise HTTPException(404, "Compliance not found")
     term = state.query
     today = date.today()
-    groups: dict[str, list[dict]] = {name + "s": [] for name in ALL_TYPES}
+    groups: dict[str, list[dict]] = {name + "s": [] for name in ALL_TYPES[:6]}
+    groups.update({"csr_partners": [], "csr_projects": [], "due_diligence": []})
 
     if "organization" in selected_types and not state.compliance_id:
         rows = [row for row in organizations if row.id in scoped_ids]
@@ -282,6 +288,51 @@ def global_search(
         rows = db.execute(statement.limit(limit_per_group)).all()
         groups["filings"] = [_result("filing", row.id, compliance.title, org, "FILED",
             row.acknowledgement_ref, row.filed_at or row.submitted_at, f"/compliances/{compliance.id}") for row, compliance, org in rows]
+
+    if can_use_feature(db, tenant_id, "csr_partner_management") and any(
+            kind in selected_types for kind in ("csr_partner", "csr_project", "due_diligence")):
+        relationship_ids, collaborator = csr_search_scope(db, tenant_id, user)
+        if "csr_partner" in selected_types:
+            statement = select(CsrPartnerRelationship, Organization).join(
+                Organization, Organization.id == CsrPartnerRelationship.organization_id).where(
+                CsrPartnerRelationship.tenant_id == tenant_id,
+                CsrPartnerRelationship.id.in_(relationship_ids),
+                CsrPartnerRelationship.organization_id.in_(scoped_ids))
+            if term: statement = statement.where(_text(Organization.name, Organization.legal_type, term=term))
+            if state.status: statement = statement.where(CsrPartnerRelationship.status == state.status)
+            rows = db.execute(statement.order_by(Organization.name).limit(limit_per_group)).all()
+            groups["csr_partners"] = [_result("csr_partner", row.id, org.name, org, row.status,
+                "CSR NGO partner", row.onboarding_date, "/dashboard") for row, org in rows]
+        if "csr_project" in selected_types:
+            statement = select(CsrProject, Organization).join(
+                Organization, Organization.id == CsrProject.organization_id).where(
+                CsrProject.tenant_id == tenant_id, CsrProject.relationship_id.in_(relationship_ids),
+                CsrProject.organization_id.in_(scoped_ids))
+            if collaborator: statement = statement.where(CsrProject.shared_with_ngo.is_(True))
+            if term: statement = statement.where(_text(CsrProject.name, CsrProject.code, CsrProject.category, term=term))
+            if state.status: statement = statement.where(CsrProject.status == state.status)
+            if state.date_from: statement = statement.where(CsrProject.end_date >= state.date_from)
+            if state.date_to: statement = statement.where(CsrProject.end_date <= state.date_to)
+            rows = db.execute(statement.order_by(CsrProject.name).limit(limit_per_group)).all()
+            groups["csr_projects"] = [_result("csr_project", row.id, row.name, org, row.status,
+                row.code, row.end_date, "/dashboard") for row, org in rows]
+        if "due_diligence" in selected_types:
+            statement = select(CsrDueDiligenceItem, CsrDueDiligenceReview, Organization).join(
+                CsrDueDiligenceReview, CsrDueDiligenceReview.id == CsrDueDiligenceItem.review_id).join(
+                Organization, Organization.id == CsrDueDiligenceItem.organization_id).where(
+                CsrDueDiligenceItem.tenant_id == tenant_id,
+                CsrDueDiligenceReview.relationship_id.in_(relationship_ids),
+                CsrDueDiligenceItem.organization_id.in_(scoped_ids))
+            if collaborator:
+                statement = statement.where(CsrDueDiligenceReview.shared_with_ngo.is_(True),
+                                            CsrDueDiligenceItem.shared_with_ngo.is_(True))
+            if term: statement = statement.where(_text(CsrDueDiligenceItem.title, CsrDueDiligenceItem.category, term=term))
+            if state.status: statement = statement.where(CsrDueDiligenceItem.status == state.status)
+            if state.date_from: statement = statement.where(CsrDueDiligenceReview.due_date >= state.date_from)
+            if state.date_to: statement = statement.where(CsrDueDiligenceReview.due_date <= state.date_to)
+            rows = db.execute(statement.order_by(CsrDueDiligenceReview.due_date, CsrDueDiligenceItem.position).limit(limit_per_group)).all()
+            groups["due_diligence"] = [_result("due_diligence", item.id, item.title, org, item.status,
+                review.title, review.due_date, "/dashboard") for item, review, org in rows]
 
     groups = {key: _sort(value, sort_by, sort_direction) for key, value in groups.items()}
     return {"query": term, "groups": groups, "total": sum(map(len, groups.values())),

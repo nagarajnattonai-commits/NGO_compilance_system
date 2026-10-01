@@ -117,6 +117,7 @@ import { TenantSubscription } from "@/components/subscriptions";
 import ComplianceAssistant from "@/components/compliance-assistant";
 import PortfolioManagement from "@/components/portfolio-management";
 import BulkImport from "@/components/bulk-import";
+import CsrManagement from "@/components/csr-management";
 
 import { isOpenCompliance } from "@/lib/compliance-states";
 
@@ -130,6 +131,7 @@ function useCurrentUser() {
 type View =
   | "overview"
   | "portfolio"
+  | "csr"
   | "compliance"
   | "tasks"
   | "calendar"
@@ -147,6 +149,7 @@ type View =
 const nav = [
   { id: "overview" as View, labelKey: "dashboard", icon: LayoutDashboard },
   { id: "portfolio" as View, labelKey: "portfolio", icon: BriefcaseBusiness },
+  { id: "csr" as View, labelKey: "csrPortfolio", icon: HandHeart },
   { id: "compliance" as View, labelKey: "compliance", icon: ClipboardCheck },
   { id: "tasks" as View, labelKey: "tasks", icon: ListChecks },
   { id: "calendar" as View, labelKey: "calendar", icon: CalendarDays },
@@ -493,6 +496,7 @@ export default function ComplianceApp({
               .filter(
                 (item) => platformAdmin ? item.id === "administration" :
                   item.id === "portfolio" ? organizations.length > 1 :
+                  item.id === "csr" ? subscription?.feature_access?.csr_partner_management === true :
                     !["operations", "administration", "localization", "whiteLabel"].includes(item.id) || user.role === "ADMIN",
               )
               .map(({ id, labelKey, icon: Icon }) => (
@@ -722,6 +726,9 @@ export default function ComplianceApp({
                 if (item) { setSelectedOrg(item.organization_id); setSelectedCompliance(item); }
               }}
             />
+          )}
+          {view === "csr" && subscription?.feature_access?.csr_partner_management === true && (
+            <CsrManagement organizations={organizations} role={user.role} />
           )}
           {view === "compliance" && (
             <ComplianceView
