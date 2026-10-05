@@ -128,7 +128,7 @@ jobs:
         working-directory: apps/api
         env:
           APP_ENV: test
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
         run: python -m pytest tests/test_phase25_production.py tests/test_phase18_security.py
       - name: Rehearse empty PostgreSQL bootstrap and integrity check
         working-directory: apps/api
