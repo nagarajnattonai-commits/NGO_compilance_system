@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import date, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import and_, case, func, or_, select
@@ -14,7 +14,7 @@ from .document_intelligence_models import DocumentIntelligenceRun, ExtractedDocu
 from .document_models import DocumentBlob
 from .features import can_use_feature
 from .models import AuditEvent, Compliance, Document, Notification, Organization, Task, User, utcnow
-from .organization_access import accessible_organization_ids, require_organization_access, workspace_role
+from .organization_access import accessible_organization_ids, organization_access_role, require_organization_access, workspace_role
 from .organization_models import OrganizationDetails, OrganizationRegistration
 
 FEATURE = "csr_partner_management"
@@ -94,6 +94,11 @@ def _owner_names(db, ids: set[str]) -> dict[str, str]:
     return {row.id: row.name for row in db.scalars(select(User).where(User.id.in_(ids))).all()} if ids else {}
 
 
+def _can_write(db, tenant_id: str, user, organization_id: str) -> bool:
+    return user.role != "VIEWER" and organization_access_role(
+        db, tenant_id, organization_id, user.id) in {"CONTRIBUTOR", "MANAGER"}
+
+
 def partner_directory(db, tenant_id: str, user, query: str = "") -> list[dict]:
     allowed, collaborator = csr_scope(db, tenant_id, user)
     statement = select(CsrPartnerRelationship, Organization).join(
@@ -155,9 +160,12 @@ def partner_directory(db, tenant_id: str, user, query: str = "") -> list[dict]:
             "expiring_registrations": expiring_regs.get(org.id, 0), "open_reviews": review_counts.get(row.id, 0),
             "active_projects": project_counts.get(row.id, 0), "collaboration_enabled": row.collaboration_enabled,
             "shared_notes": row.shared_notes,
+            "can_manage": not collaborator and _can_write(db, tenant_id, user, org.id),
+            "can_grant_collaborators": not collaborator and user.role == "ADMIN",
             "compliance_summary": compliance_summary.get(org.id, {"total": 0, "open": 0, "overdue": 0}),
-            "last_activity_at": max(value for value in (row.updated_at, project_activity.get(row.id),
+            "last_activity_at": max((value for value in (row.updated_at, project_activity.get(row.id),
                                                           review_activity.get(row.id)) if value is not None),
+                                    key=lambda value: value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value),
             "requires_attention": bool(review_counts.get(row.id) or expiring_regs.get(org.id)),
         }
         if not collaborator:
@@ -418,12 +426,15 @@ def review_data(db, tenant_id: str, user, review_id: str) -> dict:
             and_(AuditEvent.entity_type == "CsrDueDiligenceItem", AuditEvent.entity_id.in_(item_ids))),
     ).order_by(AuditEvent.created_at.desc()).limit(200)).all() if item_ids else []
     item_output = []
+    can_write = _can_write(db, tenant_id, user, row.organization_id)
+    transitions = NGO_ITEM_TRANSITIONS if collaborator else CORPORATE_ITEM_TRANSITIONS
     for item in items:
         values = {key: getattr(item, key) for key in ("id", "position", "category", "title", "description",
             "requirement_type", "required", "registration_kind", "expiry_monitoring", "shared_with_ngo",
             "status", "reviewer_user_id", "response", "reviewer_comment", "expiry_at", "reviewed_at", "updated_at")}
         if not collaborator: values["internal_notes"] = item.internal_notes
         values["evidence"] = evidence.get(item.id, []); values["tasks"] = tasks.get(item.id, [])
+        values["allowed_statuses"] = sorted({item.status} | transitions.get(item.status, set())) if can_write else []
         item_output.append(values)
     return {"id": row.id, "relationship_id": row.relationship_id, "organization_id": row.organization_id,
             "project_id": row.project_id, "template_id": row.template_id, "template_version": row.template_version,
@@ -431,6 +442,7 @@ def review_data(db, tenant_id: str, user, review_id: str) -> dict:
             "due_date": row.due_date, "shared_with_ngo": row.shared_with_ngo,
             "created_at": row.created_at, "submitted_at": row.submitted_at, "reviewed_at": row.reviewed_at,
             "updated_at": row.updated_at, "items": item_output, "collaborator_view": collaborator,
+            "can_write": can_write,
             "history": [{"id": event.id, "action": event.action, "actor_name": event.actor_name,
                          "summary": event.summary, "created_at": event.created_at} for event in history],
             "disclaimer": "Operational due diligence status; not a legal compliance certification."}

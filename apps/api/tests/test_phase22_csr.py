@@ -155,3 +155,73 @@ def test_cross_org_and_cross_tenant_identifiers_are_not_exposed():
 def test_phase22_migration_is_additive_and_idempotent():
     assert apply() == VERSION
     assert apply() == VERSION
+
+
+def test_ui_capabilities_match_corporate_and_organization_read_only_permissions():
+    with client_for() as (admin, _):
+        org = new_org(); partner, project, review = setup_review(admin, org)
+        row = next(row for row in admin.get("/api/v1/csr/partners").json() if row["id"] == partner)
+        assert row["can_manage"] and row["can_grant_collaborators"]
+        assert review["can_write"]
+        assert set(review["items"][0]["allowed_statuses"]) == {"NOT_STARTED", "IN_PROGRESS", "NOT_APPLICABLE"}
+        assert admin.patch(f"/api/v1/csr/partners/{partner}", json={"shared_notes":"Shared update"}).status_code == 200
+        assert admin.patch(f"/api/v1/csr/projects/{project['id']}", json={"name":"Updated programme"}).status_code == 200
+        with client_for(role="MEMBER") as (reader, user):
+            with SessionLocal() as db:
+                db.add(OrganizationAccess(tenant_id="tenant-demo", organization_id=org, user_id=user.id,
+                    access_role="VIEWER", status="ACTIVE", granted_by=user.id)); db.commit()
+            row = reader.get(f"/api/v1/csr/reviews/{review['id']}").json()
+            assert not row["can_write"] and row["items"][0]["allowed_statuses"] == []
+            assert not reader.get("/api/v1/csr/partners").json()[0]["can_manage"]
+            assert reader.patch(f"/api/v1/csr/items/{review['items'][0]['id']}", json={"status":"IN_PROGRESS"}).status_code == 403
+
+
+def test_ui_linking_decisions_history_and_wrong_organization_ids():
+    from test_documents import upload_original
+    with client_for() as (admin, user):
+        org = new_org(); partner, _, review = setup_review(admin, org)
+        item = review["items"][0]["id"]
+        uploaded = upload_original(admin, organization_id=org)
+        assert uploaded.status_code == 201, uploaded.text
+        version = uploaded.json()["document"]["current_version_id"]
+        assert admin.post(f"/api/v1/csr/items/{item}/evidence", json={"version_id":version}).status_code == 201
+        task = admin.post("/api/v1/tasks", json={"organization_id":org,"title":"Resolve checklist evidence","due_at":"2030-01-01","assignee_user_id":user.id})
+        assert task.status_code == 201, task.text
+        assert admin.post("/api/v1/csr/task-links", json={"relationship_id":partner,"item_id":item,"task_id":task.json()["id"]}).status_code == 201
+        wrong_task = admin.post("/api/v1/tasks", json={"organization_id":new_org(),"title":"Unrelated task","due_at":"2030-01-01","assignee_user_id":user.id}).json()
+        assert admin.post("/api/v1/csr/task-links", json={"relationship_id":partner,"item_id":item,"task_id":wrong_task["id"]}).status_code == 404
+        for status in ("SUBMITTED", "UNDER_REVIEW", "APPROVED"):
+            result = admin.patch(f"/api/v1/csr/items/{item}", json={"status":status,"response":"Evidence reviewed","internal_notes":"Private corporate assessment"})
+            assert result.status_code == 200, result.text
+        result = result.json()
+        assert result["status"] == "APPROVED" and result["history"]
+        assert result["items"][0]["tasks"][0]["id"] == task.json()["id"]
+        assert result["items"][0]["evidence"][0]["version_id"] == version
+        with client_for(role="MEMBER") as (ngo, user):
+            assert admin.post(f"/api/v1/csr/partners/{partner}/collaborators", json={"user_id":user.id}).status_code == 201
+            shared = ngo.get(f"/api/v1/csr/reviews/{review['id']}").json()
+            assert shared["can_write"] and shared["collaborator_view"]
+            assert "internal_notes" not in shared["items"][0]
+            assert "Private corporate assessment" not in str(shared)
+            assert shared["items"][0]["allowed_statuses"] == ["APPROVED"]
+            assert ngo.post("/api/v1/csr/task-links", json={"relationship_id":partner,"item_id":item,"task_id":wrong_task["id"]}).status_code == 403
+
+
+def test_csr_workflow_ids_cannot_be_used_from_another_entitled_tenant():
+    from app.models import Subscription
+    with client_for() as (admin, _):
+        partner, project, review = setup_review(admin, new_org())
+        with TestClient(app) as foreign:
+            foreign.headers["X-Setu-Request"] = "1"
+            credentials = {"email": uuid4().hex + "@csr-isolation.test", "password":"CSR-isolation-QA-2026!"}
+            assert foreign.post("/api/v1/auth/signup", json={"name":"Other admin", "workspace_name":"Other CSR", **credentials}).status_code == 201
+            assert foreign.post("/api/v1/auth/login", json=credentials).status_code == 200
+            tenant = foreign.get("/api/v1/auth/me").json()["user"]["tenant_id"]
+            with SessionLocal() as db:
+                db.scalar(select(Subscription).where(Subscription.tenant_id == tenant)).plan_name = "ENTERPRISE"
+                db.commit()
+            assert foreign.get("/api/v1/csr/partners").json() == []
+            assert foreign.get(f"/api/v1/csr/reviews/{review['id']}").status_code == 404
+            assert foreign.patch(f"/api/v1/csr/partners/{partner}", json={"status":"ACTIVE"}).status_code == 404
+            assert foreign.patch(f"/api/v1/csr/projects/{project['id']}", json={"status":"ACTIVE"}).status_code == 404
+            assert foreign.patch(f"/api/v1/csr/items/{review['items'][0]['id']}", json={"status":"IN_PROGRESS"}).status_code == 404
