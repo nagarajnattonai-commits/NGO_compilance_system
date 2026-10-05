@@ -20,8 +20,9 @@ function planName(t: (key: string) => string, key: string) {
   try { return t(`plans.${key}`); } catch { return key; }
 }
 
-function PlanUsage({ label, value, limit, unit = "" }: { label: string; value: number; limit: number; unit?: string }) {
+function PlanUsage({ label, value, limit, unit = "" }: { label: string; value: number; limit: number | null; unit?: string }) {
   const t = useTranslations("Subscriptions");
+  if (limit === null) return <div className="subscription-usage"><div><span>{label}</span><strong>{value}{unit} / Not assigned</strong></div></div>;
   const percentage = limit > 0 ? Math.min(100, Math.round(value / limit * 100)) : 100;
   return (
     <div className="subscription-usage">
@@ -43,11 +44,11 @@ export function TenantSubscription({ subscription }: { subscription: Subscriptio
     <div className="page subscription-page">
       <header className="page-heading">
         <div><span className="eyebrow">{t("eyebrow")}</span><h1>{t("title")}</h1><p>{t("description")}</p></div>
-        <span className={`status status-${subscription.status.toLowerCase()}`}><i />{t(`statuses.${subscription.status}`)}</span>
+        <span className={`status status-${subscription.status.toLowerCase()}`}><i />{subscription.configured === false ? "Plan not assigned" : t(`statuses.${subscription.status}`)}</span>
       </header>
       <div className="admin-summary subscription-summary">
-        <div><span>{t("currentPlan")}</span><strong>{planName(t, subscription.plan_name)}</strong><small>{activePlan ? t(`planDescriptions.${subscription.plan_name}`) : t("legacyPlan")}</small></div>
-        <div><span>{t("periodStart")}</span><strong>{subscription.period_start || "—"}</strong><small>{t("periodEnd")}: {subscription.period_end}</small></div>
+        <div><span>{t("currentPlan")}</span><strong>{subscription.configured === false ? "Legacy workspace" : planName(t, subscription.plan_name)}</strong><small>{activePlan ? t(`planDescriptions.${subscription.plan_name}`) : t("legacyPlan")}</small></div>
+        <div><span>{t("periodStart")}</span><strong>{subscription.period_start || "—"}</strong><small>{t("periodEnd")}: {subscription.period_end || "—"}</small></div>
         <div><span>{t("cancellation")}</span><strong>{t(subscription.cancel_at_period_end ? "scheduled" : "notScheduled")}</strong><small>{subscription.cancel_at_period_end ? t("accessUntilPeriodEnd") : t("contactAdmin")}</small></div>
         <div><span>{t("limits")}</span><strong>{t("planLimits")}</strong><small>{t("serverEnforced")}</small></div>
       </div>
@@ -56,7 +57,7 @@ export function TenantSubscription({ subscription }: { subscription: Subscriptio
         <div className="subscription-usage-grid">
           <PlanUsage label={t("users")} value={usage.users} limit={subscription.user_limit} />
           <PlanUsage label={t("organizations")} value={usage.organizations} limit={subscription.organization_limit} />
-          <PlanUsage label={t("integrations")} value={usage.integrations} limit={subscription.integration_limit ?? 0} />
+          <PlanUsage label={t("integrations")} value={usage.integrations} limit={subscription.integration_limit ?? (subscription.configured === false ? null : 0)} />
           <PlanUsage label={t("storage")} value={usage.storage_gb} limit={subscription.storage_limit_gb} unit=" GB" />
         </div>
       </section>

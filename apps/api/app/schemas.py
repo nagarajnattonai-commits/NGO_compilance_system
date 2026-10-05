@@ -278,15 +278,16 @@ class MembershipOut(ORMModel):
 
 
 class SubscriptionOut(ORMModel):
-    id: str
+    id: str | None
+    configured: bool = True
     plan_name: str
     status: str
-    user_limit: int
-    organization_limit: int
-    integration_limit: int
-    storage_limit_gb: int
+    user_limit: int | None
+    organization_limit: int | None
+    integration_limit: int | None
+    storage_limit_gb: int | None
     period_start: date | None
-    period_end: date
+    period_end: date | None
     cancel_at_period_end: bool
     usage: dict[str, int | float]
     features: list[str]

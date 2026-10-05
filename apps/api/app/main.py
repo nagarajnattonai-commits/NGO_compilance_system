@@ -889,7 +889,17 @@ def subscription(db: DB, tenant_id: Tenant, user: CurrentUser):
         raise HTTPException(403, "Platform administrator sessions cannot access tenant subscriptions")
     item = db.scalar(select(Subscription).where(Subscription.tenant_id == tenant_id))
     if not item:
-        raise HTTPException(status_code=404, detail="Subscription not configured")
+        # Preserve existing grandfathered core access without assigning a paid
+        # plan, creating a subscription, or enabling entitlement overrides.
+        keys = sorted({key for plan in plan_catalog_payload() for key in plan["entitlements"]})
+        return {
+            "id": None, "configured": False, "plan_name": "LEGACY", "status": "UNASSIGNED",
+            "user_limit": None, "organization_limit": None, "integration_limit": None,
+            "storage_limit_gb": None, "period_start": None, "period_end": None,
+            "cancel_at_period_end": False, "usage": subscription_usage(db, tenant_id),
+            "features": [], "feature_access": {key: False for key in keys},
+            "plans": plan_catalog_payload(), "history": [],
+        }
     plan = plan_definition(item.plan_name)
     keys = sorted({key for configured in plan_catalog_payload() for key in configured["entitlements"]})
     available = list(plan.features) if plan else []

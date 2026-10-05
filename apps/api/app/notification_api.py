@@ -71,7 +71,7 @@ def get_preferences(db: DB, tenant_id: Tenant, user: CurrentUser):
 @router.patch("/notification-preferences", response_model=PreferenceOut)
 def update_preferences(payload: PreferenceInput, db: DB, tenant_id: Tenant, user: CurrentUser):
     preference = preference_for(db, tenant_id, user.id)
-    for field, value in payload.model_dump().items():
+    for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(preference, field, value)
     preference.updated_at = utcnow()
     db.add(AuditEvent(tenant_id=tenant_id, actor_name=user.name, action="NOTIFICATION_PREFERENCES_UPDATED",

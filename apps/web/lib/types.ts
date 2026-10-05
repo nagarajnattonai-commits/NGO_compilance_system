@@ -130,15 +130,16 @@ export type SubscriptionPlan = {
 };
 
 export type Subscription = {
-  id: string;
+  id: string | null;
+  configured?: boolean;
   plan_name: string;
   status: string;
-  user_limit: number;
-  organization_limit: number;
-  integration_limit?: number;
-  storage_limit_gb: number;
+  user_limit: number | null;
+  organization_limit: number | null;
+  integration_limit?: number | null;
+  storage_limit_gb: number | null;
   period_start?: string | null;
-  period_end: string;
+  period_end: string | null;
   cancel_at_period_end?: boolean;
   usage?: { users: number; organizations: number; integrations: number; storage_bytes: number; storage_gb: number };
   features?: string[];

@@ -85,7 +85,7 @@ export const addComplianceComment = (complianceId: string, body: string, kind: C
 export const loadLocalizationSettings = () => apiRequest<LocalizationSettings>("/localization/settings");
 export const updateLocalizationPreference = (payload: { locale: string | null; timezone: string; time_format: "12h" | "24h" }) => apiRequest<UserPreference>("/localization/preferences", "PATCH", payload);
 export const loadNotificationPreference = () => apiRequest<NotificationPreference>("/notification-preferences");
-export const updateNotificationPreference = (payload: Omit<NotificationPreference, "user_id" | "updated_at">) => apiRequest<NotificationPreference>("/notification-preferences", "PATCH", payload);
+export const updateNotificationPreference = (payload: Partial<Omit<NotificationPreference, "user_id" | "updated_at">>) => apiRequest<NotificationPreference>("/notification-preferences", "PATCH", payload);
 export const updateTenantLocales = (payload: Array<Pick<TenantLocale, "locale_code" | "display_name" | "enabled" | "is_default" | "sort_order">>) => apiRequest<TenantLocale[]>("/localization/locales", "PUT", payload);
 export const loadTranslationOverrides = (locale?: string) => apiRequest<TranslationOverride[]>(`/localization/overrides${locale ? `?locale_code=${encodeURIComponent(locale)}` : ""}`);
 export const saveTranslationOverride = (payload: { locale_code: string; translation_key: string; translation_value: string }) => apiRequest<TranslationOverride>("/localization/overrides", "PUT", payload);

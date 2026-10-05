@@ -62,15 +62,16 @@ import {
   inviteMember,
   loadComplianceComments,
   loadEligibleAssignees,
+  loadNotificationPreference,
   loadTaskAttachments,
   loadTaskComments,
   loadWorkspace,
   markNotificationRead,
-  patchIntegration,
   patchPortfolioRecord,
   patchTask,
   runAutomation,
   transitionCompliance,
+  updateNotificationPreference,
 } from "@/lib/api";
 import Link from "next/link";
 import OnboardingBanner from "./onboarding-banner";
@@ -90,6 +91,7 @@ import type {
   IntegrationConnection,
   Membership,
   Notification,
+  NotificationPreference,
   Organization,
   PortfolioRecord,
   Subscription,
@@ -308,6 +310,19 @@ export default function ComplianceApp({
   const [loadError, setLoadError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
   const [brandDirty, setBrandDirty] = useState(false);
+  const [searchTarget, setSearchTarget] = useState<{ id: string; type: string } | null>(null);
+
+  useEffect(() => {
+    if (loading || platformAdmin) return;
+    const params = new URLSearchParams(window.location.search);
+    const targetView = params.get("view");
+    if (targetView === "tasks" || targetView === "documents" ||
+        targetView === "csr" && subscription?.feature_access?.csr_partner_management === true) {
+      setView(targetView);
+      const id = params.get("record");
+      if (id) setSearchTarget({ id, type: params.get("type") || "" });
+    }
+  }, [loading, platformAdmin, subscription]);
 
   useEffect(() => {
     if (platformAdmin) {
@@ -366,6 +381,7 @@ export default function ComplianceApp({
   function go(next: View) {
     if (view === "whiteLabel" && brandDirty && !window.confirm(tBrand("unsavedConfirm"))) return;
     setView(next);
+    setSearchTarget(null);
     setMobileMenu(false);
     setSearch("");
     setPanel(null);
@@ -728,7 +744,7 @@ export default function ComplianceApp({
             />
           )}
           {view === "csr" && subscription?.feature_access?.csr_partner_management === true && (
-            <CsrManagement organizations={organizations} role={user.role} />
+            <CsrManagement organizations={organizations} role={user.role} initialTarget={searchTarget} />
           )}
           {view === "compliance" && (
             <ComplianceView
@@ -742,6 +758,7 @@ export default function ComplianceApp({
           )}
           {view === "tasks" && (
             <TasksView
+              initialRecordId={searchTarget?.id}
               items={scopedTasks}
               compliances={compliances}
               documents={documents}
@@ -758,6 +775,7 @@ export default function ComplianceApp({
           )}
           {view === "documents" && (
             <DocumentsView
+              initialRecordId={searchTarget?.id}
               items={scopedDocuments}
               organizations={organizations}
               openUpload={openUpload}
@@ -827,11 +845,6 @@ export default function ComplianceApp({
             <><IntegrationLinks /><IntegrationsView
               items={integrations}
               isAdmin={user.role === "ADMIN"}
-              onUpdate={(updated) =>
-                setIntegrations((rows) =>
-                  rows.map((row) => (row.id === updated.id ? updated : row)),
-                )
-              }
               onAutomation={(result) => {
                 showToast(
                   `Automation complete: ${result.overdue_compliances + result.overdue_tasks + result.upcoming + result.expiring_documents} alerts, ${result.recurring_created} recurring items`,
@@ -1405,6 +1418,7 @@ function ComplianceView({
 }
 
 function TasksView({
+  initialRecordId,
   items,
   compliances,
   documents,
@@ -1412,6 +1426,7 @@ function TasksView({
   taskUpdated,
   setShowNewTask,
 }: {
+  initialRecordId?: string;
   items: ComplianceTask[];
   compliances: Compliance[];
   documents: ComplianceDocument[];
@@ -1425,6 +1440,9 @@ function TasksView({
   const [tab, setTab] = useState("OPEN");
   const [assignee, setAssignee] = useState("ALL");
   const [selectedTask, setSelectedTask] = useState<ComplianceTask | null>(null);
+  useEffect(() => {
+    if (initialRecordId) setSelectedTask(items.find((item) => item.id === initialRecordId) || null);
+  }, [initialRecordId, items]);
   const assignees = [...new Set(items.map((item) => item.assignee_name))].sort(
     localizedCollator().compare,
   );
@@ -1830,12 +1848,14 @@ function CalendarView({
 }
 
 function DocumentsView({
+  initialRecordId,
   items,
   organizations,
   openUpload,
   showToast,
   updateDocument,
 }: {
+  initialRecordId?: string;
   items: ComplianceDocument[];
   organizations: Organization[];
   openUpload: () => void;
@@ -1848,6 +1868,9 @@ function DocumentsView({
   const [selectedDoc, setSelectedDoc] = useState<ComplianceDocument | null>(
     null,
   );
+  useEffect(() => {
+    if (initialRecordId) setSelectedDoc(items.find((item) => item.id === initialRecordId) || null);
+  }, [initialRecordId, items]);
   const categories = [...new Set(items.map((item) => item.category))].sort(
     localizedCollator().compare,
   );
@@ -2065,14 +2088,14 @@ function AdministrationView({
         <div>
           <span>Organizations</span>
           <strong>
-            {organizations.length} / {subscription.organization_limit}
+            {organizations.length} / {subscription.organization_limit ?? "Not assigned"}
           </strong>
           <small>Consultant portfolio capacity</small>
         </div>
         <div>
           <span>Members</span>
           <strong>
-            {activeMembers} / {subscription.user_limit}
+            {activeMembers} / {subscription.user_limit ?? "Not assigned"}
           </strong>
           <small>
             {memberships.filter((member) => member.status === "INVITED").length}{" "}
@@ -2258,17 +2281,17 @@ function UsageBar({
 }: {
   label: string;
   value: number;
-  limit: number;
+  limit: number | null;
   suffix?: string;
 }) {
-  const percent = Math.min(100, Math.round((value / Math.max(1, limit)) * 100));
+  const percent = limit === null ? 0 : Math.min(100, Math.round((value / Math.max(1, limit)) * 100));
   return (
     <div className="usage-row">
       <div>
         <span>{label}</span>
         <strong>
           {value}
-          {suffix} of {limit}
+          {suffix} of {limit ?? "Not assigned"}
           {suffix}
         </strong>
       </div>
@@ -2961,60 +2984,72 @@ function SettingsModal({
   close: () => void;
   onSave: (leadDays: number) => void;
 }) {
-  const [emailReminders, setEmailReminders] = useState(true);
-  const [weeklyDigest, setWeeklyDigest] = useState(true);
+  const [preference, setPreference] = useState<NotificationPreference | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [leadDays, setLeadDays] = useState(7);
+  async function load() {
+    setLoading(true); setError("");
+    try { setPreference(await loadNotificationPreference()); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not load notification preferences"); }
+    finally { setLoading(false); }
+  }
   useEffect(() => {
-    const saved = localStorage.getItem("setu-workspace-preferences");
-    if (!saved) return;
+    void load();
     try {
+      const saved = localStorage.getItem("setu-workspace-preferences");
+      if (!saved) return;
       const value = JSON.parse(saved) as {
-        emailReminders?: boolean;
-        weeklyDigest?: boolean;
         leadDays?: number;
       };
-      setEmailReminders(value.emailReminders ?? true);
-      setWeeklyDigest(value.weeklyDigest ?? true);
       setLeadDays(value.leadDays ?? 7);
     } catch {
       /* Ignore invalid local demo preferences. */
     }
   }, []);
-  function save() {
-    localStorage.setItem(
-      "setu-workspace-preferences",
-      JSON.stringify({ emailReminders, weeklyDigest, leadDays }),
-    );
-    onSave(leadDays);
+  async function save() {
+    if (!preference) return;
+    setSaving(true); setError("");
+    try {
+      setPreference(await updateNotificationPreference({ compliance_enabled: preference.compliance_enabled }));
+      try { localStorage.setItem("setu-workspace-preferences", JSON.stringify({ leadDays })); }
+      catch { /* Backend notification preferences remain saved when browser storage is unavailable. */ }
+      onSave(leadDays);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save notification preferences"); }
+    finally { setSaving(false); }
   }
   return (
     <Modal
       title="Workspace settings"
-      text="Configure local reminder preferences for this browser."
+      text="Configure your notification preferences and local internal lead time."
       close={close}
     >
       <div className="modal-content">
+        {loading && <p role="status">Loading notification preferences...</p>}
+        {error && <p className="form-error" role="alert">{error}<button className="text-button" disabled={loading || saving} onClick={() => void load()}>Try again</button></p>}
         <div className="settings-list">
           <label className="setting-row">
             <span>
-              <strong>Deadline reminders</strong>
-              <small>Receive alerts for approaching statutory dates.</small>
+              <strong>Compliance and deadline reminders</strong>
+              <small>Receive compliance alerts through your configured notification channels.</small>
             </span>
             <input
               type="checkbox"
-              checked={emailReminders}
-              onChange={(e) => setEmailReminders(e.target.checked)}
+              disabled={loading || saving || !preference}
+              checked={preference?.compliance_enabled ?? false}
+              onChange={(e) => setPreference((current) => current ? { ...current, compliance_enabled: e.target.checked } : current)}
             />
           </label>
           <label className="setting-row">
             <span>
               <strong>Weekly portfolio digest</strong>
-              <small>Summarize open tasks and high-risk obligations.</small>
+              <small>Weekly digest delivery is not available.</small>
             </span>
             <input
               type="checkbox"
-              checked={weeklyDigest}
-              onChange={(e) => setWeeklyDigest(e.target.checked)}
+              checked={false}
+              disabled
             />
           </label>
           <label className="setting-row stacked">
@@ -3026,6 +3061,7 @@ function SettingsModal({
               type="number"
               min="1"
               max="60"
+              disabled={saving}
               value={leadDays}
               onChange={(e) =>
                 setLeadDays(Math.min(60, Math.max(1, Number(e.target.value))))
@@ -3035,14 +3071,14 @@ function SettingsModal({
         </div>
         <div className="form-info">
           <Settings size={17} />
-          Preferences are saved locally in this browser for the MVP.
+          Notification preferences are saved to your account. Internal lead time is local to this browser. <Link href="/account">Manage notification channels</Link>
         </div>
         <div className="modal-actions">
-          <button className="button secondary" onClick={close}>
+          <button className="button secondary" disabled={saving} onClick={close}>
             Cancel
           </button>
-          <button className="button primary" onClick={save}>
-            Save preferences
+          <button className="button primary" disabled={loading || saving || !preference} onClick={() => void save()}>
+            {saving ? "Saving..." : "Save preferences"}
           </button>
         </div>
       </div>
@@ -4877,36 +4913,14 @@ type AutomationResult = {
 function IntegrationsView({
   items,
   isAdmin,
-  onUpdate,
   onAutomation,
 }: {
   items: IntegrationConnection[];
   isAdmin: boolean;
-  onUpdate: (item: IntegrationConnection) => void;
   onAutomation: (result: AutomationResult) => void;
 }) {
   const [working, setWorking] = useState("");
   const [error, setError] = useState("");
-  async function change(item: IntegrationConnection) {
-    setWorking(item.id);
-    setError("");
-    try {
-      onUpdate(
-        await patchIntegration(
-          item.id,
-          item.status === "CONNECTED" ? "PAUSED" : "CONNECTED",
-        ),
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Could not update integration",
-      );
-    } finally {
-      setWorking("");
-    }
-  }
   async function automate() {
     setWorking("automation");
     setError("");
@@ -4958,17 +4972,12 @@ function IntegrationsView({
             <footer>
               <StatusBadge status={item.status} />
               {isAdmin ? (
-                <button
+                <Link
                   className="button secondary small"
-                  disabled={working === item.id}
-                  onClick={() => void change(item)}
+                  href="/settings/integrations"
                 >
-                  {working === item.id
-                    ? "Saving..."
-                    : item.status === "CONNECTED"
-                      ? "Pause"
-                      : "Connect"}
-                </button>
+                  {item.status === "CONNECTED" ? "Manage connection" : "Connect"}
+                </Link>
               ) : (
                 <small>Admin managed</small>
               )}

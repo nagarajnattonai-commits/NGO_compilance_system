@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 from typing import Annotated, Literal
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -101,6 +102,10 @@ def _text(*columns, term: str):
 
 def _result(kind: str, row_id: str, title: str, organization: Organization, status: str,
             subtitle: str = "", relevant_date=None, url: str = "/dashboard"):
+    view = {"task": "tasks", "document": "documents", "csr_partner": "csr",
+            "csr_project": "csr", "due_diligence": "csr"}.get(kind)
+    if view:
+        url = "/dashboard?" + urlencode({"view": view, "record": row_id, "type": kind})
     return {
         "id": row_id, "type": kind, "title": title,
         "organization_id": organization.id, "organization": organization.name,
