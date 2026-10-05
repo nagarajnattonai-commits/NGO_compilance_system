@@ -269,3 +269,63 @@ def test_phase20_migration_is_additive_and_idempotent(tmp_path):
     assert apply(target) == VERSION
     assert apply(target) == VERSION
     assert {"import_jobs", "import_row_results"} <= set(inspect(target).get_table_names())
+
+
+def test_cancelled_import_cannot_validate_execute_or_mutate_and_replay_keeps_cancelled_state():
+    with import_client() as (client, _):
+        content = organization_csv(f"Cancelled NGO,TRUST,CANCEL-{uuid4().hex},Pune,,,")
+        uploaded = upload(client, content)
+        checked = validate(client, uploaded).json()
+        job_id = checked["id"]
+        cancelled = client.post(f"/api/v1/imports/{job_id}/cancel")
+        assert cancelled.status_code == 200 and cancelled.json()["status"] == "CANCELLED"
+        assert client.get(f"/api/v1/imports/{job_id}").json()["status"] == "CANCELLED"
+        assert client.post(f"/api/v1/imports/{job_id}/validate", json={
+            "expected_revision":checked["revision"], "mapping":checked["mapping"], "resolutions":{},
+        }).status_code == 409
+        assert client.post(f"/api/v1/imports/{job_id}/confirm", json={
+            "expected_revision":checked["revision"], "confirmation":"CONFIRM IMPORT",
+        }).status_code == 409
+        assert upload(client, content).json()["status"] == "CANCELLED"
+        with SessionLocal() as db:
+            assert not db.scalar(select(Organization.id).where(Organization.name == "Cancelled NGO"))
+        with import_client(tenant="cancel-other-tenant") as (other, _):
+            assert other.post(f"/api/v1/imports/{job_id}/cancel").status_code == 404
+            assert other.get(f"/api/v1/imports/{job_id}/results").status_code == 404
+        with import_client(role="VIEWER") as (viewer, _):
+            assert viewer.get(f"/api/v1/imports/{job_id}").status_code == 403
+            assert viewer.post(f"/api/v1/imports/{job_id}/cancel").status_code == 403
+        with import_client(role="MEMBER") as (member, _):
+            assert member.get(f"/api/v1/imports/{job_id}").status_code == 403
+        with import_client(audience="admin") as (platform, _):
+            assert platform.get(f"/api/v1/imports/{job_id}").status_code == 403
+            assert platform.post(f"/api/v1/imports/{job_id}/cancel").status_code == 403
+
+
+def test_resume_retrieves_saved_resolution_revision_and_results_without_executing():
+    with import_client() as (client, _):
+        with SessionLocal() as db:
+            existing = db.scalar(select(Organization).where(Organization.tenant_id == "tenant-demo"))
+            row = f"{existing.name},TRUST,{existing.registration_number},Pune,{existing.pan},,"
+            organization_id = existing.id
+        uploaded = upload(client, organization_csv(row))
+        unresolved = validate(client, uploaded).json()
+        resolved = client.post(f"/api/v1/imports/{unresolved['id']}/validate", json={
+            "expected_revision":unresolved["revision"],"mapping":uploaded.json()["suggested_mapping"],
+            "resolutions":{"2":{"action":"MAP","organization_id":organization_id}},
+        }).json()
+        reopened = client.get(f"/api/v1/imports/{resolved['id']}").json()
+        rows = client.get(f"/api/v1/imports/{resolved['id']}/results").json()["rows"]
+        assert reopened["status"] == "READY" and reopened["revision"] == resolved["revision"]
+        assert reopened["mapping"] == resolved["mapping"]
+        assert rows[0]["resolution"] == "MAP" and rows[0]["existing_organization_id"] == organization_id
+        assert reopened["created"] == 0 and reopened["mapped"] == 0
+        completed = client.post(f"/api/v1/imports/{resolved['id']}/confirm", json={
+            "expected_revision":resolved["revision"],"confirmation":"CONFIRM IMPORT",
+        })
+        assert completed.json()["mapped"] == 1
+        assert client.post(f"/api/v1/imports/{resolved['id']}/cancel").status_code == 409
+        with SessionLocal() as db:
+            job = db.get(ImportJob, uploaded.json()["id"])
+            job.status = "UPLOADED"; job.expires_at = datetime.now(timezone.utc) - timedelta(days=1); db.commit()
+        assert client.get(f"/api/v1/imports/{resolved['id']}").status_code == 410
