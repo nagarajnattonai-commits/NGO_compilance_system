@@ -18,6 +18,7 @@ import { apiRequest } from "@/lib/http";
 import { roleLabel, type AuthSession, type AuthUser } from "@/lib/auth-types";
 import ThemeToggle from "@/components/theme-toggle";
 import PasswordGuidance from "@/components/password-guidance";
+import AccountSecurity from "@/components/account-security";
 import { validateNewPassword } from "@/lib/auth-validation";
 import { useTranslations } from "next-intl";
 import LocaleSwitcher from "@/components/locale-switcher";
@@ -198,6 +199,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
           </div>
         )}
         <div className="account-grid">
+          <AccountSecurity />
           <section className="card">
             <div className="account-section-head">
               <UserRound size={20} />

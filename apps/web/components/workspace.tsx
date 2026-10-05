@@ -49,6 +49,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import GlobalSearch from "./global-search";
 import WorkflowBuilder from "./workflow-builder";
+import SavedRegisterViews, { requireCompatibleFilters } from "./saved-register-views";
 import {
   addComplianceComment,
   addTaskAttachment,
@@ -748,6 +749,7 @@ export default function ComplianceApp({
           )}
           {view === "compliance" && (
             <ComplianceView
+              currentOrg={selectedOrg} selectOrg={setSelectedOrg}
               items={scopedCompliances}
               organizations={organizations}
               search={search}
@@ -758,6 +760,7 @@ export default function ComplianceApp({
           )}
           {view === "tasks" && (
             <TasksView
+              currentOrg={selectedOrg} selectOrg={setSelectedOrg} organizations={organizations}
               initialRecordId={searchTarget?.id}
               items={scopedTasks}
               compliances={compliances}
@@ -1236,6 +1239,7 @@ function CardTitle({
 }
 
 function ComplianceView({
+  currentOrg, selectOrg,
   items,
   organizations,
   search,
@@ -1243,6 +1247,7 @@ function ComplianceView({
   selectCompliance,
   setShowNew,
 }: {
+  currentOrg: string; selectOrg: (id: string) => void;
   items: Compliance[];
   organizations: Organization[];
   search: string;
@@ -1326,6 +1331,12 @@ function ComplianceView({
           ))}
         </div>
       </div>
+      <SavedRegisterViews scope="COMPLIANCES" filters={{query:search,status:filter==="ALL"?null:filter,organization_id:currentOrg==="all"?null:currentOrg}}
+        apply={saved=>{
+          requireCompatibleFilters(saved,["query","status","organization_id"]);
+          if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error("Saved organization is no longer accessible.");
+          selectOrg(saved.organization_id||"all");setSearch(saved.query||"");setFilter(saved.status||"ALL");
+        }}/>
       <section className="table-card">
         <div className="data-table compliance-table">
           <div className="table-head">
@@ -1422,6 +1433,7 @@ function ComplianceView({
 }
 
 function TasksView({
+  currentOrg, selectOrg, organizations,
   initialRecordId,
   items,
   compliances,
@@ -1430,6 +1442,7 @@ function TasksView({
   taskUpdated,
   setShowNewTask,
 }: {
+  currentOrg:string; selectOrg:(id:string)=>void; organizations:Organization[];
   initialRecordId?: string;
   items: ComplianceTask[];
   compliances: Compliance[];
@@ -1551,6 +1564,15 @@ function TasksView({
             <ChevronDown size={14} />
           </label>
         </div>
+        <SavedRegisterViews scope="TASKS" filters={{organization_id:currentOrg==="all"?null:currentOrg,
+          status:tab==="DONE"?"DONE":tab==="ALL"?null:"OPEN",timing:tab==="OVERDUE"?"OVERDUE":"ALL",assignee:assignee==="ALL"?null:assignee}}
+          unavailable={["MINE","TODAY"].includes(tab)?"My tasks and Today are relative views and cannot be saved faithfully with the current saved-view contract.":""}
+          apply={saved=>{
+            requireCompatibleFilters(saved,["status","timing","assignee","organization_id"]);
+            if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error("Saved organization is no longer accessible.");
+            if(saved.status&&!['OPEN','DONE'].includes(saved.status)||saved.timing&&!['ALL','OVERDUE'].includes(saved.timing)||saved.timing==='OVERDUE'&&saved.status==='DONE') throw new Error("This task view uses unsupported status or timing filters.");
+            selectOrg(saved.organization_id||"all");setAssignee(saved.assignee||"ALL");setTab(saved.timing==="OVERDUE"?"OVERDUE":saved.status==="DONE"?"DONE":saved.status?"OPEN":"ALL");
+          }}/>
         <section className="card task-page-list">
           {visible.map((task) => {
             const compliance = compliances.find(

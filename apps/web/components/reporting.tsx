@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Download, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/http";
+import SavedRegisterViews, { requireCompatibleFilters } from "./saved-register-views";
 import type { Organization } from "@/lib/types";
 import { activeLocale, formatPercentage, formatShortDate } from "@/i18n/format";
 
@@ -293,6 +294,14 @@ export function ManagementReports({
           </> : <span className="subscription-upgrade-required"><FileText size={16} />{tSubscriptions("upgradeRequired")}</span>}
         </div>
       </div>
+      <SavedRegisterViews scope="REPORTS" filters={{organization_id:filters.organization_id||null,status:filters.status||null,
+        owner:filters.owner||null,priority:filters.priority||null,date_from:filters.date_from||null,date_to:filters.date_to||null}}
+        unavailable={filters.category?"Category is not supported by the saved-view contract. Clear it before saving this report view.":""}
+        apply={saved=>{
+          requireCompatibleFilters(saved,["organization_id","status","owner","priority","date_from","date_to"]);
+          if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error("Saved organization is no longer accessible.");
+          setPage(0);setFilters({organization_id:saved.organization_id||"",category:"",status:saved.status||"",owner:saved.owner||"",priority:saved.priority||"",date_from:saved.date_from||"",date_to:saved.date_to||""});
+        }}/>
       <section className="report-filters" aria-label={t("filters")}>
         <label>{t("organization")}<select value={filters.organization_id} onChange={(event) => updateFilter("organization_id", event.target.value)}>
           <option value="">{t("allOrganizations")}</option>{organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
