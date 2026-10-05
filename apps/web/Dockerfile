@@ -16,10 +16,13 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/next.config.ts ./next.config.ts
-COPY --from=build /app/i18n ./i18n
-COPY --from=deps /app/node_modules ./node_modules
+RUN addgroup -S setu && adduser -S setu -G setu
+COPY --chown=setu:setu --from=build /app/.next ./.next
+COPY --chown=setu:setu --from=build /app/package.json ./package.json
+COPY --chown=setu:setu --from=build /app/next.config.ts ./next.config.ts
+COPY --chown=setu:setu --from=build /app/i18n ./i18n
+COPY --chown=setu:setu --from=build /app/public ./public
+COPY --chown=setu:setu --from=deps /app/node_modules ./node_modules
+USER setu
 EXPOSE 3000
 CMD ["npm", "start"]

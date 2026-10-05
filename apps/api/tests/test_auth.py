@@ -232,13 +232,16 @@ def test_password_recovery_requires_mail_configuration(monkeypatch):
 def test_reset_link_delivery_single_use_and_session_revocation(monkeypatch):
     monkeypatch.setenv("SMTP_HOST", "smtp.example.test")
     monkeypatch.setenv("SMTP_FROM", "noreply@example.test")
-    with TestClient(app) as client, patch("app.auth.smtplib.SMTP_SSL") as smtp:
+    sent = {}
+    def capture(_db, _tenant, _recipient, _subject, text, html, *_args, **_kwargs):
+        sent.update(text=text, html=html)
+    monkeypatch.setattr("app.integration_notifications.deliver_email", capture)
+    with TestClient(app) as client:
         signup(client)
         response = client.post("/api/v1/auth/forgot-password", headers=HEADERS, json={"email": "owner@example.test"})
         assert response.status_code == 200
-        message = smtp.return_value.__enter__.return_value.send_message.call_args.args[0]
-        assert message.get_body(preferencelist=("html",)) is not None
-        token = message.get_body(preferencelist=("plain",)).get_content().split("#token=")[1].split()[0]
+        assert "<" in sent["html"]
+        token = sent["text"].split("#token=")[1].split()[0]
         assert token not in response.text
         assert client.post("/api/v1/auth/reset-password", headers=HEADERS, json={"token": token, "password": NEW_PASSWORD}).status_code == 204
         assert client.get("/api/v1/auth/me").status_code == 401

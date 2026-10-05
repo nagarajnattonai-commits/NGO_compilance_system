@@ -98,6 +98,7 @@ def current_user(request: Request, db: DB) -> User:
     enforce_request_tenant(request, db, user.tenant_id)
     request.state.actor_name = user.name
     request.state.user_id = user.id
+    request.state.tenant_id = user.tenant_id
     db.info["actor_name"] = user.name
     db.info["actor_id"] = user.id
     return user

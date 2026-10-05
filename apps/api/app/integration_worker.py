@@ -14,6 +14,7 @@ from .models import AuditEvent
 from .integration_models import WebhookSubscription, WebhookDelivery, WebhookEvent, IntegrationOperation, IntegrationQuota
 from .integration_security import IntegrationError, safe_http, secret_store
 from .integration_service import quota
+from .process_control import install_signal_handlers, stop_event, wait
 from fastapi import HTTPException
 
 def process_batch(limit=25):
@@ -88,11 +89,12 @@ def main():
     parser=argparse.ArgumentParser(description="Process integration webhook jobs")
     parser.add_argument("--loop",action="store_true")
     args=parser.parse_args()
+    install_signal_handlers()
     last_cleanup=0
-    while True:
+    while not stop_event.is_set():
         if time.time()-last_cleanup>3600:
             prune_rate_windows();last_cleanup=time.time()
         process_batch()
         if not args.loop:break
-        time.sleep(5)
+        wait(5)
 if __name__=="__main__":main()

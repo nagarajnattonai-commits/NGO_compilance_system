@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 import os
+import time
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -107,7 +108,8 @@ from .document_intelligence_api import router as document_intelligence_router
 from .csr_api import router as csr_router
 from .communication_api import router as communication_router
 from .production_security import (BoundedSensitiveBody, limit_expensive, ready_database, security_headers,
-                                  validate_production_configuration, validate_production_schema)
+                                  build_metadata, validate_production_configuration, validate_production_schema)
+from .production_observability import access_record, logger as access_logger, request_id
 
 
 @asynccontextmanager
@@ -124,7 +126,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="Setu NGO Compliance API",
-    version="0.2.0",
+    version="0.25.0",
     description="Tenant-scoped compliance operations API derived from the approved product documents.",
     lifespan=lifespan,
 )
@@ -183,11 +185,16 @@ async def validation_error_handler(_, error: RequestValidationError):
 
 @app.middleware("http")
 async def private_api_responses(request, call_next):
+    started = time.monotonic()
+    request.state.request_id = request_id(request.headers.get("x-request-id"))
     response = await call_next(request)
+    response.headers["X-Request-ID"] = request.state.request_id
     security_headers(response, production=os.getenv("APP_ENV") == "production")
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
+    if os.getenv("APP_ENV") == "production":
+        access_logger.info(access_record(request, response, started))
     return response
 
 
@@ -395,7 +402,7 @@ def apply_compliance_transition(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "ngo-compliance-api"}
+    return {"status": "ok", "service": "ngo-compliance-api", **build_metadata()}
 
 
 @app.get("/ready")

@@ -1,5 +1,7 @@
 # Production operations (technical runbook)
 
+The consolidated release procedure is [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md), with evidence tracking in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). This older concise reference is retained for existing operator links.
+
 This is operational guidance, not a certification or availability guarantee. Target
 RPO is at most 1 hour and target RTO is at most 4 hours; rehearse and measure both
 in the actual hosting environment before making any service commitment.

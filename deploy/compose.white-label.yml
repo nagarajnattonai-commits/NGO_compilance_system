@@ -23,6 +23,12 @@ services:
       APP_ORIGIN: https://${PLATFORM_DOMAIN:?Set the platform hostname}
       PLATFORM_HOSTS: ${PLATFORM_DOMAIN}
       DATABASE_URL: postgresql+psycopg://compliance:${POSTGRES_PASSWORD}@database:5432/compliance
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+      DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-20}
+      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT:-10}
+      DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-10}
+      RELEASE_VERSION: ${RELEASE_VERSION:-0.25.0}
+      BUILD_SHA: ${BUILD_SHA:-development}
       BRAND_PROXY_KEY: ${BRAND_PROXY_KEY:?Set a random shared key of at least 32 characters}
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:?Set the operator account allowlist}
       WHITE_LABEL_CNAME_TARGET: ${WHITE_LABEL_CNAME_TARGET:?Set the TLS edge DNS hostname}
@@ -30,6 +36,7 @@ services:
       BRAND_S3_ENDPOINT: ${BRAND_S3_ENDPOINT:-}
       DOCUMENT_S3_BUCKET: ${DOCUMENT_S3_BUCKET:?Set a private document bucket}
       DOCUMENT_S3_ENDPOINT: ${DOCUMENT_S3_ENDPOINT:-}
+      DOCUMENT_SCAN_REQUIRED: ${DOCUMENT_SCAN_REQUIRED:-false}
       AWS_REGION: ${AWS_REGION:-ap-south-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -46,15 +53,36 @@ services:
       INTEGRATION_SECRET_PREFIX: ${INTEGRATION_SECRET_PREFIX:-setu/integrations}
       INTEGRATION_SECRET_KMS_KEY_ID: ${INTEGRATION_SECRET_KMS_KEY_ID:-}
       INTEGRATION_SMTP_HOSTS: ${INTEGRATION_SMTP_HOSTS:-}
-      INTEGRATION_LEGACY_EMAIL_FALLBACK: ${INTEGRATION_LEGACY_EMAIL_FALLBACK:-1}
+      INTEGRATION_LEGACY_EMAIL_FALLBACK: ${INTEGRATION_LEGACY_EMAIL_FALLBACK:-0}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 10s
     depends_on:
       database:
         condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: ../apps/api
+    command: [python, -m, app.automation_worker, --loop, --limit, "25"]
+    environment: *api-environment
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 45s
+    restart: unless-stopped
+
+  scheduler:
+    build: ../apps/api
+    command: [python, -m, app.runtime_scheduler, --loop, --interval, "60"]
+    environment: *api-environment
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 45s
     restart: unless-stopped
 
   integration-worker:
@@ -64,6 +92,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    stop_grace_period: 45s
     restart: unless-stopped
 
   web:
@@ -80,6 +109,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   caddy:
@@ -96,7 +131,8 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

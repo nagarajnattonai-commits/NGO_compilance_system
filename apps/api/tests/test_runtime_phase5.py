@@ -130,7 +130,9 @@ def test_next_cycle_period_uses_period_end_and_replays_without_skipping(monkeypa
         def change(c):c["recurrence"].update(frequency="MONTHLY",anchor_date="2026-01-01");c["deadline"].update(strategy="PERIOD_END_PLUS_DAYS",fixed_date=None,offset_days=90)
         row=configured(client,change=change);source=generate(client,row["code"])
         path=f"/api/v1/compliances/{source['id']}/next-cycle";response=client.post(path);assert response.status_code==200,response.text
-        target=response.json()["compliance"];assert target["period"].startswith("2026-10-01:2026-10-31")
+        source_end=date.fromisoformat(source["period"].split(":")[1]);next_start=source_end+timedelta(days=1)
+        following=(next_start.replace(day=28)+timedelta(days=4)).replace(day=1);next_end=following-timedelta(days=1)
+        target=response.json()["compliance"];assert target["period"].startswith(f"{next_start.isoformat()}:{next_end.isoformat()}")
         replay=client.post(path).json();assert replay["replayed"] and replay["compliance"]["id"]==target["id"]
         assert client.get(f"/api/v1/compliances/{source['id']}/runtime-detail").json()["compliance"]["status"]=="NOT_STARTED"
 

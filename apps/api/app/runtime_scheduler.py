@@ -1,9 +1,9 @@
 """Separately deployable scheduler. It enqueues work and never runs domain services."""
 import argparse
-import time
 
 from .automation_service import schedule_scans
 from .database import SessionLocal
+from .process_control import install_signal_handlers, stop_event, wait
 
 
 def schedule_once():
@@ -16,11 +16,12 @@ def main():
     parser.add_argument("--loop", action="store_true")
     parser.add_argument("--interval", type=int, default=60)
     args = parser.parse_args()
-    while True:
+    install_signal_handlers()
+    while not stop_event.is_set():
         schedule_once()
         if not args.loop:
             break
-        time.sleep(max(10, min(args.interval, 3600)))
+        wait(max(10, min(args.interval, 3600)))
 
 
 if __name__ == "__main__":

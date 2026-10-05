@@ -7,6 +7,7 @@ import uuid
 
 from .automation_service import claim_job, execute_job, fail_job, finish_job
 from .database import SessionLocal
+from .process_control import install_signal_handlers, stop_event, wait
 
 
 def process_one(worker_id: str | None = None) -> bool:
@@ -42,11 +43,12 @@ def main():
     parser.add_argument("--loop", action="store_true")
     parser.add_argument("--limit", type=int, default=25)
     args = parser.parse_args()
-    while True:
+    install_signal_handlers()
+    while not stop_event.is_set():
         processed = process_batch(max(1, min(args.limit, 200)))
         if not args.loop:
             break
-        time.sleep(1 if processed else 5)
+        wait(1 if processed else 5)
 
 
 if __name__ == "__main__":

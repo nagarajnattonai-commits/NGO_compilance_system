@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from urllib.parse import urlsplit
 
 from sqlalchemy import inspect, text
@@ -19,17 +20,50 @@ def validate_production_configuration(environment=None) -> None:
         raise RuntimeError("Production APP_ORIGIN must be an HTTPS origin")
     if len(values.get("BRAND_PROXY_KEY", "")) < 32:
         raise RuntimeError("Production requires a shared BRAND_PROXY_KEY of at least 32 characters")
-    if not values.get("DATABASE_URL", "").startswith("postgresql+"):
+    database_url = values.get("DATABASE_URL", "")
+    if not database_url.startswith("postgresql+psycopg://"):
         raise RuntimeError("Production requires an explicit PostgreSQL DATABASE_URL")
     if not values.get("PLATFORM_ADMIN_EMAILS", "").strip():
         raise RuntimeError("Production requires a platform administrator allowlist")
     if values.get("INTEGRATION_SECRET_BACKEND") != "aws":
         raise RuntimeError("Production requires the AWS integration secret store")
+    if not values.get("PLATFORM_HOSTS", "").strip():
+        raise RuntimeError("Production requires an explicit PLATFORM_HOSTS allowlist")
+    if not values.get("WHITE_LABEL_CNAME_TARGET", "").strip():
+        raise RuntimeError("Production requires the white-label TLS edge hostname")
+    if not values.get("BRAND_S3_BUCKET", "").strip():
+        raise RuntimeError("Production requires private object storage for brand assets")
     if not values.get("DOCUMENT_S3_BUCKET", "").strip() and values.get("DOCUMENT_STORAGE_MANAGED_ONLY") != "1":
         raise RuntimeError("Production requires private S3 document storage or explicit managed-only storage")
     endpoint = values.get("DOCUMENT_S3_ENDPOINT", "")
     if endpoint and not endpoint.startswith("https://"):
         raise RuntimeError("Production document storage endpoint must use HTTPS")
+    for key, default, minimum, maximum in (
+        ("DATABASE_POOL_SIZE", 10, 1, 50),
+        ("DATABASE_MAX_OVERFLOW", 20, 0, 100),
+        ("DATABASE_POOL_TIMEOUT", 10, 1, 60),
+        ("DATABASE_CONNECT_TIMEOUT", 10, 1, 60),
+    ):
+        try:
+            value = int(values.get(key, str(default)))
+        except (TypeError, ValueError):
+            raise RuntimeError(f"Production {key} must be an integer") from None
+        if not minimum <= value <= maximum:
+            raise RuntimeError(f"Production {key} is outside the supported range")
+    if values.get("DOCUMENT_SCAN_REQUIRED", "false").lower() == "true":
+        raise RuntimeError("Production document scanning is required but no scanner adapter is configured")
+
+
+def build_metadata(environment=None) -> dict[str, str]:
+    values = os.environ if environment is None else environment
+    version = values.get("RELEASE_VERSION", "0.25.0")
+    build = values.get("BUILD_SHA", "development")
+    safe = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+    return {
+        "version": version if safe.fullmatch(version) else "invalid",
+        "build": build if safe.fullmatch(build) else "invalid",
+        "environment": values.get("APP_ENV", "development") if values.get("APP_ENV", "development") in {"development", "test", "production"} else "unknown",
+    }
 
 
 def validate_production_schema(engine, metadata) -> None:

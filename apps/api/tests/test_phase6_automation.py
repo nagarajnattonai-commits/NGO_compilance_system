@@ -9,6 +9,7 @@ from app.auth import digest, now
 from app.auth_models import AuthAccount, SessionContext
 from app.automation_models import ScheduledJob
 from app.automation_service import (
+    SCAN_TYPES,
     claim_job,
     execute_job,
     fail_job,
@@ -55,10 +56,11 @@ def test_schedule_is_idempotent_and_tenant_scoped():
         db.commit()
         first = schedule_scans(db, now())
         second = schedule_scans(db, now())
-        assert first == {"created": 12, "replayed": 0, "tenants": 2}
-        assert second == {"created": 0, "replayed": 12, "tenants": 2}
-        assert len(db.scalars(select(ScheduledJob).where(ScheduledJob.tenant_id == "tenant-a")).all()) == 6
-        assert len(db.scalars(select(ScheduledJob).where(ScheduledJob.tenant_id == "tenant-b")).all()) == 6
+        expected = len(SCAN_TYPES)
+        assert first == {"created": expected * 2, "replayed": 0, "tenants": 2}
+        assert second == {"created": 0, "replayed": expected * 2, "tenants": 2}
+        assert len(db.scalars(select(ScheduledJob).where(ScheduledJob.tenant_id == "tenant-a")).all()) == expected
+        assert len(db.scalars(select(ScheduledJob).where(ScheduledJob.tenant_id == "tenant-b")).all()) == expected
 
 
 def test_claim_lease_expiration_and_worker_restart_recovery():

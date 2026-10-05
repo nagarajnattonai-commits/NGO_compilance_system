@@ -27,6 +27,9 @@ def production_values():
         "BRAND_PROXY_KEY": "a" * 32,
         "DATABASE_URL": "postgresql+psycopg://user:password@database/compliance",
         "PLATFORM_ADMIN_EMAILS": "operator@example.org",
+        "PLATFORM_HOSTS": "app.example.org",
+        "WHITE_LABEL_CNAME_TARGET": "edge.example.org",
+        "BRAND_S3_BUCKET": "private-brand-assets",
         "INTEGRATION_SECRET_BACKEND": "aws",
         "DOCUMENT_S3_BUCKET": "private-documents",
     }
