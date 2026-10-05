@@ -1120,6 +1120,7 @@ def add_compliance_comment(compliance_id: str, payload: ComplianceCommentCreate,
 def portfolio_records(
     db: DB,
     tenant_id: Tenant,
+    user: CurrentUser,
     organization_id: str | None = None,
     record_type: str | None = None,
 ):
@@ -1133,11 +1134,25 @@ def portfolio_records(
             filters.append(PortfolioRecord.organization_id.in_(allowed))
     if record_type:
         filters.append(PortfolioRecord.record_type == record_type)
-    return db.scalars(select(PortfolioRecord).where(*filters).order_by(PortfolioRecord.updated_at.desc())).all()
+    return [_portfolio_record_out(db, tenant_id, user, item) for item in
+            db.scalars(select(PortfolioRecord).where(*filters).order_by(PortfolioRecord.updated_at.desc())).all()]
+
+
+def _portfolio_record_out(db, tenant_id, user, item):
+    from .organization_access import organization_access_role
+    # Reuse organization authorization, once per organization in this request.
+    access = db.info.setdefault("portfolio_edit_access", {})
+    key = (tenant_id, user.id, item.organization_id)
+    if key not in access:
+        access[key] = user.role != "VIEWER" and organization_access_role(
+            db, tenant_id, item.organization_id, user.id) in {"CONTRIBUTOR", "MANAGER"}
+    writable = access[key]
+    return PortfolioRecordOut.model_validate(item).model_copy(update={
+        "can_edit": writable, "can_delete": writable and user.role == "ADMIN"})
 
 
 @app.post("/api/v1/portfolio-records", response_model=PortfolioRecordOut, status_code=status.HTTP_201_CREATED)
-def create_portfolio_record(payload: PortfolioRecordCreate, db: DB, tenant_id: Tenant):
+def create_portfolio_record(payload: PortfolioRecordCreate, db: DB, tenant_id: Tenant, user: CurrentUser):
     verify_org(db, tenant_id, payload.organization_id)
     require_organization_access(db, tenant_id, payload.organization_id, write=True)
     item = PortfolioRecord(tenant_id=tenant_id, **payload.model_dump())
@@ -1146,11 +1161,11 @@ def create_portfolio_record(payload: PortfolioRecordCreate, db: DB, tenant_id: T
     audit(db, tenant_id, f"{item.record_type}_CREATED", "PortfolioRecord", item.id, f"Created {item.title}")
     db.commit()
     db.refresh(item)
-    return item
+    return _portfolio_record_out(db, tenant_id, user, item)
 
 
 @app.patch("/api/v1/portfolio-records/{record_id}", response_model=PortfolioRecordOut)
-def update_portfolio_record(record_id: str, payload: PortfolioRecordUpdate, db: DB, tenant_id: Tenant):
+def update_portfolio_record(record_id: str, payload: PortfolioRecordUpdate, db: DB, tenant_id: Tenant, user: CurrentUser):
     item = db.scalar(select(PortfolioRecord).where(PortfolioRecord.id == record_id, PortfolioRecord.tenant_id == tenant_id))
     if not item:
         raise HTTPException(status_code=404, detail="Portfolio record not found")
@@ -1161,7 +1176,7 @@ def update_portfolio_record(record_id: str, payload: PortfolioRecordUpdate, db: 
     audit(db, tenant_id, f"{item.record_type}_UPDATED", "PortfolioRecord", item.id, f"Updated {item.title}")
     db.commit()
     db.refresh(item)
-    return item
+    return _portfolio_record_out(db, tenant_id, user, item)
 
 
 @app.delete("/api/v1/portfolio-records/{record_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -805,6 +805,9 @@ export default function ComplianceApp({
               organizations={organizations}
               currentOrg={selectedOrg}
               readOnly={user.role === "VIEWER"}
+              onUpdate={(item) => setPortfolioRecords(rows=>rows.map(row=>row.id===item.id?item:row))}
+              onDelete={(id) => setPortfolioRecords(rows=>rows.filter(row=>row.id!==id))}
+              onRefresh={async()=>setPortfolioRecords(await apiRequest<PortfolioRecord[]>("/portfolio-records"))}
               onCreate={(item) => {
                 setPortfolioRecords((rows) => [item, ...rows]);
                 showToast(`${item.title} added`);
@@ -816,6 +819,7 @@ export default function ComplianceApp({
               items={scopedPortfolioRecords}
               organizations={organizations}
               currentOrg={selectedOrg}
+              onRefresh={async()=>setPortfolioRecords(await apiRequest<PortfolioRecord[]>("/portfolio-records"))}
               onCreate={(item) => {
                 setPortfolioRecords((rows) => [item, ...rows]);
                 showToast(`${item.title} added`);
@@ -3950,18 +3954,27 @@ function ProgrammesView({
   currentOrg,
   readOnly,
   onCreate,
+  onUpdate, onDelete, onRefresh,
 }: {
   items: PortfolioRecord[];
   organizations: Organization[];
   currentOrg: string;
   readOnly: boolean;
   onCreate: (item: PortfolioRecord) => void;
+  onUpdate: (item: PortfolioRecord) => void;
+  onDelete: (id:string) => void;
+  onRefresh: () => Promise<void>;
 }) {
   const [tab, setTab] = useState<"ALL" | PortfolioRecord["record_type"]>("ALL");
   const [showNewRecord, setShowNewRecord] = useState(false);
+  const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [query,setQuery]=useState(""),[statusFilter,setStatusFilter]=useState("");
+  const [refreshing,setRefreshing]=useState(false),[refreshError,setRefreshError]=useState("");
+  const selectedRecord=items.find(item=>item.id===selectedId);
   const impactItems = items.filter(isImpactRecord);
   const visible = impactItems.filter(
-    (item) => tab === "ALL" || item.record_type === tab,
+    (item) => (tab === "ALL" || item.record_type === tab) && (!statusFilter||item.status===statusFilter) &&
+      `${item.title} ${item.owner_name} ${item.value_label} ${item.notes} ${item.status}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
   return (
     <>
@@ -3969,7 +3982,7 @@ function ProgrammesView({
         <PageHeading
           eyebrow="Expansion modules"
           title="Impact portfolio"
-          text="Manage grants, donor relationships, CSR delivery and volunteer programmes alongside compliance."
+          text="Track grant, donor and volunteer records alongside compliance. Manage CSR workflows in CSR partners."
           action={
             !readOnly && (
               <button
@@ -3982,6 +3995,9 @@ function ProgrammesView({
             )
           }
         />
+        <p className="notice info">These are operational records, not accounting, payments or attendance systems. Owner and value fields are descriptive text. <Link href="/dashboard?view=csr">Manage CSR in CSR partners</Link>. Existing generic CSR records are retained for reference only.</p>
+        <div className="toolbar"><label className="search-box"><Search size={16}/><input aria-label="Search impact records" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search impact records..."/></label><label>Status filter<select aria-label="Impact status filter" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="">All statuses</option>{Array.from(new Set(impactItems.map(item=>item.status))).sort().map(status=><option key={status}>{status}</option>)}</select></label><button className="button secondary" disabled={refreshing} onClick={async()=>{setRefreshing(true);setRefreshError("");try{await onRefresh();}catch(reason){setRefreshError(reason instanceof Error?reason.message:"Could not refresh records");}finally{setRefreshing(false);}}}>Refresh records</button></div>
+        {refreshing&&<p role="status">Loading records...</p>}{refreshError&&<p className="form-error" role="alert">{refreshError}</p>}
         <div className="module-metrics">
           {(
             Object.keys(programmeLabels) as PortfolioRecord["record_type"][]
@@ -4049,6 +4065,7 @@ function ProgrammesView({
                       ? `Due ${niceDate(item.due_at)}`
                       : "No due date"}
                   </small>
+                  <button className="button secondary" onClick={()=>setSelectedId(item.id)} aria-label={`View ${item.title}`}>View record</button>
                 </div>
               </article>
             ))}
@@ -4073,6 +4090,7 @@ function ProgrammesView({
           }}
         />
       )}
+      {selectedRecord&&<PortfolioRecordDetail item={selectedRecord} organizations={organizations} readOnly={readOnly||selectedRecord.record_type==="CSR_PROJECT"} close={()=>setSelectedId(null)} onUpdate={onUpdate} onDelete={onDelete}/>}
     </>
   );
 }
@@ -4098,6 +4116,7 @@ function NewPortfolioRecordModal({
   const [valueLabel, setValueLabel] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [ownerName,setOwnerName]=useState(currentUser.name),[status,setStatus]=useState("ACTIVE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   async function submit(event: React.FormEvent) {
@@ -4110,8 +4129,8 @@ function NewPortfolioRecordModal({
           organization_id: organizationId,
           record_type: recordType,
           title,
-          status: "ACTIVE",
-          owner_name: currentUser.name,
+          status,
+          owner_name: ownerName.trim(),
           value_label: valueLabel,
           due_at: dueAt || null,
           notes,
@@ -4128,7 +4147,7 @@ function NewPortfolioRecordModal({
   return (
     <Modal
       title="Add impact record"
-      text="Create a tenant-scoped grant, donor, CSR or volunteer record."
+      text="Create a tenant-scoped grant, donor or volunteer tracking record. CSR is managed in CSR partners."
       close={close}
     >
       <form className="form" onSubmit={submit}>
@@ -4144,7 +4163,7 @@ function NewPortfolioRecordModal({
               }
             >
               {(
-                Object.keys(programmeLabels) as PortfolioRecord["record_type"][]
+                Object.keys(programmeLabels).filter(type=>type!=="CSR_PROJECT") as PortfolioRecord["record_type"][]
               ).map((type) => (
                 <option value={type} key={type}>
                   {programmeLabels[type]}
@@ -4173,15 +4192,21 @@ function NewPortfolioRecordModal({
             autoFocus
             required
             minLength={2}
+            maxLength={220}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Programme, relationship or engagement name"
           />
         </label>
         <div className="form-row">
+          <label><span>Responsible person / contact</span><input required minLength={2} maxLength={120} value={ownerName} onChange={event=>setOwnerName(event.target.value)}/></label>
+          <label><span>Recorded status</span><input required minLength={2} maxLength={30} value={status} onChange={event=>setStatus(event.target.value)}/></label>
+        </div>
+        <div className="form-row">
           <label>
             <span>Value or scale</span>
             <input
+              maxLength={80}
               value={valueLabel}
               onChange={(event) => setValueLabel(event.target.value)}
               placeholder="e.g. INR 10 lakh or 20 volunteers"
@@ -4199,6 +4224,7 @@ function NewPortfolioRecordModal({
         <label>
           <span>Notes</span>
           <textarea
+            maxLength={2000}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Objectives, reporting needs, stewardship or delivery notes"
@@ -4220,6 +4246,34 @@ function NewPortfolioRecordModal({
       </form>
     </Modal>
   );
+}
+
+function PortfolioRecordDetail({item,organizations,readOnly,close,onUpdate,onDelete}:{item:PortfolioRecord;organizations:Organization[];readOnly:boolean;close:()=>void;onUpdate:(item:PortfolioRecord)=>void;onDelete:(id:string)=>void}) {
+  const [editing,setEditing]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState("");
+  const [title,setTitle]=useState(item.title),[owner,setOwner]=useState(item.owner_name),[status,setStatus]=useState(item.status),[value,setValue]=useState(item.value_label),[due,setDue]=useState(item.due_at||""),[notes,setNotes]=useState(item.notes);
+  async function save(event:React.FormEvent){
+    event.preventDefault();if(saving||readOnly||!item.can_edit) return;setSaving(true);setError("");
+    try{onUpdate(await patchPortfolioRecord(item.id,{title:title.trim(),owner_name:owner.trim(),status:status.trim(),value_label:value.trim(),due_at:due||null,notes:notes.trim()}));close();}
+    catch(reason){setError(reason instanceof Error?reason.message:"Could not update record");}
+    finally{setSaving(false);}
+  }
+  async function remove(){
+    if(saving||readOnly||!item.can_delete||!window.confirm(`Delete ${item.title}? This action is audit logged.`)) return;setSaving(true);setError("");
+    try{await deletePortfolioRecord(item.id);onDelete(item.id);close();}catch(reason){setError(reason instanceof Error?reason.message:"Could not delete record");}finally{setSaving(false);}
+  }
+  return <Modal title={editing?"Edit operational record":"Record details"} text="Record tracking only. Status changes do not settle funds, deliver messages, publish content or generate documents." close={()=>{if(!saving) close();}}>
+    <p>Organization: {organizations.find(org=>org.id===item.organization_id)?.name||"Organization"} · Type: {item.record_type}</p>
+    {error&&<p className="form-error" role="alert">{error}</p>}
+    {editing?<form className="form" onSubmit={save}>
+      <label>Record title<input required minLength={2} maxLength={220} value={title} onChange={event=>setTitle(event.target.value)}/></label>
+      <label>Responsible person / contact<input required minLength={2} maxLength={120} value={owner} onChange={event=>setOwner(event.target.value)}/></label>
+      <label>Recorded status<input required minLength={2} maxLength={30} value={status} onChange={event=>setStatus(event.target.value)}/></label>
+      <label>Value / reference<input maxLength={80} value={value} onChange={event=>setValue(event.target.value)}/></label>
+      <label>Date<input type="date" value={due} onChange={event=>setDue(event.target.value)}/></label>
+      <label>Notes<textarea maxLength={2000} value={notes} onChange={event=>setNotes(event.target.value)}/></label>
+      <div className="modal-actions"><button type="button" className="button secondary" disabled={saving} onClick={()=>setEditing(false)}>Cancel edit</button><button className="button primary" disabled={saving}>{saving?"Saving...":"Save record"}</button></div>
+    </form>:<><h3>{item.title}</h3><p>Status: {item.status}</p><p>Owner / contact: {item.owner_name}</p><p>Value / reference: {item.value_label||"Not recorded"}</p><p>Date: {item.due_at?niceDate(item.due_at):"Not recorded"}</p><p>{item.notes||"No notes recorded"}</p><p>Created: {item.created_at} · Updated: {item.updated_at}</p><div className="modal-actions">{!readOnly&&item.can_edit&&<button className="button primary" onClick={()=>setEditing(true)}>Edit record</button>}{!readOnly&&item.can_delete&&<button className="button secondary" disabled={saving} onClick={()=>void remove()}>Delete record</button>}</div></>}
+  </Modal>;
 }
 
 const operationGroups = [
@@ -4265,7 +4319,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Memberships",
     singular: "membership",
     group: "People",
-    description: "Applications, fees, validity and verification",
+    description: "Application, fee reference and validity records",
     defaultStatus: "PENDING",
     statuses: ["PENDING", "VERIFIED", "BLOCKED", "EXPIRED"],
     valueLabel: "Fee / transaction",
@@ -4285,7 +4339,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Volunteer activities",
     singular: "activity",
     group: "People",
-    description: "Hours, activity type, event and notes",
+    description: "Activity, hours and event references; no attendance system",
     defaultStatus: "LOGGED",
     statuses: ["LOGGED", "APPROVED", "REJECTED"],
     valueLabel: "Hours / event",
@@ -4295,7 +4349,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Management body",
     singular: "management member",
     group: "People",
-    description: "Board profile, department and display order",
+    description: "Board member, department and role reference records",
     defaultStatus: "ACTIVE",
     statuses: ["ACTIVE", "INACTIVE"],
     valueLabel: "Role / department",
@@ -4305,7 +4359,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Projects & funds",
     singular: "project",
     group: "Fundraising",
-    description: "Targets, funds raised and delivery status",
+    description: "Legacy project references; manage CSR in CSR partners",
     defaultStatus: "ACTIVE",
     statuses: ["DRAFT", "ACTIVE", "ON_TRACK", "COMPLETED", "ON_HOLD"],
     valueLabel: "Target / raised",
@@ -4315,7 +4369,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Donations",
     singular: "donation",
     group: "Fundraising",
-    description: "Donor, amount, transaction and 80G workflow",
+    description: "Donor, amount and transaction reference records",
     defaultStatus: "PENDING",
     statuses: ["PENDING", "VERIFIED", "APPROVED", "REJECTED"],
     valueLabel: "Amount / transaction",
@@ -4325,7 +4379,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Crowdfunding",
     singular: "campaign",
     group: "Fundraising",
-    description: "Public campaigns, goals and progress",
+    description: "Campaign goal and progress references (record only)",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "ACTIVE", "CLOSED"],
     valueLabel: "Goal / raised",
@@ -4345,7 +4399,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Events",
     singular: "event",
     group: "Engagement",
-    description: "Dates, locations and registration capacity",
+    description: "Date, location and capacity references; no registration system",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "COMPLETED", "CANCELLED"],
     valueLabel: "Location / capacity",
@@ -4355,7 +4409,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Messages",
     singular: "message",
     group: "Engagement",
-    description: "Member email and dashboard delivery",
+    description: "Message and audience references; no message delivery",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "SENT", "FAILED"],
     valueLabel: "Audience / channel",
@@ -4375,7 +4429,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Certificates",
     singular: "certificate",
     group: "Publishing",
-    description: "Visitor certificates, issue number and email",
+    description: "Certificate references; no generation or email delivery",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "ISSUED", "EMAILED", "REVOKED"],
     valueLabel: "Recipient / number",
@@ -4385,7 +4439,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Document templates",
     singular: "template",
     group: "Publishing",
-    description: "Reusable branded certificate and letter layouts",
+    description: "Template descriptions; no document generation",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
     valueLabel: "Brand / document type",
@@ -4395,7 +4449,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "News & updates",
     singular: "article",
     group: "Publishing",
-    description: "Website announcements and publication state",
+    description: "Announcement records; no public publishing",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
     valueLabel: "Slug / category",
@@ -4405,7 +4459,7 @@ const operationMeta: Record<OperationalRecordType, OperationMeta> = {
     label: "Gallery",
     singular: "gallery item",
     group: "Publishing",
-    description: "Public images and video links",
+    description: "Image and video references; no public publishing",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
     valueLabel: "Image / video",
@@ -4455,6 +4509,7 @@ function OperationsView({
   onCreate,
   onUpdate,
   onDelete,
+  onRefresh,
 }: {
   items: PortfolioRecord[];
   organizations: Organization[];
@@ -4462,6 +4517,7 @@ function OperationsView({
   onCreate: (item: PortfolioRecord) => void;
   onUpdate: (item: PortfolioRecord) => void;
   onDelete: (id: string) => void;
+  onRefresh: () => Promise<void>;
 }) {
   const [group, setGroup] = useState<OperationGroup>("People");
   const [module, setModule] = useState<OperationalRecordType | "ALL">("ALL");
@@ -4469,6 +4525,8 @@ function OperationsView({
   const [showNew, setShowNew] = useState(false);
   const [working, setWorking] = useState("");
   const [error, setError] = useState("");
+  const [selectedId,setSelectedId]=useState<string|null>(null),[statusFilter,setStatusFilter]=useState("");
+  const selectedRecord=items.find(item=>item.id===selectedId);
   const operationalItems = items.filter(isOperationalRecord);
   const groupModules = operationModules.filter(
     (type) => operationMeta[type].group === group,
@@ -4477,9 +4535,10 @@ function OperationsView({
     (item) =>
       operationMeta[item.record_type].group === group &&
       (module === "ALL" || item.record_type === module) &&
+      (!statusFilter||item.status===statusFilter) &&
       `${item.title} ${item.owner_name} ${item.notes} ${item.value_label}`
         .toLowerCase()
-        .includes(query.toLowerCase()),
+        .includes(query.trim().toLowerCase()),
   );
   async function changeStatus(
     item: PortfolioRecord & { record_type: OperationalRecordType },
@@ -4519,14 +4578,15 @@ function OperationsView({
         <PageHeading
           eyebrow="Reference portal parity"
           title="NGO operations centre"
-          text="Run membership, fundraising, engagement and public website workflows from one tenant-scoped admin workspace."
+          text="Track membership, fundraising, engagement and content records in your organization-scoped workspace."
           action={
-            <button className="button primary" onClick={() => setShowNew(true)}>
+            <button className="button primary" disabled={module==="CSR_PROJECT"} onClick={() => setShowNew(true)}>
               <Plus size={17} />
               Add operational record
             </button>
           }
         />
+        <p className="notice info">Statuses are recorded labels, not enforced approvals. SENT, PUBLISHED, ISSUED and VERIFIED do not send messages, publish content, generate certificates or settle funds. These records are not an accounting or attendance system. <Link href="/dashboard?view=csr">Manage CSR in CSR partners</Link>; generic CSR records are reference-only.</p>
         <div className="operations-hero">
           <div>
             <span>
@@ -4610,11 +4670,14 @@ function OperationsView({
           <label className="search-box">
             <Search size={16} />
             <input
+              aria-label="Search operational records"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={`Search ${group.toLowerCase()} records...`}
             />
           </label>
+          <label>Status filter<select aria-label="Operations status filter" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="">All statuses</option>{Array.from(new Set(operationalItems.map(item=>item.status))).sort().map(status=><option key={status}>{status}</option>)}</select></label>
+          <button className="button secondary" disabled={!!working} onClick={async()=>{setWorking("refresh");setError("");try{await onRefresh();}catch(reason){setError(reason instanceof Error?reason.message:"Could not refresh records");}finally{setWorking("");}}}>Refresh records</button>
           <div className="filter-tabs">
             <button
               className={module === "ALL" ? "active" : ""}
@@ -4639,6 +4702,7 @@ function OperationsView({
             {error}
           </div>
         )}
+        {working==="refresh"&&<p role="status">Loading records...</p>}
         <section className="table-card operations-table">
           <div className="table-head">
             <span>Record</span>
@@ -4675,25 +4739,27 @@ function OperationsView({
                 <select
                   aria-label={`Status for ${item.title}`}
                   value={item.status}
-                  disabled={working === item.id}
+                  disabled={!!working||!item.can_edit||item.record_type==="CSR_PROJECT"}
                   onChange={(event) =>
                     void changeStatus(item, event.target.value)
                   }
                 >
-                  {operationMeta[item.record_type].statuses.map((status) => (
+                  {Array.from(new Set([item.status,...operationMeta[item.record_type].statuses])).map((status) => (
                     <option key={status}>{status}</option>
                   ))}
                 </select>
               </span>
               <span>
+                <button className="button secondary" aria-label={`View ${item.title}`} onClick={()=>setSelectedId(item.id)}>View</button>
+                {item.can_delete&&item.record_type!=="CSR_PROJECT"&&
                 <button
                   className="icon-button plain danger"
                   aria-label={`Delete ${item.title}`}
-                  disabled={working === item.id}
+                  disabled={!!working}
                   onClick={() => void remove(item)}
                 >
                   <Trash2 size={16} />
-                </button>
+                </button>}
               </span>
             </div>
           ))}
@@ -4710,7 +4776,7 @@ function OperationsView({
         <NewOperationModal
           organizations={organizations}
           currentOrg={currentOrg}
-          initialType={module === "ALL" ? groupModules[0] : module}
+          initialType={module === "ALL" ? groupModules.find(type=>type!=="CSR_PROJECT")! : module}
           close={() => setShowNew(false)}
           onCreate={(item) => {
             onCreate(item);
@@ -4722,6 +4788,7 @@ function OperationsView({
           }}
         />
       )}
+      {selectedRecord&&<PortfolioRecordDetail item={selectedRecord} organizations={organizations} readOnly={selectedRecord.record_type==="CSR_PROJECT"} close={()=>setSelectedId(null)} onUpdate={onUpdate} onDelete={onDelete}/>}
     </>
   );
 }
@@ -4796,7 +4863,7 @@ function NewOperationModal({
               {operationGroups.map((item) => (
                 <optgroup key={item} label={item}>
                   {operationModules
-                    .filter((type) => operationMeta[type].group === item)
+                    .filter((type) => operationMeta[type].group === item && type!=="CSR_PROJECT")
                     .map((type) => (
                       <option value={type} key={type}>
                         {operationMeta[type].label}
@@ -4880,7 +4947,7 @@ function NewOperationModal({
         <div className="form-info">
           <ShieldCheck size={17} />
           Initial status: {meta.defaultStatus.replaceAll("_", " ")}. You can
-          advance the workflow from the operations table.
+          update the recorded status from the operations table. This does not execute an external workflow.
         </div>
         <div className="modal-actions">
           <button

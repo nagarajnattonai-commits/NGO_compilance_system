@@ -418,6 +418,8 @@ class PortfolioRecordUpdate(BaseModel):
 
 
 class PortfolioRecordOut(ORMModel):
+    can_edit: bool = False
+    can_delete: bool = False
     id: str
     organization_id: str
     record_type: str

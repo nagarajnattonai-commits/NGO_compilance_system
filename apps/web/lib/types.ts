@@ -159,6 +159,8 @@ export type DocumentVersion = {
 };
 
 export type PortfolioRecord = {
+  can_edit?: boolean;
+  can_delete?: boolean;
   id: string;
   organization_id: string;
   record_type:
