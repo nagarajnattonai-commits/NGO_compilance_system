@@ -57,6 +57,7 @@ function SortableLocale({
   onChange: (row: TenantLocale) => void;
   onMove: (id: string, direction: -1 | 1) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Settings");
   const {
     attributes,
@@ -126,14 +127,14 @@ function SortableLocale({
       <span className="order-buttons">
         <button
           type="button"
-          aria-label={`${meta?.nativeLabel} up`}
+          aria-label={uiText("Common.interface.localeUp", { locale: meta?.nativeLabel || row.locale_code })}
           onClick={() => onMove(row.locale_code, -1)}
         >
           <ArrowUp size={15} />
         </button>
         <button
           type="button"
-          aria-label={`${meta?.nativeLabel} down`}
+          aria-label={uiText("Common.interface.localeDown", { locale: meta?.nativeLabel || row.locale_code })}
           onClick={() => onMove(row.locale_code, 1)}
         >
           <ArrowDown size={15} />

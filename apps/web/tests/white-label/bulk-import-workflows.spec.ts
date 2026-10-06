@@ -26,7 +26,7 @@ test("import Start over cancels the backend job and retains it when cancellation
   expect(adminReady).toBe(true);const importer=await open(page),job=await upload(page,importer);
   await page.route(`**/api/v1/imports/${job.id}/cancel`,route=>route.fulfill({status:503,json:{detail:"Temporary cancellation failure"}}));
   await importer.getByRole("button",{name:"Start over",exact:true}).click();
-  await expect(importer.getByRole("alert")).toContainText("Temporary cancellation failure");
+  await expect(importer.getByRole("alert")).toHaveText("The server is unavailable. Please try again shortly.");
   await expect(importer.getByRole("button",{name:"Cancel import",exact:true})).toBeVisible();
   expect((await(await request.get(`/api/v1/imports/${job.id}`)).json()).status).toBe("UPLOADED");
   await page.unroute(`**/api/v1/imports/${job.id}/cancel`);
@@ -82,7 +82,7 @@ test("mapping edits require a new dry run and unknown backend state blocks confi
   await importer.getByRole("button",{name:"Run dry validation",exact:true}).click();await expect(importer.getByRole("button",{name:"Confirm Import",exact:true})).toBeEnabled();
   await page.route(`**/api/v1/imports/${job.id}`,route=>route.fulfill({status:503,json:{detail:"Temporary state read failure"}}));
   await importer.getByRole("button",{name:"Refresh import status",exact:true}).click();
-  await expect(importer.getByRole("alert")).toContainText("Temporary state read failure");await expect(importer.getByRole("button",{name:"Confirm Import",exact:true})).toBeDisabled();
+  await expect(importer.getByRole("alert")).toHaveText("The server is unavailable. Please try again shortly.");await expect(importer.getByRole("button",{name:"Confirm Import",exact:true})).toBeDisabled();
   await page.unroute(`**/api/v1/imports/${job.id}`);await importer.getByRole("button",{name:"Refresh import status",exact:true}).click();
   await expect(importer.getByRole("button",{name:"Confirm Import",exact:true})).toBeEnabled();
 });

@@ -54,13 +54,16 @@
       "apiKeys": "API कुंजियाँ",
       "usage": "उपयोग",
       "documentation": "दस्तावेज़",
-      "oauth": "OAuth क्लाइंट"
+      "oauth": "OAuth क्लाइंट",
+      "deliveries": "वितरण संचालन"
     },
     "providers": {
       "smtp": "SMTP Email",
       "meta_whatsapp": "WhatsApp Business",
       "google_calendar": "Google Calendar",
-      "aws_s3": "Amazon S3"
+      "aws_s3": "Amazon S3",
+      "openai_compatible": "OpenAI-संगत AI",
+      "openai_responses_ocr": "OpenAI दस्तावेज़ OCR"
     },
     "fields": {
       "host": "SMTP होस्ट",
@@ -73,7 +76,23 @@
       "calendar_id": "कैलेंडर ID",
       "bucket": "बकेट",
       "region": "क्षेत्र",
-      "prefix": "ऑब्जेक्ट उपसर्ग"
+      "prefix": "ऑब्जेक्ट उपसर्ग",
+      "security": "सुरक्षित संचार",
+      "reply_to": "जवाब का पता",
+      "default_language": "डिफ़ॉल्ट टेम्पलेट भाषा",
+      "template_namespace": "टेम्पलेट नेमस्पेस",
+      "allow_freeform_text": "समर्थित स्वतंत्र संदेशों की अनुमति दें",
+      "endpoint": "प्रदाता API एंडपॉइंट",
+      "generation_model": "सामग्री निर्माण मॉडल",
+      "embedding_model": "एम्बेडिंग मॉडल",
+      "embedding_dimensions": "एम्बेडिंग आयाम",
+      "timeout_seconds": "अनुरोध समय सीमा (सेकंड)",
+      "max_output_tokens": "अधिकतम आउटपुट टोकन",
+      "max_batch_size": "अधिकतम एम्बेडिंग बैच",
+      "model": "OCR मॉडल",
+      "max_pages": "अधिकतम PDF पृष्ठ",
+      "max_output_characters": "अधिकतम OCR अक्षर",
+      "sender_name": "प्रेषक नाम"
     },
     "categories": {
       "EMAIL": "ईमेल",
@@ -113,7 +132,10 @@
       "PROCESSING": "प्रक्रिया में",
       "SUCCESS": "सफलता",
       "FAILED": "विफल",
-      "CANCELLED": "रद्द"
+      "CANCELLED": "रद्द",
+      "SENT": "भेजा/स्वीकृत",
+      "DELIVERED": "पहुँचाया गया",
+      "READ": "पढ़ा गया"
     },
     "environments": {
       "SANDBOX": "परीक्षण परिवेश",
@@ -127,7 +149,13 @@
       "TIMEOUT": "प्रदाता ने समय पर उत्तर नहीं दिया।",
       "INVALID_CONFIGURATION": "प्रदाता कॉन्फ़िगरेशन जाँचें।",
       "PERMISSION_DENIED": "आपको इस सुविधा की अनुमति नहीं है।",
-      "SECRET_STORE_UNAVAILABLE": "गोपनीय भंडार अनुपलब्ध या केवल पढ़ने के लिए है।"
+      "SECRET_STORE_UNAVAILABLE": "गोपनीय भंडार अनुपलब्ध या केवल पढ़ने के लिए है।",
+      "UNSUPPORTED_MODEL": "कॉन्फ़िगर किया गया मॉडल समर्थित नहीं है।",
+      "MALFORMED_REQUEST": "प्रदाता ने सीमित अनुरोध कॉन्फ़िगरेशन अस्वीकार किया।",
+      "PROVIDER_DISABLED": "कॉन्फ़िगर किया गया प्रदाता अक्षम है।",
+      "INVALID_RECIPIENT": "प्राप्तकर्ता का पता अमान्य है।",
+      "INVALID_TEMPLATE": "अनुमोदित प्रदाता टेम्पलेट अमान्य या अनुपलब्ध है।",
+      "PROVIDER_REJECTED": "प्रदाता ने वितरण स्थायी रूप से अस्वीकार किया।"
     },
     "entitlements": {
       "custom_email": "कस्टम ईमेल",
@@ -135,7 +163,9 @@
       "whatsapp_integration": "WhatsApp एकीकरण",
       "google_calendar_integration": "Google Calendar एकीकरण",
       "custom_webhooks": "कस्टम वेबहुक",
-      "public_api": "सार्वजनिक API"
+      "public_api": "सार्वजनिक API",
+      "ai_rag": "सुरक्षित AI और जानकारी प्राप्ति",
+      "document_intelligence": "दस्तावेज़ विश्लेषण और OCR"
     },
     "retry": "पुनः प्रयास",
     "loading": "लोड हो रहा है…",
@@ -210,15 +240,27 @@
     "operations": {
       "test_connection": "कनेक्शन परीक्षण",
       "webhook_delivery": "वेबहुक डिलीवरी",
-      "email_send": "ईमेल भेजें"
-      ,"calendar_sync": "कैलेंडर ईवेंट सिंक करें"
-      ,"calendar_test": "कैलेंडर कनेक्शन जाँचें"
+      "email_send": "ईमेल भेजें",
+      "calendar_sync": "कैलेंडर ईवेंट सिंक करें",
+      "calendar_test": "कैलेंडर कनेक्शन जाँचें",
+      "ai_generation": "AI सामग्री निर्माण",
+      "ai_embedding": "AI एम्बेडिंग",
+      "ocr_extraction": "OCR निष्कर्षण",
+      "whatsapp_callback": "WhatsApp वितरण कॉलबैक"
     },
     "healthRecorded": "स्पष्ट कनेक्शन परीक्षण से दर्ज स्वास्थ्य। पृष्ठ प्रदाता को स्वचालित रूप से कॉल नहीं करते।",
     "metricsToday": "पिछले 24 घंटे की क्रियाएँ",
     "operationsCount": "क्रियाएँ",
     "averageLatency": "औसत विलंब",
     "providerAlertTitle": "एकीकरण पर ध्यान आवश्यक",
-    "providerAlertMessage": "कॉन्फ़िगर किया गया एकीकरण लगातार तीन परीक्षणों में विफल रहा। स्वास्थ्य पृष्ठ देखें।"
+    "providerAlertMessage": "कॉन्फ़िगर किया गया एकीकरण लगातार तीन परीक्षणों में विफल रहा। स्वास्थ्य पृष्ठ देखें।",
+    "event": "घटना",
+    "recipient": "प्राप्तकर्ता",
+    "nextRetry": "अगला प्रयास",
+    "none": "कोई नहीं",
+    "emptyDeliveries": "इस कार्यक्षेत्र में मेल खाने वाले संचार वितरण नहीं हैं।",
+    "retryQueued": "वितरण का पुनः प्रयास कतार में है",
+    "channel": "माध्यम",
+    "actions": "कार्रवाइयाँ"
   }
 }

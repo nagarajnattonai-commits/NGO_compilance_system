@@ -75,7 +75,10 @@
       "whatsapp_integration": "WhatsApp ಏಕೀಕರಣ",
       "custom_webhooks": "ಕಸ್ಟಮ್ ವೆಬ್‌ಹುಕ್‌ಗಳು",
       "public_api": "ಸಾರ್ವಜನಿಕ ಡೆವಲಪರ್ API",
-      "white_label": "ವೈಟ್-ಲೇಬಲ್ ಬ್ರ್ಯಾಂಡಿಂಗ್"
+      "white_label": "ವೈಟ್-ಲೇಬಲ್ ಬ್ರ್ಯಾಂಡಿಂಗ್",
+      "ai_rag": "ಮೂಲಾಧಾರಿತ AI ಸಹಾಯಕ",
+      "document_intelligence": "ದಾಖಲೆ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು OCR",
+      "csr_partner_management": "CSR ಪಾಲುದಾರ ನಿರ್ವಹಣೆ"
     }
   }
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError, localizedRole } from "@/i18n/display";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -15,7 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { apiRequest } from "@/lib/http";
-import { roleLabel, type AuthSession, type AuthUser } from "@/lib/auth-types";
+import { type AuthSession, type AuthUser } from "@/lib/auth-types";
 import ThemeToggle from "@/components/theme-toggle";
 import PasswordGuidance from "@/components/password-guidance";
 import AccountSecurity from "@/components/account-security";
@@ -28,6 +30,7 @@ import type { NotificationPreference } from "@/lib/types";
 import { BrandIdentity, useTenantBrand } from "@/branding/client";
 
 export default function AccountSettings({ session }: { session: AuthSession }) {
+  const uiText = useTranslations();
   const t = useTranslations("Settings");
   const brand = useTenantBrand();
   const { settings, refresh } = useLocalization();
@@ -55,9 +58,9 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
   }, [t]);
   const newPasswordError = validateNewPassword(newPassword);
   const confirmPasswordError = !confirmPassword
-    ? "Confirm your new password."
+    ? uiText("Common.interface.confirmYourNewPassword")
     : newPassword !== confirmPassword
-      ? "Passwords do not match."
+      ? uiText("Auth.validation.passwordMismatch")
       : "";
   const detectCapsLock = (event: React.KeyboardEvent<HTMLInputElement>) =>
     setCapsLock(event.getModifierState("CapsLock"));
@@ -74,10 +77,10 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
           phone: data.get("phone"),
         }),
       );
-      setSuccess("Your profile has been saved.");
+      setSuccess(uiText("Common.interface.yourProfileHasBeenSaved"));
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Could not save profile",
+        localizedError(error, uiText, uiText("Common.interface.couldNotSaveProfile")),
       );
     } finally {
       setBusy(false);
@@ -89,12 +92,12 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
     setError("");
     setSuccess("");
     if (!currentPassword || newPasswordError || confirmPasswordError) {
-      setError("Please correct the highlighted password fields.");
+      setError(uiText("Common.interface.pleaseCorrectTheHighlightedPasswordFields"));
       return;
     }
     if (currentPassword === newPassword) {
       setError(
-        "Choose a new password that differs from your current password.",
+        uiText("Common.interface.chooseANewPasswordThatDiffersFromYourCurrentPassword"),
       );
       return;
     }
@@ -107,7 +110,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
       window.location.assign("/login");
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Could not update password",
+        localizedError(error, uiText, uiText("Common.interface.couldNotUpdatePassword")),
       );
     } finally {
       setBusy(false);
@@ -120,7 +123,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
       await apiRequest<void>("/auth/logout", "POST");
       window.location.assign("/login");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not sign out");
+      setError(localizedError(error, uiText, uiText("Common.interface.couldNotSignOut")));
       setBusy(false);
     }
   }
@@ -139,9 +142,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
       setSuccess(t("saved"));
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : "Could not save localization preferences",
+        localizedError(error, uiText, uiText("Common.interface.couldNotSaveLocalizationPreferences")),
       );
     } finally {
       setBusy(false);
@@ -158,7 +159,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
       setNotificationPreference(await updateNotificationPreference(payload));
       setSuccess(t("notificationsSaved"));
     } catch (error) {
-      setError(error instanceof Error ? error.message : t("notificationSaveFailed"));
+      setError(localizedError(error, uiText, t("notificationSaveFailed")));
     } finally {
       setBusy(false);
     }
@@ -167,26 +168,24 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
     <main className="account-page">
       <header className="account-header">
         <Link href="/" className="account-brand">
-          {brand.enabled ? <BrandIdentity /> : <><ShieldCheck size={26} />Setu NGO</>}
+          {brand.enabled ? <BrandIdentity /> : <><ShieldCheck size={26} />{uiText("Common.brand")}</>}
         </Link>
         <div className="account-header-actions">
           <Link href="/dashboard">
             <ArrowLeft size={16} />
-            Back to dashboard
-          </Link>
+             {uiText("Common.interface.backToDashboard")} </Link>
           <LocaleSwitcher compact />
           <ThemeToggle variant="icon" />
           <button className="button secondary" disabled={busy} onClick={logout}>
             <LogOut size={16} />
-            Sign out
-          </button>
+             {uiText("Common.actions.signOut")} </button>
         </div>
       </header>
       <div className="account-content">
-        <span className="eyebrow">Home / My account</span>
-        <h1>Account Settings</h1>
+        <span className="eyebrow">{uiText("Common.interface.homeMyAccount")}</span>
+        <h1>{uiText("Common.interface.accountSettings")}</h1>
         <p className="account-intro">
-          {session.workspace_name} · {roleLabel(user.role)}
+          {session.workspace_name} · {localizedRole(user.role, uiText)}
         </p>
         {error && (
           <div className="auth-alert error" role="alert">
@@ -203,13 +202,12 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
           <section className="card">
             <div className="account-section-head">
               <UserRound size={20} />
-              <h2>Personal information</h2>
+              <h2>{uiText("Common.interface.personalInformation")}</h2>
             </div>
             <form className="auth-form" onSubmit={profile}>
               <fieldset disabled={busy}>
                 <label>
-                  Full name
-                  <input
+                   {uiText("Auth.fullName")} <input
                     name="name"
                     required
                     minLength={2}
@@ -219,13 +217,11 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                   />
                 </label>
                 <label>
-                  Email address
-                  <input readOnly value={user.email} />
-                  <small>Your sign-in email cannot be changed here.</small>
+                   {uiText("Auth.email")} <input readOnly value={user.email} />
+                  <small>{uiText("Common.interface.yourSignInEmailCannotBeChangedHere")}</small>
                 </label>
                 <label>
-                  Mobile number
-                  <input
+                   {uiText("Common.interface.mobileNumber")} <input
                     name="phone"
                     type="tel"
                     maxLength={30}
@@ -234,12 +230,10 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                   />
                 </label>
                 <label>
-                  Role
-                  <input readOnly value={roleLabel(user.role)} />
+                   {uiText("Common.interface.role")} <input readOnly value={localizedRole(user.role, uiText)} />
                 </label>
                 <button className="button primary" type="submit">
-                  Save profile
-                </button>
+                   {uiText("Common.interface.saveProfile")} </button>
               </fieldset>
             </form>
           </section>
@@ -311,17 +305,14 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
           <section className="card">
             <div className="account-section-head">
               <LockKeyhole size={20} />
-              <h2>Change password</h2>
+              <h2>{uiText("Common.interface.changePassword")}</h2>
             </div>
             <p className="account-intro">
-              Changing your password signs out every session, including this
-              one.
-            </p>
+               {uiText("Common.interface.changingYourPasswordSignsOutEverySessionIncludingThisOne")} </p>
             <form className="auth-form" onSubmit={password} noValidate>
               <fieldset disabled={busy}>
                 <label>
-                  Current password
-                  <span className="password-input">
+                   {uiText("Common.interface.currentPassword")} <span className="password-input">
                     <input
                       name="current_password"
                       type={showPassword ? "text" : "password"}
@@ -344,7 +335,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                     <button
                       type="button"
                       aria-label={
-                        showPassword ? "Hide passwords" : "Show passwords"
+                        showPassword ? uiText("Common.interface.hidePasswords") : uiText("Common.interface.showPasswords")
                       }
                       onClick={() => setShowPassword(!showPassword)}
                     >
@@ -353,16 +344,14 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                   </span>
                   {passwordAttempted && !currentPassword && (
                     <small className="field-error" id="current-password-error">
-                      Enter your current password.
-                    </small>
+                       {uiText("Common.interface.enterYourCurrentPassword")} </small>
                   )}
                   {capsLock && (
-                    <small className="caps-warning">Caps Lock is on.</small>
+                    <small className="caps-warning">{uiText("Authentication.capsLock")}</small>
                   )}
                 </label>
                 <label>
-                  New password
-                  <span className="password-input">
+                   {uiText("Authentication.newPassword")} <span className="password-input">
                     <input
                       name="password"
                       type={showPassword ? "text" : "password"}
@@ -382,7 +371,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                     <button
                       type="button"
                       aria-label={
-                        showPassword ? "Hide passwords" : "Show passwords"
+                        showPassword ? uiText("Common.interface.hidePasswords") : uiText("Common.interface.showPasswords")
                       }
                       onClick={() => setShowPassword(!showPassword)}
                     >
@@ -390,13 +379,12 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                     </button>
                   </span>
                   {passwordAttempted && newPasswordError && (
-                    <small className="field-error">{newPasswordError}</small>
+                    <small className="field-error">{uiText(newPassword.length < 12 ? "Authentication.validation.length" : newPassword.length > 128 ? "Authentication.validation.maximum" : newPassword !== newPassword.trim() || /[\u0000-\u001f\u007f]/.test(newPassword) ? "Authentication.validation.spacing" : "Authentication.validation.predictable")}</small>
                   )}
                   <PasswordGuidance password={newPassword} />
                 </label>
                 <label>
-                  Confirm new password
-                  <span className="password-input">
+                   {uiText("Common.interface.confirmNewPassword")} <span className="password-input">
                     <input
                       name="confirm_password"
                       type={showPassword ? "text" : "password"}
@@ -422,7 +410,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                     <button
                       type="button"
                       aria-label={
-                        showPassword ? "Hide passwords" : "Show passwords"
+                        showPassword ? uiText("Common.interface.hidePasswords") : uiText("Common.interface.showPasswords")
                       }
                       onClick={() => setShowPassword(!showPassword)}
                     >
@@ -436,8 +424,7 @@ export default function AccountSettings({ session }: { session: AuthSession }) {
                   )}
                 </label>
                 <button className="button primary" type="submit">
-                  Update password & sign out
-                </button>
+                   {uiText("Common.interface.updatePasswordSignOut")} </button>
               </fieldset>
             </form>
           </section>

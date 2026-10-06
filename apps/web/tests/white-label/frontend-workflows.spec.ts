@@ -75,16 +75,18 @@ test("dashboard reminders use backend preferences and preserve other account opt
 
 test("reminder load failure shows retry without allowing an unsourced save", async ({ page, workspace }) => {
   expect(workspace.organization).toBeTruthy();
-  let failed = false;
+  let serviceAvailable = false;
   await page.route("**/api/v1/notification-preferences", route => {
-    if (!failed && route.request().method() === "GET") { failed = true; return route.fulfill({ status: 503, json: { detail: "Notification service is unavailable" } }); }
+    // Keep the outage deterministic across Strict Mode's initial reads until retry.
+    if (!serviceAvailable && route.request().method() === "GET") return route.fulfill({ status: 503, json: { detail: "Notification service is unavailable" } });
     return route.continue();
   });
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const modal = page.getByRole("dialog");
-  await expect(modal.getByRole("alert")).toContainText("Notification service is unavailable");
+  await expect(modal.getByRole("alert")).toHaveText("The server is unavailable. Please try again shortly.Try again");
   await expect(modal.getByRole("button", { name: "Save preferences" })).toBeDisabled();
+  serviceAvailable = true;
   await modal.getByRole("button", { name: "Try again" }).click();
   await expect(modal.getByRole("button", { name: "Save preferences" })).toBeEnabled();
 });
@@ -148,7 +150,7 @@ test("import schema failures show safe errors and retry the existing import flow
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Administration", exact: true }).click();
   const importer = page.getByRole("region", { name: "Bulk NGO onboarding and imports" });
-  await expect(importer.getByRole("alert")).toContainText("Import schema is unavailable");
+  await expect(importer.getByRole("alert")).toHaveText("The server is unavailable. Please try again shortly.Try again");
   await importer.getByLabel("CSV or XLSX file").setInputFiles({ name: "organizations.csv", mimeType: "text/csv", buffer: Buffer.from(`name,legal_type,registration_number,city\nRetry NGO,TRUST,RETRY-${randomUUID()},Pune\n`) });
   await expect(importer.getByRole("button", { name: "Upload for review" })).toBeDisabled();
   schemaAvailable = true;

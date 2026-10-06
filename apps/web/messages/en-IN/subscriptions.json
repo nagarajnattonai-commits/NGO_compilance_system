@@ -75,7 +75,10 @@
       "whatsapp_integration": "WhatsApp integration",
       "custom_webhooks": "Custom webhooks",
       "public_api": "Public developer API",
-      "white_label": "White-label branding"
+      "white_label": "White-label branding",
+      "ai_rag": "Source-grounded AI assistant",
+      "document_intelligence": "Document intelligence and OCR",
+      "csr_partner_management": "CSR partner management"
     }
   }
 }

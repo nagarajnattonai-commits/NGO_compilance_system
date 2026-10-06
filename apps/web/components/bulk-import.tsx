@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/http";
@@ -27,6 +29,7 @@ async function uploadFile(type: ImportType, file: File): Promise<Job> {
 }
 
 export default function BulkImport() {
+  const uiText = useTranslations();
   const t = useTranslations("PortfolioImport");
   const [type, setType] = useState<ImportType>("ORGANIZATIONS");
   const [schema, setSchema] = useState<FieldSchema | null>(null);
@@ -63,11 +66,11 @@ export default function BulkImport() {
   async function refresh(id=job?.id) {
     if(!id||!begin()) return;setError("");
     try{adopt(await readJob(id));}
-    catch(reason){setUncertain(true);setError(reason instanceof Error?reason.message:t("validationError"));}
+    catch(reason){setUncertain(true);setError(localizedError(reason, uiText, t("validationError")));}
     finally{finish();}
   }
   async function recover(id:string, reason:unknown, fallback:string) {
-    setError(reason instanceof Error?reason.message:fallback);setUncertain(true);
+    setError(localizedError(reason, uiText, fallback));setUncertain(true);
     // Never retry a write automatically after an ambiguous response.
     try{adopt(await readJob(id));}catch{/* Explicit refresh remains available. */}
   }
@@ -82,7 +85,7 @@ export default function BulkImport() {
     setSchema(null); setSchemaError(""); setSchemaLoading(true);
     apiRequest<FieldSchema & { import_type: string }>(`/imports/schema/${type}`)
       .then((value) => { if (active) setSchema(value); })
-      .catch((reason) => { if (active) setSchemaError(reason instanceof Error ? reason.message : t("validationError")); })
+      .catch((reason) => { if (active) setSchemaError(localizedError(reason, uiText, t("validationError"))); })
       .finally(() => { if (active) setSchemaLoading(false); });
     return () => { active = false; };
   }, [type, schemaAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -94,8 +97,8 @@ export default function BulkImport() {
       const created = await uploadFile(type, file);
       adopt(created);
       try{adopt({...await readJob(created.id),suggested_mapping:created.suggested_mapping});}
-      catch(reason){setUncertain(true);setError(reason instanceof Error?reason.message:t("uploadError"));}
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("uploadError")); }
+      catch(reason){setUncertain(true);setError(localizedError(reason, uiText, t("uploadError")));}
+    } catch (reason) { setError(localizedError(reason, uiText, t("uploadError"))); }
     finally { finish(); }
   }
   async function validate() {
@@ -134,9 +137,9 @@ export default function BulkImport() {
     <div className="report-section-heading"><div><h2>{t("title")}</h2><p>{t("description")}</p></div>{job && <span className="status-pill">{t(`statuses.${job.status}`)}</span>}</div>
     <ol className="organization-records" aria-label={t("workflow")}><li>{t("steps.upload")}</li><li>{t("steps.map")}</li><li>{t("steps.validate")}</li><li>{t("steps.review")}</li><li>{t("steps.confirm")}</li><li>{t("steps.results")}</li></ol>
     {error && <div className="report-error" role="alert">{error}</div>}
-    {uncertain && <p role="status">The backend state must be refreshed before further validation or confirmation. No import is retried automatically.</p>}
-    {schemaLoading && <p role="status">Loading import fields...</p>}
-    {schemaError && <div className="report-error" role="alert">{schemaError}<button type="button" className="button secondary" onClick={() => setSchemaAttempt((value) => value + 1)}>Try again</button></div>}
+    {uncertain && <p role="status">{uiText("Common.interface.theBackendStateMustBeRefreshedBeforeFurtherValidationOrConfirmationNoImportIsRetriedAutomatically")}</p>}
+    {schemaLoading && <p role="status">{uiText("Common.interface.loadingImportFields")}</p>}
+    {schemaError && <div className="report-error" role="alert">{schemaError}<button type="button" className="button secondary" onClick={() => setSchemaAttempt((value) => value + 1)}>{uiText("Common.actions.tryAgain")}</button></div>}
     {!job && <form className="report-filters" onSubmit={upload}>
       <label>{t("importType")}<select disabled={busy} value={type} onChange={(event) => { setType(event.target.value as ImportType); setFile(null); }}>
         {(["ORGANIZATIONS", "REGISTRATIONS", "INVITATIONS", "TASK_ASSIGNMENTS"] as ImportType[]).map((value) => <option value={value} key={value}>{t(`types.${value}`)}</option>)}
@@ -145,13 +148,13 @@ export default function BulkImport() {
       <a className="button secondary" href={`/api/v1/imports/templates/${type}`}>{t("downloadTemplate")}</a>
       <button className="button primary" disabled={busy || !file || !schema}>{busy ? t("uploading") : t("upload")}</button>
     </form>}
-    {!job && <form className="report-filters" aria-label="Open existing import" onSubmit={event=>{event.preventDefault();void refresh(reopenId.trim());}}>
-      <label>Import job ID<input value={reopenId} required maxLength={36} disabled={busy} onChange={event=>setReopenId(event.target.value)}/></label><button className="button secondary" disabled={busy||!reopenId.trim()}>Open import</button>
-      <p>Use a saved job ID to reopen an import in this workspace. Unfinished jobs expire after seven days. Recent job listing is not currently available.</p>
+    {!job && <form className="report-filters" aria-label={uiText("Common.interface.openExistingImport")} onSubmit={event=>{event.preventDefault();void refresh(reopenId.trim());}}>
+      <label>{uiText("Common.interface.importJobIDLabel")}<input value={reopenId} required maxLength={36} disabled={busy} onChange={event=>setReopenId(event.target.value)}/></label><button className="button secondary" disabled={busy||!reopenId.trim()}>{uiText("Common.interface.openImport")}</button>
+      <p>{uiText("Common.interface.useASavedJobIDToReopenAnImportInThisWorkspaceUnfinishedJobsExpireAfterSevenDaysRecentJobListingIsNotCurrentlyAvailable")}</p>
     </form>}
-    {job && <div><p>File: {job.filename} · Import job ID: <code>{job.id}</code></p><button className="button secondary" type="button" disabled={busy} onClick={()=>void refresh()}>Refresh import status</button><p>Refresh reloads the saved mapping and resolutions. Unsaved edits will be discarded.</p></div>}
-    {job?.status==="CANCELLED"&&<p>This import is cancelled and cannot be resumed. Uploading the identical file can return this cancelled job until it expires.</p>}
-    {job?.status==="IMPORTING"&&<p role="status">Importing. Status is refreshed automatically. Do not submit another confirmation.</p>}
+    {job && <div><p>{uiText("Common.interface.file")} {job.filename}  {uiText("Common.interface.importJobID")} <code>{job.id}</code></p><button className="button secondary" type="button" disabled={busy} onClick={()=>void refresh()}>{uiText("Common.interface.refreshImportStatus")}</button><p>{uiText("Common.interface.refreshReloadsTheSavedMappingAndResolutionsUnsavedEditsWillBeDiscarded")}</p></div>}
+    {job?.status==="CANCELLED"&&<p>{uiText("Common.interface.thisImportIsCancelledAndCannotBeResumedUploadingTheIdenticalFileCanReturnThisCancelledJobUntilItExpires")}</p>}
+    {job?.status==="IMPORTING"&&<p role="status">{uiText("Common.interface.importingStatusIsRefreshedAutomaticallyDoNotSubmitAnotherConfirmation")}</p>}
 
     {job && <>
       {editable&&<section><h3>{t("mapping")}</h3><p>{t("mappingHelp")}</p><div className="report-filters">{fields.map((field) => <label key={field}>{t("fieldLabel", { field })}{schema?.required.includes(field) ? " *" : ""}<select disabled={busy||uncertain} value={mapping[field] || ""} onChange={(event) => {setDirty(true);setMapping((current) => ({ ...current, [field]: event.target.value }));}}><option value="">{t("unmapped")}</option>{job.headers.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>)}</div></section>}
@@ -161,8 +164,8 @@ export default function BulkImport() {
           return <tr key={row.row_number}><td>{row.row_number}</td><td>{row.status}</td><td>{[...row.errors, ...row.warnings].map((issue, index) => <p key={index}>{issue.field}: {issue.message}</p>)}</td><td>{editable&&candidates.length ? <div><select disabled={busy||uncertain} aria-label={t("resolutionFor", { row: row.row_number })} value={resolutions[String(row.row_number)]?.action || ""} onChange={(event) => resolve(row, event.target.value as Resolution["action"])}><option value="">{t("chooseResolution")}</option><option value="MAP">{t("map")}</option><option value="SKIP">{t("skip")}</option><option value="CREATE">{t("create")}</option></select>{resolutions[String(row.row_number)]?.action === "MAP" && <select disabled={busy||uncertain} aria-label={t("existingOrganizationFor", { row: row.row_number })} value={resolutions[String(row.row_number)]?.organization_id || ""} onChange={(event) => resolve(row, "MAP", event.target.value)}><option value="">{t("chooseExisting")}</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select>}</div> : row.resolution||"—"}</td></tr>;
         })}</tbody></table></div>
       </section>}
-      {dirty&&editable&&<p role="status">Mapping or resolutions changed. Run dry validation again before confirming.</p>}
-      <div className="heading-actions">{editable&&<><button type="button" className="button secondary" disabled={busy || !schema || uncertain} onClick={() => void validate()}>{busy ? t("working") : t("validate")}</button><button type="button" className="button primary" disabled={busy || !schema || job.status !== "READY" || dirty || uncertain} onClick={() => void confirm()}>{t("confirmImport")}</button></>}{!["IMPORTING","CANCELLED","COMPLETED","COMPLETED_WITH_ERRORS"].includes(job.status)&&<button type="button" className="button secondary" disabled={busy} onClick={()=>void cancel()}>Cancel import</button>}<button type="button" className="text-button" disabled={busy||job.status==="IMPORTING"} onClick={() => void cancel(true)}>{t("startOver")}</button></div>
+      {dirty&&editable&&<p role="status">{uiText("Common.interface.mappingOrResolutionsChangedRunDryValidationAgainBeforeConfirming")}</p>}
+      <div className="heading-actions">{editable&&<><button type="button" className="button secondary" disabled={busy || !schema || uncertain} onClick={() => void validate()}>{busy ? t("working") : t("validate")}</button><button type="button" className="button primary" disabled={busy || !schema || job.status !== "READY" || dirty || uncertain} onClick={() => void confirm()}>{t("confirmImport")}</button></>}{!["IMPORTING","CANCELLED","COMPLETED","COMPLETED_WITH_ERRORS"].includes(job.status)&&<button type="button" className="button secondary" disabled={busy} onClick={()=>void cancel()}>{uiText("Common.interface.cancelImport")}</button>}<button type="button" className="text-button" disabled={busy||job.status==="IMPORTING"} onClick={() => void cancel(true)}>{t("startOver")}</button></div>
     </>}
 
     {completed && <section><h3>{t("results")}</h3><div className="report-metrics">{(["created", "mapped", "skipped", "failed"] as const).map((key) => <article className="report-metric" key={key}><span>{t(key)}</span><strong>{job[key]}</strong></article>)}</div><div className="heading-actions"><a className="button secondary" href={`/api/v1/imports/${job.id}/results.csv`}>{t("downloadResults")}</a><button className="button primary" type="button" onClick={() => window.location.reload()}>{t("refreshWorkspace")}</button></div></section>}

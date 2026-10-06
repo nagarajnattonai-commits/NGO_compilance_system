@@ -1,4 +1,6 @@
 "use client";
+
+import { localizedError } from "@/i18n/display";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { apiRequest } from "@/lib/http";
@@ -8,6 +10,7 @@ import type { TemplateConfiguration, WorkflowTransition } from "@/lib/compliance
 type Snapshot = { version: number; configuration: TemplateConfiguration; owner_required: boolean;
   available_transitions: WorkflowTransition[]; documents: { id: string; document_type: string; minimum_count: number; required: boolean; document_ids: string[] }[] };
 export default function ComplianceTemplateRuntime({ item, updated }: { item: Compliance; updated: (item: Compliance) => void }) {
+  const uiText = useTranslations();
   const locale = useLocale(); const t = useTranslations("ComplianceMaster"); const common = useTranslations("Common");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null); const [documents, setDocuments] = useState<ComplianceDocument[]>([]);
   const [proof, setProof] = useState(""); const [reference, setReference] = useState(""); const [reason, setReason] = useState("");
@@ -18,9 +21,9 @@ export default function ComplianceTemplateRuntime({ item, updated }: { item: Com
   async function transition(edge: WorkflowTransition) {
     setBusy(true); setError("");
     try { const result = await apiRequest<Compliance>(`/compliances/${item.id}/transitions`, "POST", { target_status: edge.to_state, proof_type: proofType, filing_channel: filingChannel, filing_notes: filingNotes, ...(proof ? { proof_document_id: proof } : {}), ...(reference ? { submission_reference: reference } : {}), ...(reason ? { reason } : {}) }); updated(result); }
-    catch (e) { setError(e instanceof Error ? e.message : t("actionFailed")); } finally { setBusy(false); }
+    catch (e) { setError(localizedError(e, uiText, t("actionFailed"))); } finally { setBusy(false); }
   }
-  async function requestApproval(edge: WorkflowTransition) { setBusy(true); setError(""); try { await apiRequest(`/compliances/${item.id}/approvals/request`, "POST", {target_status:edge.to_state}); updated(item); } catch(e) { setError(e instanceof Error?e.message:t("actionFailed")); } finally { setBusy(false); } }
+  async function requestApproval(edge: WorkflowTransition) { setBusy(true); setError(""); try { await apiRequest(`/compliances/${item.id}/approvals/request`, "POST", {target_status:edge.to_state}); updated(item); } catch(e) { setError(localizedError(e, uiText, t("actionFailed"))); } finally { setBusy(false); } }
   const translation = snapshot?.configuration.translations[locale];
   return <section className="detail-section template-runtime"><h3>{t("publishedVersion", { version: snapshot?.version || 1 })}</h3>{error && <p className="auth-alert error" role="alert">{error}</p>}
     {snapshot && <><h3>{translation?.name || snapshot.configuration.name}</h3><p>{translation?.description || snapshot.configuration.description}</p><p>{translation?.instructions || snapshot.configuration.instructions}</p>

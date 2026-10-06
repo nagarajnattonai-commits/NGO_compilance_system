@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
 function navigateTabs(event: React.KeyboardEvent<HTMLDivElement>) {
   const buttons = Array.from(
     event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
@@ -268,6 +270,7 @@ export default function WhiteLabelSettings({
 }: {
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("WhiteLabel");
   const [settings, setSettings] = useState<BrandingSettings | null>(null);
   const [configuration, setConfiguration] = useState<BrandConfiguration | null>(
@@ -291,7 +294,7 @@ export default function WhiteLabelSettings({
         setConfiguration(data.configuration);
       })
       .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : t("failed")),
+        setError(localizedError(e, uiText, t("failed"))),
       );
     apiRequest<{ allowed: boolean }>("/platform/white-label/access")
       .then((result) => setPlatformAdmin(result.allowed))
@@ -345,7 +348,7 @@ export default function WhiteLabelSettings({
       setNotice(message);
       return result;
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("failed"));
+      setError(localizedError(e, uiText, t("failed")));
       return null;
     } finally {
       setBusy(false);
@@ -465,7 +468,7 @@ export default function WhiteLabelSettings({
       );
       setNotice(t("domainUpdated"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("failed"));
+      setError(localizedError(e, uiText, t("failed")));
     } finally {
       setBusy(false);
     }
@@ -1041,7 +1044,7 @@ export default function WhiteLabelSettings({
                               setNotice(t("historyDraftHelp"));
                             } catch (e) {
                               setError(
-                                e instanceof Error ? e.message : t("failed"),
+                                localizedError(e, uiText, t("failed")),
                               );
                             } finally {
                               setBusy(false);
@@ -1085,7 +1088,7 @@ export default function WhiteLabelSettings({
                                 });
                               } catch (e) {
                                 setError(
-                                  e instanceof Error ? e.message : t("failed"),
+                                  localizedError(e, uiText, t("failed")),
                                 );
                               } finally {
                                 setBusy(false);

@@ -1,4 +1,6 @@
 "use client";
+
+import { localizedError } from "@/i18n/display";
 import {useEffect,useState} from "react";
 import {useTranslations} from "next-intl";
 import {apiRequest} from "@/lib/http";
@@ -6,12 +8,13 @@ import type {ComplianceTemplate} from "@/lib/compliance-master";
 import type {Decision,Evaluation,EventFact} from "@/lib/runtime";
 
 export default function OrganizationRuntime({id,allowed}:{id:string;allowed:boolean}) {
+  const uiText = useTranslations();
  const t=useTranslations("Runtime");
  const [templates,setTemplates]=useState<ComplianceTemplate[]>([]),[events,setEvents]=useState<EventFact[]>([]),[history,setHistory]=useState<Decision[]>([]),[results,setResults]=useState<Evaluation[]>([]);
  const [selected,setSelected]=useState(""),[date,setDate]=useState(""),[source,setSource]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);
- async function load(){try{const [m,e,h]=await Promise.all([apiRequest<ComplianceTemplate[]>("/compliance-templates"),apiRequest<EventFact[]>(`/organizations/${id}/events`),apiRequest<Decision[]>(`/organizations/${id}/applicability-history`)]);setTemplates(m);setEvents(e);setHistory(h);}catch(e){setError(e instanceof Error?e.message:t("error"));}}
+ async function load(){try{const [m,e,h]=await Promise.all([apiRequest<ComplianceTemplate[]>("/compliance-templates"),apiRequest<EventFact[]>(`/organizations/${id}/events`),apiRequest<Decision[]>(`/organizations/${id}/applicability-history`)]);setTemplates(m);setEvents(e);setHistory(h);}catch(e){setError(localizedError(e, uiText, t("error")));}}
  useEffect(()=>{void load();},[id]);
- async function act(action:()=>Promise<unknown>,success="saved"){setBusy(true);setError("");setMessage("");try{await action();await load();setMessage(t(success));}catch(e){setError(e instanceof Error?e.message:t("error"));}finally{setBusy(false);}}
+ async function act(action:()=>Promise<unknown>,success="saved"){setBusy(true);setError("");setMessage("");try{await action();await load();setMessage(t(success));}catch(e){setError(localizedError(e, uiText, t("error")));}finally{setBusy(false);}}
  const eventTemplates=templates.filter(m=>m.configuration.deadline.strategy==="EVENT_DATE_PLUS_DAYS"),template=eventTemplates.find(m=>m.id===selected);
  const latest=history.filter((d,i,rows)=>rows.findIndex(r=>r.template_id===d.template_id)===i);
  return <section className="runtime-setup"><h3>{t("applicability")}</h3><p>{t("historySafety")}</p>{error&&<p role="alert" className="auth-alert error">{error}<button type="button" className="text-button" onClick={()=>void load()}>{t("retry")}</button></p>}{message&&<p role="status">{message}</p>}

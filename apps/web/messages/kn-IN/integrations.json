@@ -54,13 +54,16 @@
       "apiKeys": "API ಕೀಗಳು",
       "usage": "ಬಳಕೆ",
       "documentation": "ದಸ್ತಾವೇಜು",
-      "oauth": "OAuth ಕ್ಲೈಂಟ್‌ಗಳು"
+      "oauth": "OAuth ಕ್ಲೈಂಟ್‌ಗಳು",
+      "deliveries": "ವಿತರಣಾ ಕಾರ್ಯಾಚರಣೆಗಳು"
     },
     "providers": {
       "smtp": "SMTP Email",
       "meta_whatsapp": "WhatsApp Business",
       "google_calendar": "Google Calendar",
-      "aws_s3": "Amazon S3"
+      "aws_s3": "Amazon S3",
+      "openai_compatible": "OpenAI-ಹೊಂದಾಣಿಕೆಯ AI",
+      "openai_responses_ocr": "OpenAI ದಾಖಲೆ OCR"
     },
     "fields": {
       "host": "SMTP ಹೋಸ್ಟ್",
@@ -73,7 +76,23 @@
       "calendar_id": "ಕ್ಯಾಲೆಂಡರ್ ID",
       "bucket": "ಬಕೆಟ್",
       "region": "ಪ್ರದೇಶ",
-      "prefix": "ವಸ್ತು ಪೂರ್ವಪ್ರತ್ಯಯ"
+      "prefix": "ವಸ್ತು ಪೂರ್ವಪ್ರತ್ಯಯ",
+      "security": "ಸುರಕ್ಷಿತ ಸಂವಹನ",
+      "reply_to": "ಉತ್ತರದ ವಿಳಾಸ",
+      "default_language": "ಪೂರ್ವನಿಯೋಜಿತ ಮಾದರಿ ಭಾಷೆ",
+      "template_namespace": "ಮಾದರಿ ನೇಮ್‌ಸ್ಪೇಸ್",
+      "allow_freeform_text": "ಬೆಂಬಲಿತ ಮುಕ್ತರೂಪದ ಸಂದೇಶಗಳನ್ನು ಅನುಮತಿಸಿ",
+      "endpoint": "ಪೂರೈಕೆದಾರರ API ಎಂಡ್‌ಪಾಯಿಂಟ್",
+      "generation_model": "ವಿಷಯ ರಚನಾ ಮಾದರಿ",
+      "embedding_model": "ಎಂಬೆಡಿಂಗ್ ಮಾದರಿ",
+      "embedding_dimensions": "ಎಂಬೆಡಿಂಗ್ ಆಯಾಮಗಳು",
+      "timeout_seconds": "ವಿನಂತಿಯ ಸಮಯ ಮಿತಿ (ಸೆಕೆಂಡುಗಳು)",
+      "max_output_tokens": "ಗರಿಷ್ಠ ಔಟ್‌ಪುಟ್ ಟೋಕನ್‌ಗಳು",
+      "max_batch_size": "ಗರಿಷ್ಠ ಎಂಬೆಡಿಂಗ್ ಬ್ಯಾಚ್",
+      "model": "OCR ಮಾದರಿ",
+      "max_pages": "ಗರಿಷ್ಠ PDF ಪುಟಗಳು",
+      "max_output_characters": "ಗರಿಷ್ಠ OCR ಅಕ್ಷರಗಳು",
+      "sender_name": "ಕಳುಹಿಸುವವರ ಹೆಸರು"
     },
     "categories": {
       "EMAIL": "ಇಮೇಲ್",
@@ -113,7 +132,10 @@
       "PROCESSING": "ಪ್ರಕ್ರಿಯೆಯಲ್ಲಿದೆ",
       "SUCCESS": "ಯಶಸ್ಸು",
       "FAILED": "ವಿಫಲವಾಗಿದೆ",
-      "CANCELLED": "ರದ್ದಾಗಿದೆ"
+      "CANCELLED": "ರದ್ದಾಗಿದೆ",
+      "SENT": "ಕಳುಹಿಸಲಾಗಿದೆ/ಸ್ವೀಕರಿಸಲಾಗಿದೆ",
+      "DELIVERED": "ತಲುಪಿಸಲಾಗಿದೆ",
+      "READ": "ಓದಲಾಗಿದೆ"
     },
     "environments": {
       "SANDBOX": "ಪರೀಕ್ಷಾ ಪರಿಸರ",
@@ -127,7 +149,13 @@
       "TIMEOUT": "ಪೂರೈಕೆದಾರ ಸಮಯಕ್ಕೆ ಪ್ರತಿಕ್ರಿಯಿಸಿಲ್ಲ.",
       "INVALID_CONFIGURATION": "ಪೂರೈಕೆದಾರ ಸಂರಚನೆಯನ್ನು ಪರಿಶೀಲಿಸಿ.",
       "PERMISSION_DENIED": "ಈ ಸಾಮರ್ಥ್ಯಕ್ಕೆ ನಿಮಗೆ ಪ್ರವೇಶವಿಲ್ಲ.",
-      "SECRET_STORE_UNAVAILABLE": "ರಹಸ್ಯ ಸಂಗ್ರಹ ಲಭ್ಯವಿಲ್ಲ ಅಥವಾ ಓದಲು ಮಾತ್ರ ಇದೆ."
+      "SECRET_STORE_UNAVAILABLE": "ರಹಸ್ಯ ಸಂಗ್ರಹ ಲಭ್ಯವಿಲ್ಲ ಅಥವಾ ಓದಲು ಮಾತ್ರ ಇದೆ.",
+      "UNSUPPORTED_MODEL": "ಸಂರಚಿಸಿದ ಮಾದರಿ ಬೆಂಬಲಿತವಲ್ಲ.",
+      "MALFORMED_REQUEST": "ಪೂರೈಕೆದಾರರು ಮಿತಿಗೊಳಿಸಿದ ವಿನಂತಿಯ ಸಂರಚನೆ ತಿರಸ್ಕರಿಸಿದ್ದಾರೆ.",
+      "PROVIDER_DISABLED": "ಸಂರಚಿಸಿದ ಪೂರೈಕೆದಾರರನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ.",
+      "INVALID_RECIPIENT": "ಸ್ವೀಕರಿಸುವವರ ವಿಳಾಸ ಅಮಾನ್ಯವಾಗಿದೆ.",
+      "INVALID_TEMPLATE": "ಅನುಮೋದಿತ ಪೂರೈಕೆದಾರರ ಮಾದರಿ ಅಮಾನ್ಯ ಅಥವಾ ಲಭ್ಯವಿಲ್ಲ.",
+      "PROVIDER_REJECTED": "ಪೂರೈಕೆದಾರರು ವಿತರಣೆಯನ್ನು ಶಾಶ್ವತವಾಗಿ ತಿರಸ್ಕರಿಸಿದ್ದಾರೆ."
     },
     "entitlements": {
       "custom_email": "ಕಸ್ಟಮ್ ಇಮೇಲ್",
@@ -135,7 +163,9 @@
       "whatsapp_integration": "WhatsApp ಸಂಯೋಜನೆ",
       "google_calendar_integration": "Google Calendar ಸಂಯೋಜನೆ",
       "custom_webhooks": "ಕಸ್ಟಮ್ ವೆಬ್‌ಹುಕ್‌ಗಳು",
-      "public_api": "ಸಾರ್ವಜನಿಕ API"
+      "public_api": "ಸಾರ್ವಜನಿಕ API",
+      "ai_rag": "ಸುರಕ್ಷಿತ AI ಮತ್ತು ಮಾಹಿತಿ ಹಿಂಪಡೆಯುವಿಕೆ",
+      "document_intelligence": "ದಾಖಲೆ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು OCR"
     },
     "retry": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
     "loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
@@ -210,15 +240,27 @@
     "operations": {
       "test_connection": "ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ",
       "webhook_delivery": "ವೆಬ್‌ಹುಕ್ ವಿತರಣೆ",
-      "email_send": "ಇಮೇಲ್ ಕಳುಹಿಸಿ"
-      ,"calendar_sync": "ಕ್ಯಾಲೆಂಡರ್ ಈವೆಂಟ್ ಸಿಂಕ್ ಮಾಡಿ"
-      ,"calendar_test": "ಕ್ಯಾಲೆಂಡರ್ ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ"
+      "email_send": "ಇಮೇಲ್ ಕಳುಹಿಸಿ",
+      "calendar_sync": "ಕ್ಯಾಲೆಂಡರ್ ಈವೆಂಟ್ ಸಿಂಕ್ ಮಾಡಿ",
+      "calendar_test": "ಕ್ಯಾಲೆಂಡರ್ ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ",
+      "ai_generation": "AI ವಿಷಯ ರಚನೆ",
+      "ai_embedding": "AI ಎಂಬೆಡಿಂಗ್",
+      "ocr_extraction": "OCR ಹೊರತೆಗೆಯುವಿಕೆ",
+      "whatsapp_callback": "WhatsApp ವಿತರಣೆಯ ಕಾಲ್‌ಬ್ಯಾಕ್"
     },
     "healthRecorded": "ಸ್ಪಷ್ಟ ಸಂಪರ್ಕ ಪರೀಕ್ಷೆಗಳಿಂದ ದಾಖಲಿಸಿದ ಆರೋಗ್ಯ. ಪುಟಗಳು ಪೂರೈಕೆದಾರರನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕರೆಯುವುದಿಲ್ಲ.",
     "metricsToday": "ಕಳೆದ 24 ಗಂಟೆಗಳ ಕಾರ್ಯಾಚರಣೆಗಳು",
     "operationsCount": "ಕಾರ್ಯಾಚರಣೆಗಳು",
     "averageLatency": "ಸರಾಸರಿ ವಿಳಂಬ",
     "providerAlertTitle": "ಸಂಯೋಜನೆಗೆ ಗಮನ ಅಗತ್ಯ",
-    "providerAlertMessage": "ಹೊಂದಿಸಿದ ಸಂಯೋಜನೆ ಮೂರು ಸತತ ಪರೀಕ್ಷೆಗಳಲ್ಲಿ ವಿಫಲವಾಗಿದೆ. ಆರೋಗ್ಯ ಪುಟ ಪರಿಶೀಲಿಸಿ."
+    "providerAlertMessage": "ಹೊಂದಿಸಿದ ಸಂಯೋಜನೆ ಮೂರು ಸತತ ಪರೀಕ್ಷೆಗಳಲ್ಲಿ ವಿಫಲವಾಗಿದೆ. ಆರೋಗ್ಯ ಪುಟ ಪರಿಶೀಲಿಸಿ.",
+    "event": "ಘಟನೆ",
+    "recipient": "ಸ್ವೀಕರಿಸುವವರು",
+    "nextRetry": "ಮುಂದಿನ ಮರುಪ್ರಯತ್ನ",
+    "none": "ಯಾವುದೂ ಇಲ್ಲ",
+    "emptyDeliveries": "ಈ ಕಾರ್ಯಸ್ಥಳಕ್ಕೆ ಹೊಂದುವ ಸಂವಹನ ವಿತರಣೆಗಳಿಲ್ಲ.",
+    "retryQueued": "ವಿತರಣೆಯ ಮರುಪ್ರಯತ್ನ ಸರದಿಯಲ್ಲಿದೆ",
+    "channel": "ಮಾಧ್ಯಮ",
+    "actions": "ಕ್ರಿಯೆಗಳು"
   }
 }

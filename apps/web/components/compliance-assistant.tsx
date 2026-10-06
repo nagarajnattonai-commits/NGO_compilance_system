@@ -1,5 +1,9 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
+import { useTranslations } from "next-intl";
+
 import { ArrowRight, Bot, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -27,9 +31,10 @@ export default function ComplianceAssistant({
   entitled: boolean;
   readOnly: boolean;
 }) {
+  const uiText = useTranslations();
   const [conversations, setConversations] = useState<AiConversation[]>([]);
   const [selected, setSelected] = useState<AiConversation | null>(null);
-  const [question, setQuestion] = useState("What needs attention right now?");
+  const [question, setQuestion] = useState(uiText("Common.interface.whatNeedsAttentionRightNow"));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,7 +46,7 @@ export default function ComplianceAssistant({
     let active = true;
     loadAiConversations(organization.id)
       .then((rows) => { if (active) setConversations(rows); })
-      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Conversation history is unavailable."); });
+      .catch((reason) => { if (active) setError(localizedError(reason, uiText, uiText("Common.interface.conversationHistoryIsUnavailable"))); });
     return () => { active = false; };
   }, [organization, entitled, readOnly]);
 
@@ -50,7 +55,7 @@ export default function ComplianceAssistant({
     try {
       setSelected(await loadAiConversation(id));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Conversation is unavailable.");
+      setError(localizedError(reason, uiText, uiText("Common.interface.conversationIsUnavailable")));
     } finally {
       setLoading(false);
     }
@@ -66,7 +71,7 @@ export default function ComplianceAssistant({
       setSelected(detail);
       setConversations(await loadAiConversations(organization.id));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Assistant unavailable.");
+      setError(localizedError(reason, uiText, uiText("Common.interface.assistantUnavailable")));
     } finally {
       setLoading(false);
     }
@@ -77,40 +82,39 @@ export default function ComplianceAssistant({
     <div className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">Grounded intelligence</span>
-          <h1>Compliance assistant</h1>
-          <p>Operational facts come from the platform. Document explanations cite authorized indexed evidence.</p>
+          <span className="eyebrow">{uiText("Common.interface.groundedIntelligence")}</span>
+          <h1>{uiText("Common.interface.complianceAssistant")}</h1>
+          <p>{uiText("Common.interface.operationalFactsComeFromThePlatformDocumentExplanationsCiteAuthorizedIndexedEvidence")}</p>
         </div>
       </div>
       {!organization ? (
-        <section className="card assistant-state"><Bot size={22} /><div><h2>Select an organization</h2><p>The assistant is organization-scoped. Choose one organization from the workspace switcher.</p></div></section>
+        <section className="card assistant-state"><Bot size={22} /><div><h2>{uiText("Common.interface.selectAnOrganization")}</h2><p>{uiText("Common.interface.theAssistantIsOrganizationScopedChooseOneOrganizationFromTheWorkspaceSwitcher")}</p></div></section>
       ) : !entitled ? (
-        <section className="card assistant-state"><Bot size={22} /><div><h2>AI assistant requires an upgrade</h2><p>Your current plan does not include the secure AI and RAG entitlement.</p></div></section>
+        <section className="card assistant-state"><Bot size={22} /><div><h2>{uiText("Common.interface.aIAssistantRequiresAnUpgrade")}</h2><p>{uiText("Common.interface.yourCurrentPlanDoesNotIncludeTheSecureAIAndRAGEntitlement")}</p></div></section>
       ) : readOnly ? (
-        <section className="card assistant-state"><Bot size={22} /><div><h2>Assistant access is read-only restricted</h2><p>A contributor or workspace administrator can start grounded assistant conversations.</p></div></section>
+        <section className="card assistant-state"><Bot size={22} /><div><h2>{uiText("Common.interface.assistantAccessIsReadOnlyRestricted")}</h2><p>{uiText("Common.interface.aContributorOrWorkspaceAdministratorCanStartGroundedAssistantConversations")}</p></div></section>
       ) : (
-        <section className="assistant-shell" aria-label="Compliance AI assistant">
+        <section className="assistant-shell" aria-label={uiText("Common.interface.complianceAIAssistant")}>
           <aside className="assistant-prompts">
             <strong>{organization.name}</strong>
             <button className="assistant-new" onClick={() => setSelected(null)}>
-              <Plus size={14} /> New conversation
-            </button>
-            <span className="assistant-section-label">Conversations</span>
+              <Plus size={14} />  {uiText("Common.interface.newConversation")} </button>
+            <span className="assistant-section-label">{uiText("Common.interface.conversations")}</span>
             {conversations.length ? conversations.map((conversation) => (
               <button key={conversation.id} className={selected?.id === conversation.id ? "active" : ""}
                 onClick={() => void openConversation(conversation.id)}>
                 <span>{conversation.title}</span><ArrowRight size={14} />
               </button>
-            )) : <p className="muted">No conversations yet.</p>}
+            )) : <p className="muted">{uiText("Common.interface.noConversationsYet")}</p>}
           </aside>
           <div className="assistant-main">
             <div className="assistant-intro">
               <Bot size={26} />
-              <div><strong>Source-grounded assistant</strong><p>Advisory only. It cannot change records or execute actions.</p></div>
+              <div><strong>{uiText("Common.interface.sourceGroundedAssistant")}</strong><p>{uiText("Common.interface.advisoryOnlyItCannotChangeRecordsOrExecuteActions")}</p></div>
             </div>
             {!selected && (
               <div className="assistant-suggestions">
-                {["What compliances are pending?", "What is overdue?", "What should our team review next?"].map((prompt) => (
+                {[uiText("Common.interface.whatCompliancesArePending"), uiText("Common.interface.whatIsOverdue"), uiText("Common.interface.whatShouldOurTeamReviewNext")].map((prompt) => (
                   <button key={prompt} onClick={() => void ask(prompt)}>{prompt}<ArrowRight size={14} /></button>
                 ))}
               </div>
@@ -118,29 +122,29 @@ export default function ComplianceAssistant({
             <div className="assistant-messages" aria-live="polite">
               {messages.map((message) => (
                 <article key={message.id} className={`assistant-message ${message.role.toLowerCase()}`}>
-                  <strong>{message.role === "USER" ? "You" : "Advisory answer"}</strong>
+                  <strong>{message.role === "USER" ? uiText("Common.interface.you") : uiText("Common.interface.advisoryAnswer")}</strong>
                   <p>{message.content}</p>
-                  {message.insufficient_evidence && <p className="assistant-insufficient">Insufficient authorized evidence</p>}
+                  {message.insufficient_evidence && <p className="assistant-insufficient">{uiText("Common.interface.insufficientAuthorizedEvidence")}</p>}
                   {message.role === "ASSISTANT" && message.structured_sources.length > 0 && (
-                    <details><summary>Platform records used ({message.structured_sources.length})</summary><ul>
+                    <details><summary>{uiText("Common.interface.platformRecordsUsed")}{message.structured_sources.length})</summary><ul>
                       {message.structured_sources.map((source) => <li key={`${source.type}-${source.id}`}><span>{source.type}</span>{source.label}<small>{factSummary(source)}</small></li>)}
                     </ul></details>
                   )}
                   {message.role === "ASSISTANT" && message.document_sources.length > 0 && (
-                    <details><summary>Document evidence ({message.document_sources.length})</summary><ul>
-                      {message.document_sources.map((source) => <li key={source.chunk_id}><span>{source.type}</span>{source.document_name}<small>Version {source.version} · chunk {source.chunk_index + 1}</small></li>)}
+                    <details><summary>{uiText("Common.interface.documentEvidence")}{message.document_sources.length})</summary><ul>
+                      {message.document_sources.map((source) => <li key={source.chunk_id}><span>{source.type}</span>{source.document_name}<small>{uiText("Common.interface.version")} {source.version}  {uiText("Common.interface.chunk")} {source.chunk_index + 1}</small></li>)}
                     </ul></details>
                   )}
-                  {message.proposed_actions.map((action, index) => <p className="assistant-proposal" key={index}><strong>Proposed action</strong>{action.description}<small>Requires explicit confirmation through the normal workflow.</small></p>)}
-                  {message.role === "ASSISTANT" && <small>AI-generated explanation, not verified legal advice.</small>}
+                  {message.proposed_actions.map((action, index) => <p className="assistant-proposal" key={index}><strong>{uiText("Common.interface.proposedAction")}</strong>{action.description}<small>{uiText("Common.interface.requiresExplicitConfirmationThroughTheNormalWorkflow")}</small></p>)}
+                  {message.role === "ASSISTANT" && <small>{uiText("Common.interface.aIGeneratedExplanationNotVerifiedLegalAdvice")}</small>}
                 </article>
               ))}
             </div>
             <form onSubmit={(event) => { event.preventDefault(); void ask(); }}>
-              <textarea aria-label="Question for the compliance assistant" value={question}
+              <textarea aria-label={uiText("Common.interface.questionForTheComplianceAssistant")} value={question}
                 onChange={(event) => setQuestion(event.target.value)} maxLength={2000} />
               <button className="button primary" disabled={loading || question.trim().length < 3}>
-                {loading ? "Reviewing authorized sources..." : "Ask assistant"}
+                {loading ? uiText("Common.interface.reviewingAuthorizedSources") : uiText("Common.interface.askAssistant")}
               </button>
             </form>
             {error && <p className="form-error" role="alert">{error}</p>}

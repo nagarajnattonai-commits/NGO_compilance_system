@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
 import { Bookmark, LoaderCircle, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FormEvent, useEffect, useState } from "react";
@@ -39,6 +41,7 @@ const searchType = (group: string) => group === "due_diligence" ? group : group.
 function setOrNull(value: string) { return value || null; }
 
 export default function GlobalSearch({ organizations, compliances }: { organizations: Organization[]; compliances: Compliance[] }) {
+  const uiText = useTranslations();
   const t = useTranslations("GlobalSearch");
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [results, setResults] = useState<SearchResponse | null>(null);
@@ -80,7 +83,7 @@ export default function GlobalSearch({ organizations, compliances }: { organizat
     params.set("applicability", filters.applicability); params.set("upcoming_days", String(filters.upcoming_days));
     params.set("sort_by", sortBy); params.set("sort_direction", sortDirection);
     try { setResults(await apiRequest<SearchResponse>(`/search?${params}`)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : t("error")); }
+    catch (reason) { setError(localizedError(reason, uiText, t("error"))); }
     finally { setLoading(false); }
   }
 
@@ -93,12 +96,12 @@ export default function GlobalSearch({ organizations, compliances }: { organizat
       });
       setSavedViews((current) => [...current.map((row) => makeDefault ? { ...row, is_default: false } : row), saved]);
       setViewName(""); setMakeDefault(false); setError("");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("error")); }
+    } catch (reason) { setError(localizedError(reason, uiText, t("error"))); }
   }
 
   async function removeView(id: string) {
     try { await apiRequest(`/saved-views/${id}`, "DELETE"); setSavedViews((rows) => rows.filter((row) => row.id !== id)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : t("error")); }
+    catch (reason) { setError(localizedError(reason, uiText, t("error"))); }
   }
 
   function applyView(view: SavedView) {
@@ -133,7 +136,7 @@ export default function GlobalSearch({ organizations, compliances }: { organizat
           <option value="">{t("all")}</option>{groupOrder.map((type) => <option key={type} value={searchType(type)}>{t(`groups.${type}`)}</option>)}</select></label>
         <label>{t("status")}<input value={filters.status || ""} onChange={(e) => update("status", setOrNull(e.target.value))} /></label>
         <label>{t("priority")}<select value={filters.priority || ""} onChange={(e) => update("priority", setOrNull(e.target.value))}>
-          <option value="">{t("all")}</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>
+          <option value="">{t("all")}</option><option value="HIGH">{uiText("Common.priority.HIGH")}</option><option value="MEDIUM">{uiText("Common.priority.MEDIUM")}</option><option value="LOW">{uiText("Common.priority.LOW")}</option></select></label>
         <label>{t("owner")}<input value={filters.owner || ""} onChange={(e) => update("owner", setOrNull(e.target.value))} /></label>
         <label>{t("assignee")}<input value={filters.assignee || ""} onChange={(e) => update("assignee", setOrNull(e.target.value))} /></label>
         <label>{t("from")}<input type="date" value={filters.date_from || ""} onChange={(e) => update("date_from", setOrNull(e.target.value))} /></label>

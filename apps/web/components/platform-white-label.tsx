@@ -1,4 +1,6 @@
 "use client";
+
+import { localizedError } from "@/i18n/display";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -13,6 +15,7 @@ type PlatformTenant = BrandingSettings & {
   workspace_name: string;
 };
 export default function PlatformWhiteLabel() {
+  const uiText = useTranslations();
   const t = useTranslations("WhiteLabel");
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
   const [error, setError] = useState("");
@@ -21,7 +24,7 @@ export default function PlatformWhiteLabel() {
     apiRequest<PlatformTenant[]>("/platform/white-label").then(setTenants);
   useEffect(() => {
     refresh().catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : t("failed")),
+      setError(localizedError(e, uiText, t("failed"))),
     );
   }, [t]);
   async function action(path: string, method = "POST", body?: unknown) {
@@ -32,7 +35,7 @@ export default function PlatformWhiteLabel() {
       await apiRequest(path, method, body);
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("failed"));
+      setError(localizedError(e, uiText, t("failed")));
     } finally {
       setBusy(false);
     }

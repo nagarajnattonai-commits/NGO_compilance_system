@@ -75,7 +75,10 @@
       "whatsapp_integration": "WhatsApp एकत्रीकरण",
       "custom_webhooks": "सानुकूल वेबहुक",
       "public_api": "सार्वजनिक विकासक API",
-      "white_label": "व्हाइट-लेबल ब्रँडिंग"
+      "white_label": "व्हाइट-लेबल ब्रँडिंग",
+      "ai_rag": "स्रोतांवर आधारित AI सहाय्यक",
+      "document_intelligence": "दस्तऐवज विश्लेषण आणि OCR",
+      "csr_partner_management": "CSR भागीदार व्यवस्थापन"
     }
   }
 }

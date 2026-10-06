@@ -54,13 +54,16 @@
       "apiKeys": "API कळा",
       "usage": "वापर",
       "documentation": "दस्तऐवज",
-      "oauth": "OAuth क्लायंट"
+      "oauth": "OAuth क्लायंट",
+      "deliveries": "वितरण कार्यवाही"
     },
     "providers": {
       "smtp": "SMTP Email",
       "meta_whatsapp": "WhatsApp Business",
       "google_calendar": "Google Calendar",
-      "aws_s3": "Amazon S3"
+      "aws_s3": "Amazon S3",
+      "openai_compatible": "OpenAI-सुसंगत AI",
+      "openai_responses_ocr": "OpenAI दस्तऐवज OCR"
     },
     "fields": {
       "host": "SMTP होस्ट",
@@ -73,7 +76,23 @@
       "calendar_id": "कॅलेंडर ID",
       "bucket": "बकेट",
       "region": "प्रदेश",
-      "prefix": "ऑब्जेक्ट उपसर्ग"
+      "prefix": "ऑब्जेक्ट उपसर्ग",
+      "security": "सुरक्षित संप्रेषण",
+      "reply_to": "प्रतिसादाचा पत्ता",
+      "default_language": "डीफॉल्ट नमुना भाषा",
+      "template_namespace": "नमुना नेमस्पेस",
+      "allow_freeform_text": "समर्थित मुक्त स्वरूप संदेशांना परवानगी द्या",
+      "endpoint": "प्रदाता API एंडपॉइंट",
+      "generation_model": "मजकूर निर्मिती मॉडेल",
+      "embedding_model": "एम्बेडिंग मॉडेल",
+      "embedding_dimensions": "एम्बेडिंग परिमाणे",
+      "timeout_seconds": "विनंती वेळ मर्यादा (सेकंद)",
+      "max_output_tokens": "कमाल आउटपुट टोकन",
+      "max_batch_size": "कमाल एम्बेडिंग बॅच",
+      "model": "OCR मॉडेल",
+      "max_pages": "कमाल PDF पृष्ठे",
+      "max_output_characters": "कमाल OCR अक्षरे",
+      "sender_name": "पाठवणाऱ्याचे नाव"
     },
     "categories": {
       "EMAIL": "ईमेल",
@@ -113,7 +132,10 @@
       "PROCESSING": "प्रक्रियेत",
       "SUCCESS": "यश",
       "FAILED": "अयशस्वी",
-      "CANCELLED": "रद्द"
+      "CANCELLED": "रद्द",
+      "SENT": "पाठवलेले/स्वीकारलेले",
+      "DELIVERED": "पोहोचलेले",
+      "READ": "वाचलेले"
     },
     "environments": {
       "SANDBOX": "चाचणी वातावरण",
@@ -127,7 +149,13 @@
       "TIMEOUT": "प्रदात्याने वेळेत प्रतिसाद दिला नाही.",
       "INVALID_CONFIGURATION": "प्रदाता कॉन्फिगरेशन तपासा.",
       "PERMISSION_DENIED": "आपल्याला या सुविधेची परवानगी नाही.",
-      "SECRET_STORE_UNAVAILABLE": "गोपनीय भांडार अनुपलब्ध किंवा फक्त वाचण्यासाठी आहे."
+      "SECRET_STORE_UNAVAILABLE": "गोपनीय भांडार अनुपलब्ध किंवा फक्त वाचण्यासाठी आहे.",
+      "UNSUPPORTED_MODEL": "कॉन्फिगर केलेले मॉडेल समर्थित नाही.",
+      "MALFORMED_REQUEST": "प्रदात्याने मर्यादित विनंती कॉन्फिगरेशन नाकारले.",
+      "PROVIDER_DISABLED": "कॉन्फिगर केलेला प्रदाता अक्षम आहे.",
+      "INVALID_RECIPIENT": "प्राप्तकर्त्याचा पत्ता अवैध आहे.",
+      "INVALID_TEMPLATE": "मंजूर प्रदाता नमुना अवैध किंवा अनुपलब्ध आहे.",
+      "PROVIDER_REJECTED": "प्रदात्याने वितरण कायमचे नाकारले."
     },
     "entitlements": {
       "custom_email": "सानुकूल ईमेल",
@@ -135,7 +163,9 @@
       "whatsapp_integration": "WhatsApp एकत्रीकरण",
       "google_calendar_integration": "Google Calendar एकत्रीकरण",
       "custom_webhooks": "सानुकूल वेबहुक",
-      "public_api": "सार्वजनिक API"
+      "public_api": "सार्वजनिक API",
+      "ai_rag": "सुरक्षित AI आणि माहिती पुनर्प्राप्ती",
+      "document_intelligence": "दस्तऐवज विश्लेषण आणि OCR"
     },
     "retry": "पुन्हा प्रयत्न",
     "loading": "लोड होत आहे…",
@@ -210,15 +240,27 @@
     "operations": {
       "test_connection": "जोडणी चाचणी",
       "webhook_delivery": "वेबहुक वितरण",
-      "email_send": "ईमेल पाठवा"
-      ,"calendar_sync": "कॅलेंडर इव्हेंट सिंक करा"
-      ,"calendar_test": "कॅलेंडर जोडणी तपासा"
+      "email_send": "ईमेल पाठवा",
+      "calendar_sync": "कॅलेंडर इव्हेंट सिंक करा",
+      "calendar_test": "कॅलेंडर जोडणी तपासा",
+      "ai_generation": "AI मजकूर निर्मिती",
+      "ai_embedding": "AI एम्बेडिंग",
+      "ocr_extraction": "OCR निष्कर्षण",
+      "whatsapp_callback": "WhatsApp वितरण कॉलबॅक"
     },
     "healthRecorded": "स्पष्ट जोडणी चाचण्यांतून नोंदवलेले आरोग्य. पृष्ठे प्रदात्यांना स्वयंचलितपणे कॉल करत नाहीत.",
     "metricsToday": "गेल्या 24 तासांतील क्रिया",
     "operationsCount": "क्रिया",
     "averageLatency": "सरासरी विलंब",
     "providerAlertTitle": "एकत्रीकरणाकडे लक्ष आवश्यक",
-    "providerAlertMessage": "कॉन्फिगर केलेले एकत्रीकरण सलग तीन चाचण्यांत अयशस्वी झाले. आरोग्य पृष्ठ तपासा."
+    "providerAlertMessage": "कॉन्फिगर केलेले एकत्रीकरण सलग तीन चाचण्यांत अयशस्वी झाले. आरोग्य पृष्ठ तपासा.",
+    "event": "घटना",
+    "recipient": "प्राप्तकर्ता",
+    "nextRetry": "पुढील पुनर्प्रयत्न",
+    "none": "काहीही नाही",
+    "emptyDeliveries": "या कार्यक्षेत्रात जुळणारी संप्रेषण वितरने नाहीत.",
+    "retryQueued": "वितरणाचा पुनर्प्रयत्न रांगेत आहे",
+    "channel": "माध्यम",
+    "actions": "कृती"
   }
 }

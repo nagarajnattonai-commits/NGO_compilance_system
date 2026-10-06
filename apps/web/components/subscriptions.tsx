@@ -1,5 +1,9 @@
 "use client";
 
+import { formatDateTime, formatShortDate, formatNumber } from "@/i18n/format";
+
+import { localizedError } from "@/i18n/display";
+
 import { useEffect, useState } from "react";
 import { Check, LockKeyhole, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -21,12 +25,13 @@ function planName(t: (key: string) => string, key: string) {
 }
 
 function PlanUsage({ label, value, limit, unit = "" }: { label: string; value: number; limit: number | null; unit?: string }) {
+  const uiText = useTranslations();
   const t = useTranslations("Subscriptions");
-  if (limit === null) return <div className="subscription-usage"><div><span>{label}</span><strong>{value}{unit} / Not assigned</strong></div></div>;
+  if (limit === null) return <div className="subscription-usage"><div><span>{label}</span><strong>{formatNumber(value)}{unit}  {uiText("Common.interface.notAssigned")}</strong></div></div>;
   const percentage = limit > 0 ? Math.min(100, Math.round(value / limit * 100)) : 100;
   return (
     <div className="subscription-usage">
-      <div><span>{label}</span><strong>{value}{unit} / {limit}{unit}</strong></div>
+      <div><span>{label}</span><strong>{formatNumber(value)}{unit} / {formatNumber(limit)}{unit}</strong></div>
       <progress max={100} value={percentage} aria-label={`${label}: ${value} / ${limit}${unit}`} />
       {value >= limit && <small className="subscription-upgrade-required"><LockKeyhole size={13} />{t("limitReached")}</small>}
     </div>
@@ -34,6 +39,7 @@ function PlanUsage({ label, value, limit, unit = "" }: { label: string; value: n
 }
 
 export function TenantSubscription({ subscription }: { subscription: Subscription }) {
+  const uiText = useTranslations();
   const t = useTranslations("Subscriptions");
   const plans = subscription.plans || [];
   const usage = subscription.usage || { users: 0, organizations: 0, integrations: 0, storage_bytes: 0, storage_gb: 0 };
@@ -44,11 +50,11 @@ export function TenantSubscription({ subscription }: { subscription: Subscriptio
     <div className="page subscription-page">
       <header className="page-heading">
         <div><span className="eyebrow">{t("eyebrow")}</span><h1>{t("title")}</h1><p>{t("description")}</p></div>
-        <span className={`status status-${subscription.status.toLowerCase()}`}><i />{subscription.configured === false ? "Plan not assigned" : t(`statuses.${subscription.status}`)}</span>
+        <span className={`status status-${subscription.status.toLowerCase()}`}><i />{subscription.configured === false ? uiText("Common.interface.planNotAssigned") : t(`statuses.${subscription.status}`)}</span>
       </header>
       <div className="admin-summary subscription-summary">
-        <div><span>{t("currentPlan")}</span><strong>{subscription.configured === false ? "Legacy workspace" : planName(t, subscription.plan_name)}</strong><small>{activePlan ? t(`planDescriptions.${subscription.plan_name}`) : t("legacyPlan")}</small></div>
-        <div><span>{t("periodStart")}</span><strong>{subscription.period_start || "—"}</strong><small>{t("periodEnd")}: {subscription.period_end || "—"}</small></div>
+        <div><span>{t("currentPlan")}</span><strong>{subscription.configured === false ? uiText("Common.interface.legacyWorkspace") : planName(t, subscription.plan_name)}</strong><small>{activePlan ? t(`planDescriptions.${subscription.plan_name}`) : t("legacyPlan")}</small></div>
+        <div><span>{t("periodStart")}</span><strong>{subscription.period_start ? formatShortDate(subscription.period_start) : "—"}</strong><small>{t("periodEnd")}: {subscription.period_end ? formatShortDate(subscription.period_end) : "—"}</small></div>
         <div><span>{t("cancellation")}</span><strong>{t(subscription.cancel_at_period_end ? "scheduled" : "notScheduled")}</strong><small>{subscription.cancel_at_period_end ? t("accessUntilPeriodEnd") : t("contactAdmin")}</small></div>
         <div><span>{t("limits")}</span><strong>{t("planLimits")}</strong><small>{t("serverEnforced")}</small></div>
       </div>
@@ -90,7 +96,7 @@ export function TenantSubscription({ subscription }: { subscription: Subscriptio
       <section className="card subscription-history">
         <header className="card-title"><div><h2>{t("historyTitle")}</h2><p>{t("historyDescription")}</p></div></header>
         {!subscription.history?.length ? <p>{t("noHistory")}</p> : <ul>{subscription.history.map((event) => (
-          <li key={event.id}><strong>{event.summary}</strong><span>{event.actor_name}</span><time dateTime={event.created_at}>{new Date(event.created_at).toLocaleString()}</time></li>
+          <li key={event.id}><strong>{event.summary}</strong><span>{event.actor_name}</span><time dateTime={event.created_at}>{formatDateTime(event.created_at)}</time></li>
         ))}</ul>}
       </section>
     </div>
@@ -98,6 +104,7 @@ export function TenantSubscription({ subscription }: { subscription: Subscriptio
 }
 
 export default function PlatformSubscriptions() {
+  const uiText = useTranslations();
   const t = useTranslations("Subscriptions");
   const [tenants, setTenants] = useState<PlatformTenant[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -116,7 +123,7 @@ export default function PlatformSubscriptions() {
       cancel_at_period_end: row.subscription?.cancel_at_period_end || false,
     }])));
   }
-  useEffect(() => { refresh().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t("loadError"))); }, []);
+  useEffect(() => { refresh().catch((reason: unknown) => setError(localizedError(reason, uiText, t("loadError")))); }, []);
   async function save(tenantId: string) {
     const draft = drafts[tenantId];
     if (!draft || busy) return;
@@ -128,7 +135,7 @@ export default function PlatformSubscriptions() {
         cancel_at_period_end: draft.cancel_at_period_end,
       });
       await refresh();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("saveFailed")); }
+    } catch (reason) { setError(localizedError(reason, uiText, t("saveFailed"))); }
     finally { setBusy(null); }
   }
   function change(tenantId: string, key: keyof Draft, value: string | boolean) {
@@ -155,7 +162,7 @@ export default function PlatformSubscriptions() {
               <label className="subscription-cancel-toggle"><input type="checkbox" checked={draft.cancel_at_period_end} onChange={(event) => change(tenant.tenant_id, "cancel_at_period_end", event.target.checked)} />{t("cancelAtPeriodEnd")}</label>
               <button type="button" className="button primary" disabled={busy !== null} onClick={() => void save(tenant.tenant_id)}><Save size={16} />{busy === tenant.tenant_id ? t("saving") : t("savePlan")}</button>
             </div>
-            {!!tenant.history.length && <details className="platform-subscription-history"><summary>{t("historyTitle")}</summary><ul>{tenant.history.map((event) => <li key={event.id}><strong>{event.summary}</strong><span>{event.actor_name}</span><time dateTime={event.created_at}>{new Date(event.created_at).toLocaleString()}</time></li>)}</ul></details>}
+            {!!tenant.history.length && <details className="platform-subscription-history"><summary>{t("historyTitle")}</summary><ul>{tenant.history.map((event) => <li key={event.id}><strong>{event.summary}</strong><span>{event.actor_name}</span><time dateTime={event.created_at}>{formatDateTime(event.created_at)}</time></li>)}</ul></details>}
           </section>
         );
       })}</div>

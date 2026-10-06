@@ -14,6 +14,7 @@ import AuthPasswordInput from "./auth-password-input";
 export type AuthMode="login"|"admin-login"|"signup"|"forgot-password"|"admin-forgot-password"|"reset-password"|"admin-reset-password"|"accept-invitation"|"verify-email"|"google-complete"|"google-link";
 type Options={terms_url:string;privacy_url:string;organization_types:string[];providers:{google:{user:boolean;signup:boolean;admin:boolean}}};
 export default function AuthForm({mode}:{mode:AuthMode}){
+  const uiText = useTranslations();
  const t=useTranslations("Authentication");const brand=useTenantBrand();
  const admin=mode.startsWith("admin-");const login=mode==="login"||mode==="admin-login";
  const forgot=mode.endsWith("forgot-password");const reset=mode.endsWith("reset-password");
@@ -118,8 +119,8 @@ export default function AuthForm({mode}:{mode:AuthMode}){
     <ul><li>{t("benefits.compliance")}</li><li>{t("benefits.evidence")}</li><li>{t("benefits.team")}</li></ul>
    </aside>}
    <section className="auth-card" aria-labelledby="auth-title">
-    <Link href="/" className="auth-logo" aria-label={admin?"Setu NGO":brand.product_name}>{!admin&&brand.enabled?<BrandLogo variant="login"/>:<ShieldCheck size={30}/>}</Link>
-    <p className="auth-brand" title={admin?"Setu NGO":brand.product_name}>{admin?"Setu NGO":brand.product_name}</p>
+    <Link href="/" className="auth-logo" aria-label={admin?uiText("Common.brand"):brand.product_name}>{!admin&&brand.enabled?<BrandLogo variant="login"/>:<ShieldCheck size={30}/>}</Link>
+    <p className="auth-brand" title={admin?uiText("Common.brand"):brand.product_name}>{admin?uiText("Common.brand"):brand.product_name}</p>
     {admin&&<p className="auth-admin-label"><LockKeyhole size={14}/>{t("platformAdministration")}</p>}
     <h1 id="auth-title">{t("titles."+titleKey)}</h1><p className="auth-description">{t("descriptions."+titleKey)}</p>
     {error&&<div className="auth-alert error" role="alert">{error}</div>}
@@ -161,6 +162,6 @@ export default function AuthForm({mode}:{mode:AuthMode}){
     </nav>
    </section>
   </div>
-  <footer className="auth-footer">{admin?"Setu NGO":brand.footer_text||brand.brand_name}<nav className="tenant-legal-links">{brand.support_url&&!admin&&<a href={brand.support_url}>{t("support")}</a>}{brand.terms_url&&!admin&&<a href={brand.terms_url}>{t("termsLink")}</a>}{brand.privacy_url&&!admin&&<a href={brand.privacy_url}>{t("privacyLink")}</a>}</nav></footer>
+  <footer className="auth-footer">{admin?uiText("Common.brand"):brand.footer_text||brand.brand_name}<nav className="tenant-legal-links">{brand.support_url&&!admin&&<a href={brand.support_url}>{t("support")}</a>}{brand.terms_url&&!admin&&<a href={brand.terms_url}>{t("termsLink")}</a>}{brand.privacy_url&&!admin&&<a href={brand.privacy_url}>{t("privacyLink")}</a>}</nav></footer>
  </main>;
 }

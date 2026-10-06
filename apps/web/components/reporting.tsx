@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, FileText } from "lucide-react";
@@ -125,6 +127,7 @@ export function ManagementDashboard({
   organizationId?: string;
   onSelectCompliance: (id: string) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Reports");
   const tStatus = useTranslations("Common.status");
   const [data, setData] = useState<Analytics | null>(null);
@@ -138,7 +141,7 @@ export function ManagementDashboard({
     apiRequest<Analytics>(`/reports/analytics?${params}`).then((result) => {
       if (current) { setData(result); setError(""); }
     }).catch((reason) => {
-      if (current) setError(reason instanceof Error ? reason.message : t("loadError"));
+      if (current) setError(localizedError(reason, uiText, t("loadError")));
     });
     return () => { current = false; };
   }, [organizationId, horizon, t]);
@@ -213,7 +216,7 @@ export function ManagementDashboard({
       <section className="card report-organization-panel">
         <h2>{t("organizationPerformance")}</h2>
         <div className="report-table-scroll"><table className="report-table">
-          <thead><tr><th>{t("organization")}</th><th>{t("totalApplicable")}</th><th>{t("completed")}</th><th>{t("pending")}</th><th>{t("overdue")}</th><th>{t("upcoming")}</th><th>{t("completionRate")}</th><th>{t("taskCompletion")}</th><th>{t("documentsExpiring")}</th></tr></thead>
+          <thead><tr><th>{t("organization")}</th><th>{t("totalApplicable")}</th><th>{t("metrics.completed")}</th><th>{t("pending")}</th><th>{t("metrics.overdue")}</th><th>{t("metrics.upcoming")}</th><th>{t("completionRate")}</th><th>{t("taskCompletion")}</th><th>{t("metrics.documentsExpiring")}</th></tr></thead>
           <tbody>{data.organization_summaries.map((item) => (
             <tr key={item.organization_id}>
               <td><Link href={`/organizations/${item.organization_id}`}>{item.organization_name}</Link></td>
@@ -240,6 +243,7 @@ export function ManagementReports({
   onSelectCompliance: (id: string) => void;
   advancedReporting?: boolean;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Reports");
   const tSubscriptions = useTranslations("Subscriptions");
   const tStatus = useTranslations("Common.status");
@@ -268,7 +272,7 @@ export function ManagementReports({
     ]).then(([summary, report]) => {
       if (current) { setAnalytics(summary); setRows(report.rows); setTotalRows(report.total); setError(""); }
     }).catch((reason) => {
-      if (current) setError(reason instanceof Error ? reason.message : t("loadError"));
+      if (current) setError(localizedError(reason, uiText, t("loadError")));
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [filters, page, t]);
@@ -296,10 +300,10 @@ export function ManagementReports({
       </div>
       <SavedRegisterViews scope="REPORTS" filters={{organization_id:filters.organization_id||null,status:filters.status||null,
         owner:filters.owner||null,priority:filters.priority||null,date_from:filters.date_from||null,date_to:filters.date_to||null}}
-        unavailable={filters.category?"Category is not supported by the saved-view contract. Clear it before saving this report view.":""}
+        unavailable={filters.category?uiText("Common.interface.categoryIsNotSupportedByTheSavedViewContractClearItBeforeSavingThisReportView"):""}
         apply={saved=>{
-          requireCompatibleFilters(saved,["organization_id","status","owner","priority","date_from","date_to"]);
-          if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error("Saved organization is no longer accessible.");
+          requireCompatibleFilters(saved,["organization_id","status","owner","priority","date_from","date_to"], filter => uiText("Common.interface.unsupportedFilter", { filter }));
+          if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error(uiText("Common.interface.savedOrganizationIsNoLongerAccessible"));
           setPage(0);setFilters({organization_id:saved.organization_id||"",category:"",status:saved.status||"",owner:saved.owner||"",priority:saved.priority||"",date_from:saved.date_from||"",date_to:saved.date_to||""});
         }}/>
       <section className="report-filters" aria-label={t("filters")}>
@@ -316,7 +320,7 @@ export function ManagementReports({
           <option value="">{t("allOwners")}</option>{analytics?.filters.owners.map((item) => <option key={item} value={item}>{item}</option>)}
         </select></label>
         <label>{t("priority")}<select value={filters.priority} onChange={(event) => updateFilter("priority", event.target.value)}>
-          <option value="">{t("allPriorities")}</option>{priorities.map((item) => <option key={item} value={item}>{item}</option>)}
+          <option value="">{t("allPriorities")}</option>{priorities.map((item) => <option key={item} value={item}>{uiText(`Common.priority.${item}`)}</option>)}
         </select></label>
         <label>{t("dateFrom")}<input type="date" value={filters.date_from} onChange={(event) => updateFilter("date_from", event.target.value)} /></label>
         <label>{t("dateTo")}<input type="date" value={filters.date_to} onChange={(event) => updateFilter("date_to", event.target.value)} /></label>
@@ -328,7 +332,7 @@ export function ManagementReports({
           <article className="report-metric"><span>{t("metrics.totalCompliances")}</span><strong>{analytics.summary.total}</strong></article>
           <article className="report-metric"><span>{t("completionRate")}</span><strong>{formatPercentage(analytics.summary.completion_rate / 100)}</strong></article>
           <article className="report-metric"><span>{t("riskSummary")}</span><strong>{analytics.summary.high_risk}</strong></article>
-          <article className="report-metric"><span>{t("overdue")}</span><strong>{analytics.summary.overdue}</strong></article>
+          <article className="report-metric"><span>{t("metrics.overdue")}</span><strong>{analytics.summary.overdue}</strong></article>
         </div>
         <div className="report-chart-grid">
           <ChartPanel title={t("statusBreakdown")} points={analytics.charts.status_distribution} />

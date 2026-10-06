@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { AuthUser } from "@/lib/auth-types";
@@ -8,6 +10,7 @@ import { apiRequest } from "@/lib/http";
 import { grantOrganizationAccess, loadOrganizationAccess, revokeOrganizationAccess } from "@/lib/api";
 
 export default function OrganizationAccessEditor({ id }: { id: string }) {
+  const uiText = useTranslations();
   const t = useTranslations("Organization");
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [rows, setRows] = useState<OrganizationAccess[]>([]);
@@ -29,7 +32,7 @@ export default function OrganizationAccessEditor({ id }: { id: string }) {
       setRows(access);
       setUserId((current) => current || eligible[0]?.id || "");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("error"));
+      setError(localizedError(requestError, uiText, t("error")));
     } finally {
       setBusy(false);
     }
@@ -45,7 +48,7 @@ export default function OrganizationAccessEditor({ id }: { id: string }) {
       await grantOrganizationAccess(id, userId, role);
       await refresh();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("error"));
+      setError(localizedError(requestError, uiText, t("error")));
       setBusy(false);
     }
   }
@@ -56,7 +59,7 @@ export default function OrganizationAccessEditor({ id }: { id: string }) {
       await revokeOrganizationAccess(id, row.user_id);
       await refresh();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("error"));
+      setError(localizedError(requestError, uiText, t("error")));
       setBusy(false);
     }
   }

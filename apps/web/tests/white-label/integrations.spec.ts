@@ -13,7 +13,10 @@ async function login(request:APIRequestContext,context:BrowserContext,locale="en
  await provisionPlatformOperator(request);
  expect((await request.patch("/api/v1/localization/preferences",{headers,data:{locale,timezone:"Asia/Kolkata",time_format:"12h"}})).ok()).toBeTruthy();
  await context.addCookies((await request.storageState()).cookies);
- const me=await request.get("/api/v1/auth/me");return (await me.json()).user.tenant_id as string;
+ const me=await request.get("/api/v1/auth/me");const tenant=(await me.json()).user.tenant_id as string;
+ // The fixture creates several connections; a feature grant alone does not increase capacity.
+ expect((await request.put(`/api/v1/platform/subscriptions/${tenant}`,{headers,data:{plan_name:"BUSINESS",status:"ACTIVE"}})).ok()).toBeTruthy();
+ return tenant;
 }
 async function grant(request:APIRequestContext,tenant:string,key:string){
  expect((await request.put("/api/v1/integrations-management/platform/tenants/"+tenant+"/entitlement",{headers,data:{feature_key:key,enabled:true}})).ok()).toBeTruthy();

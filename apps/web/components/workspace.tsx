@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError, localizedRole, localizedStatus } from "@/i18n/display";
+
 import {
   AlertTriangle,
   ArrowRight,
@@ -79,7 +81,7 @@ import OnboardingBanner from "./onboarding-banner";
 import {DocumentUploadForm,DocumentFileDetail} from "./document-library";
 import {contentUrl} from "@/lib/evidence";
 import { apiRequest } from "@/lib/http";
-import { roleLabel, type AuthUser } from "@/lib/auth-types";
+import { type AuthUser } from "@/lib/auth-types";
 import UserManagement from "@/components/user-management";
 import type {
   AuditEvent,
@@ -268,6 +270,7 @@ export default function ComplianceApp({
   initialView?: View;
   platformAdmin?: boolean;
 }) {
+  const uiText = useTranslations();
   const tCommon = useTranslations("Common");
   const tAuth = useTranslations("Authentication");
   const tBrand = useTranslations("WhiteLabel");
@@ -344,7 +347,7 @@ export default function ComplianceApp({
       })
       .catch((error) =>
         setLoadError(
-          error instanceof Error ? error.message : "Unable to load workspace",
+          localizedError(error, uiText, uiText("Common.interface.unableToLoadWorkspace")),
         ),
       )
       .finally(() => setLoading(false));
@@ -408,11 +411,11 @@ export default function ComplianceApp({
         items.map((item) => (item.id === task.id ? updated : item)),
       );
       showToast(
-        updated.status === "DONE" ? "Task marked complete" : "Task reopened",
+        updated.status === "DONE" ? uiText("Common.interface.taskMarkedComplete") : uiText("Common.interface.taskReopened"),
       );
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : "Could not update task",
+        localizedError(error, uiText, uiText("Common.interface.couldNotUpdateTask")),
       );
     }
   }
@@ -426,9 +429,7 @@ export default function ComplianceApp({
       );
     } catch (error) {
       showToast(
-        error instanceof Error
-          ? error.message
-          : "Could not mark notification read",
+        localizedError(error, uiText, uiText("Common.interface.couldNotMarkNotificationRead")),
       );
     }
   }
@@ -439,7 +440,7 @@ export default function ComplianceApp({
       await apiRequest<void>("/auth/logout", "POST");
       window.location.assign(window.location.pathname.startsWith("/admin")?"/admin/login":"/login");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not sign out");
+      showToast(localizedError(error, uiText, uiText("Common.interface.couldNotSignOut")));
       setSigningOut(false);
     }
   }
@@ -461,12 +462,10 @@ export default function ComplianceApp({
       setSelectedCompliance((current) =>
         current?.id === item.id ? updated : current,
       );
-      showToast(`Status updated to ${statusLabels[status]}`);
+      showToast(uiText("Common.interface.statusChanged", { status: localizedStatus(status, uiText) }));
     } catch (error) {
       showToast(
-        error instanceof Error
-          ? error.message
-          : "Could not update this compliance",
+        localizedError(error, uiText, uiText("Common.interface.couldNotUpdateThisCompliance")),
       );
     }
   }
@@ -481,15 +480,14 @@ export default function ComplianceApp({
   if (loadError || (!subscription && !platformAdmin))
     return (
       <main className="workspace-loading">
-        <h1>Unable to load workspace</h1>
-        <p role="alert">{loadError || "Subscription is unavailable"}</p>
+        <h1>{uiText("Common.interface.unableToLoadWorkspace")}</h1>
+        <p role="alert">{loadError || uiText("Common.interface.subscriptionUnavailable")}</p>
         <button
           className="button primary"
           onClick={() => window.location.reload()}
         >
-          Try again
-        </button>
-        <Link href="/account">Account settings</Link>
+           {uiText("Common.actions.tryAgain")} </button>
+        <Link href="/account">{uiText("Common.interface.accountSettingsLabel")}</Link>
       </main>
     );
 
@@ -501,7 +499,7 @@ export default function ComplianceApp({
             <AppLogo />
             <button
               className="mobile-close"
-              aria-label="Close navigation"
+              aria-label={uiText("Marketing.navigation.closeNavigation")}
               onClick={() => setMobileMenu(false)}
             >
               <X size={19} />
@@ -541,17 +539,16 @@ export default function ComplianceApp({
           <div className="sidebar-spacer" />
           <div className="help-card">
             <Sparkles size={17} />
-            <strong>Compliance tip</strong>
+            <strong>{uiText("Common.interface.complianceTip")}</strong>
             <p>
-              Set internal targets at least 7 days before statutory deadlines.
-            </p>
+               {uiText("Common.interface.setInternalTargetsAtLeast7DaysBeforeStatutoryDeadlines")} </p>
             <button
               onClick={() => {
                 setPanel("guide");
                 setMobileMenu(false);
               }}
             >
-              View guide <ArrowRight size={14} />
+               {uiText("Common.interface.viewGuide")} <ArrowRight size={14} />
             </button>
           </div>
           <nav className="secondary-nav">
@@ -562,7 +559,7 @@ export default function ComplianceApp({
               }}
             >
               <CircleHelp size={18} />
-              <span>Help centre</span>
+              <span>{uiText("Common.interface.helpCentre")}</span>
             </button>
             <button
               onClick={() => {
@@ -571,21 +568,21 @@ export default function ComplianceApp({
               }}
             >
               <Settings size={18} />
-              <span>Settings</span>
+              <span>{uiText("Common.interface.settings")}</span>
             </button>
           </nav>
           <div className="account">
             <Avatar name={user.name} />
             <div>
               <strong>{user.name}</strong>
-              <small>{roleLabel(user.role)}</small>
+              <small>{localizedRole(user.role, uiText)}</small>
             </div>
           </div>
           <div className="sidebar-account-links">
-            <Link href="/account">My account & password</Link>
+            <Link href="/account">{uiText("Common.interface.myAccountPassword")}</Link>
             <Link href="/select-workspace">{tAuth("selectWorkspace")}</Link>
             <button disabled={signingOut} onClick={logout}>
-              {signingOut ? "Signing out…" : "Sign out"}
+              {signingOut ? uiText("Common.interface.signingOut") : uiText("Common.actions.signOut")}
             </button>
           </div>
         </aside>
@@ -593,7 +590,7 @@ export default function ComplianceApp({
         {mobileMenu && (
           <button
             className="scrim"
-            aria-label="Close menu"
+            aria-label={uiText("Common.interface.closeMenu")}
             onClick={() => setMobileMenu(false)}
           />
         )}
@@ -602,7 +599,7 @@ export default function ComplianceApp({
           <header className="topbar">
             <button
               className="menu-button"
-              aria-label="Open navigation"
+              aria-label={uiText("Marketing.navigation.openNavigation")}
               aria-expanded={mobileMenu}
               onClick={() => setMobileMenu(true)}
             >
@@ -635,7 +632,7 @@ export default function ComplianceApp({
                     </span>
                     <span>
                       <strong>{tCommon("allOrganizations")}</strong>
-                      <small>Portfolio view</small>
+                      <small>{uiText("Common.interface.portfolioView")}</small>
                     </span>
                     {selectedOrg === "all" && <Check size={16} />}
                   </button>
@@ -663,7 +660,7 @@ export default function ComplianceApp({
             <span className="admin-context">
               <ShieldCheck size={16} />
               <span>
-                NGO management<small>{roleLabel(user.role)} workspace</small>
+                 {uiText("Common.interface.nGOManagement")}<small>{localizedRole(user.role, uiText)}  {uiText("Common.interface.workspace")}</small>
               </span>
             </span>
             <div className="top-actions">
@@ -673,7 +670,7 @@ export default function ComplianceApp({
               <div className="notification-wrap">
                 <button
                   className="icon-button"
-                  aria-label="Open notifications"
+                  aria-label={uiText("Common.interface.openNotifications")}
                   onClick={() => setNotificationOpen(!notificationOpen)}
                 >
                   <Bell size={19} />
@@ -700,12 +697,12 @@ export default function ComplianceApp({
               <Link
                 href="/account"
                 className="top-avatar"
-                aria-label="Open account settings"
+                aria-label={uiText("Common.interface.openAccountSettings")}
               >
                 <Avatar name={user.name} />
                 <span>
                   {user.name}
-                  <small>{roleLabel(user.role)}</small>
+                  <small>{localizedRole(user.role, uiText)}</small>
                 </span>
                 <ChevronDown size={14} />
               </Link>
@@ -854,7 +851,7 @@ export default function ComplianceApp({
               isAdmin={user.role === "ADMIN"}
               onAutomation={(result) => {
                 showToast(
-                  `Automation complete: ${result.overdue_compliances + result.overdue_tasks + result.upcoming + result.expiring_documents} alerts, ${result.recurring_created} recurring items`,
+                  uiText("Common.interface.automationComplete", { alerts: result.overdue_compliances + result.overdue_tasks + result.upcoming + result.expiring_documents, recurring: result.recurring_created }),
                 );
                 void loadWorkspace(true).then((data) => {
                   setCompliances(data.compliances);
@@ -988,7 +985,7 @@ export default function ComplianceApp({
             onCreate={(member) => {
               setMemberships((rows) => [...rows, member]);
               setShowInvite(false);
-              showToast(`Invitation created for ${member.email}`);
+              showToast(uiText("Common.interface.invitationCreated", { email: member.email }));
             }}
           />
         )}
@@ -1070,6 +1067,7 @@ function Overview({
   organizationId?: string;
   onSelectCompliance: (id: string) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Dashboard");
   const openItems = compliances.filter((item) => isOpenCompliance(item.status));
   const risk = openItems.filter((item) =>
@@ -1083,7 +1081,7 @@ function Overview({
   return (
     <div className="page reference-dashboard">
       <PageHeading
-        eyebrow={`Home / ${t("adminTitle")}`}
+        eyebrow={uiText("Common.interface.homeTrail", { page: t("adminTitle") })}
         title={
           useCurrentUser().role === "ADMIN" ? t("adminTitle") : t("teamTitle")
         }
@@ -1105,7 +1103,7 @@ function Overview({
       <section className="card admin-notice">
         <div className="notice-heading">
           <Bell size={17} />
-          <h2>Compliance Notice</h2>
+          <h2>{uiText("Common.interface.complianceNotice")}</h2>
         </div>
         <div className="notice-body">
           <span className="notice-symbol">
@@ -1114,31 +1112,31 @@ function Overview({
           <div>
             <strong>
               {risk
-                ? `${risk} high-priority obligations need attention`
-                : "No high-priority obligations pending"}
+                ? uiText("Common.interface.riskAttention", { count: risk })
+                : uiText("Common.interface.noHighPriorityObligationsPending")}
             </strong>
             <p>
               {overdue
-                ? `${overdue} open obligations are past their statutory deadline. Review their filing status and supporting evidence.`
-                : "Keep evidence up to date and review internal targets before the statutory deadlines."}
+                ? uiText("Common.interface.overdueNotice", { count: overdue })
+                : uiText("Common.interface.keepEvidenceUpToDateAndReviewInternalTargetsBeforeTheStatutoryDeadlines")}
             </p>
           </div>
           <button
             className="button secondary small"
             onClick={() => go("compliance")}
           >
-            Open register <ArrowRight size={14} />
+             {uiText("Common.interface.openRegister")} <ArrowRight size={14} />
           </button>
         </div>
       </section>
       <div className="dashboard-grid">
         <section className="card task-card">
           <CardTitle
-            title="Assigned Tasks"
-            sub={`${openTasks.length} open assignments in this view`}
+            title={uiText("Common.interface.assignedTasks")}
+            sub={uiText("Common.interface.openAssignments", { count: openTasks.length })}
             action={
               <button className="text-button" onClick={() => go("tasks")}>
-                View all <ChevronRight size={15} />
+                 {uiText("Common.actions.viewAll")} <ChevronRight size={15} />
               </button>
             }
           />
@@ -1154,7 +1152,7 @@ function Overview({
                 >
                   <button
                     className="task-check"
-                    aria-label={`${task.status === "DONE" ? "Reopen" : "Complete"} ${task.title}`}
+                    aria-label={`${task.status === "DONE" ? "Reopen" : uiText("Marketing.complete")} ${task.title}`}
                     aria-pressed={task.status === "DONE"}
                     onClick={() => toggleTask(task)}
                   >
@@ -1163,7 +1161,7 @@ function Overview({
                   <div>
                     <strong>{task.title}</strong>
                     <span>
-                      Due {niceDate(task.due_at, true)} · {task.assignee_name}
+                       {uiText("Portfolio.due")} {niceDate(task.due_at, true)} · {task.assignee_name}
                     </span>
                   </div>
                   <Avatar
@@ -1176,15 +1174,15 @@ function Overview({
           {!tasks.length && (
             <EmptyState
               icon={<ListChecks />}
-              title="No tasks yet"
-              text="Create an assignment from the Tasks page."
+              title={uiText("Tasks.emptyTitle")}
+              text={uiText("Common.interface.createAnAssignmentFromTheTasksPage")}
             />
           )}
         </section>
         <section className="card activity-card">
           <CardTitle
             title={t("recentActivity")}
-            sub="Latest recorded changes across all organizations"
+            sub={uiText("Common.interface.latestRecordedChanges")}
           />
           <div className="activity-list">
             {audits.slice(0, 4).map((event, index) => (
@@ -1210,7 +1208,7 @@ function Overview({
             ))}
           </div>
           {!audits.length && (
-            <p className="muted">No activity has been recorded yet.</p>
+            <p className="muted">{uiText("Common.interface.noActivityHasBeenRecordedYet")}</p>
           )}
         </section>
       </div>
@@ -1255,6 +1253,7 @@ function ComplianceView({
   selectCompliance: (c: Compliance) => void;
   setShowNew: (v: boolean) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Compliance");
   const [filter, setFilter] = useState("ALL");
   const [pageSize, setPageSize] = useState(10);
@@ -1326,15 +1325,15 @@ function ComplianceView({
               onClick={() => setFilter(item)}
               key={item}
             >
-              {item === "ALL" ? "All" : <StatusBadge status={item} />}
+              {item === "ALL" ? uiText("ComplianceMaster.all") : <StatusBadge status={item} />}
             </button>
           ))}
         </div>
       </div>
       <SavedRegisterViews scope="COMPLIANCES" filters={{query:search,status:filter==="ALL"?null:filter,organization_id:currentOrg==="all"?null:currentOrg}}
         apply={saved=>{
-          requireCompatibleFilters(saved,["query","status","organization_id"]);
-          if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error("Saved organization is no longer accessible.");
+          requireCompatibleFilters(saved,["query","status","organization_id"], filter => uiText("Common.interface.unsupportedFilter", { filter }));
+          if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error(uiText("Common.interface.savedOrganizationIsNoLongerAccessible"));
           selectOrg(saved.organization_id||"all");setSearch(saved.query||"");setFilter(saved.status||"ALL");
         }}/>
       <section className="table-card">
@@ -1379,8 +1378,8 @@ function ComplianceView({
                 <strong>{niceDate(item.statutory_deadline)}</strong>
                 <small>
                   {item.internal_target
-                    ? `Target ${niceDate(item.internal_target, true)}`
-                    : "No internal target"}
+                    ? uiText("Common.interface.targetNamed", { date: niceDate(item.internal_target, true) })
+                    : uiText("Common.interface.noInternalTarget")}
                 </small>
               </span>
               <span className="owner-cell">
@@ -1405,17 +1404,15 @@ function ComplianceView({
         )}
         <div className="table-footer">
           <span>
-            Showing {visible.length ? (page - 1) * pageSize + 1 : 0} to{" "}
-            {Math.min(page * pageSize, visible.length)} of {visible.length}{" "}
-            entries
-          </span>
-          <nav className="table-pagination" aria-label="Compliance pages">
+             {uiText("Common.interface.showing")} {visible.length ? (page - 1) * pageSize + 1 : 0}  {uiText("Common.interface.to")}{" "}
+            {Math.min(page * pageSize, visible.length)}  {uiText("Common.interface.of")} {visible.length}{" "}
+             {uiText("Common.interface.entries")} </span>
+          <nav className="table-pagination" aria-label={uiText("Common.interface.compliancePages")}>
             <button
               disabled={page <= 1}
               onClick={() => setPagination({ key: queryKey, page: page - 1 })}
             >
-              Previous
-            </button>
+               {uiText("ComplianceMaster.previous")} </button>
             <span aria-current="page">
               {page} / {pageCount}
             </span>
@@ -1423,8 +1420,7 @@ function ComplianceView({
               disabled={page >= pageCount}
               onClick={() => setPagination({ key: queryKey, page: page + 1 })}
             >
-              Next
-            </button>
+               {uiText("ComplianceMaster.next")} </button>
           </nav>
         </div>
       </section>
@@ -1451,6 +1447,7 @@ function TasksView({
   taskUpdated: (task: ComplianceTask) => void;
   setShowNewTask: (v: boolean) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Tasks");
   const common = useTranslations("Common");
   const user = useCurrentUser();
@@ -1566,11 +1563,11 @@ function TasksView({
         </div>
         <SavedRegisterViews scope="TASKS" filters={{organization_id:currentOrg==="all"?null:currentOrg,
           status:tab==="DONE"?"DONE":tab==="ALL"?null:"OPEN",timing:tab==="OVERDUE"?"OVERDUE":"ALL",assignee:assignee==="ALL"?null:assignee}}
-          unavailable={["MINE","TODAY"].includes(tab)?"My tasks and Today are relative views and cannot be saved faithfully with the current saved-view contract.":""}
+          unavailable={["MINE","TODAY"].includes(tab)?uiText("Common.interface.myTasksAndTodayAreRelativeViewsAndCannotBeSavedFaithfullyWithTheCurrentSavedViewContract"):""}
           apply={saved=>{
-            requireCompatibleFilters(saved,["status","timing","assignee","organization_id"]);
-            if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error("Saved organization is no longer accessible.");
-            if(saved.status&&!['OPEN','DONE'].includes(saved.status)||saved.timing&&!['ALL','OVERDUE'].includes(saved.timing)||saved.timing==='OVERDUE'&&saved.status==='DONE') throw new Error("This task view uses unsupported status or timing filters.");
+            requireCompatibleFilters(saved,["status","timing","assignee","organization_id"], filter => uiText("Common.interface.unsupportedFilter", { filter }));
+            if(saved.organization_id&&!organizations.some(org=>org.id===saved.organization_id)) throw new Error(uiText("Common.interface.savedOrganizationIsNoLongerAccessible"));
+            if(saved.status&&!['OPEN','DONE'].includes(saved.status)||saved.timing&&!['ALL','OVERDUE'].includes(saved.timing)||saved.timing==='OVERDUE'&&saved.status==='DONE') throw new Error(uiText("Common.interface.thisTaskViewUsesUnsupportedStatusOrTimingFilters"));
             selectOrg(saved.organization_id||"all");setAssignee(saved.assignee||"ALL");setTab(saved.timing==="OVERDUE"?"OVERDUE":saved.status==="DONE"?"DONE":saved.status?"OPEN":"ALL");
           }}/>
         <section className="card task-page-list">
@@ -1616,7 +1613,7 @@ function TasksView({
                 </div>
                 <button
                   className="icon-button plain"
-                  aria-label={`View ${task.title}`}
+                  aria-label={uiText("Common.interface.viewNamed", { name: task.title })}
                   onClick={() => setSelectedTask(task)}
                 >
                   <MoreHorizontal size={18} />
@@ -1655,6 +1652,7 @@ function CalendarView({
   items: Compliance[];
   selectCompliance: (c: Compliance) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Calendar");
   items = items.filter((item) => isOpenCompliance(item.status));
   const now = new Date();
@@ -1856,12 +1854,10 @@ function CalendarView({
           <div className="calendar-legend">
             <span>
               <i className="critical" />
-              Critical/high risk
-            </span>
+               {uiText("Common.interface.criticalHighRisk")} </span>
             <span>
               <i className="medium" />
-              Normal deadline
-            </span>
+               {uiText("Common.interface.normalDeadline")} </span>
             <span>
               <i className="target" />
               {t("internalTarget")}
@@ -1888,6 +1884,7 @@ function DocumentsView({
   showToast: (message: string) => void;
   updateDocument: (document: ComplianceDocument) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Documents");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
@@ -2014,7 +2011,7 @@ function DocumentsView({
                 <span>
                   <button
                     className="icon-button plain"
-                    aria-label={`View ${doc.name}`}
+                    aria-label={uiText("Common.interface.viewNamed", { name: doc.name })}
                     onClick={() => setSelectedDoc(doc)}
                   >
                     <MoreHorizontal size={18} />
@@ -2046,7 +2043,7 @@ function DocumentsView({
           onVersion={(updated) => {
             setSelectedDoc(updated);
             updateDocument(updated);
-            showToast(`Version ${updated.version} added to document history`);
+            showToast(uiText("Common.interface.versionAdded", { version: updated.version }));
           }}
         />
       )}
@@ -2071,15 +2068,16 @@ function AdministrationView({
   setShowNewOrganization: (value: boolean) => void;
   setShowInvite: (value: boolean) => void;
 }) {
+  const uiText = useTranslations();
   const activeMembers = memberships.filter(
     (member) => member.status !== "INACTIVE",
   ).length;
   return (
     <div className="page">
       <PageHeading
-        eyebrow="Tenant controls"
-        title="Administration"
-        text="Onboard NGOs, manage workspace accounts, review rules and monitor plan limits."
+        eyebrow={uiText("Common.interface.tenantControls")}
+        title={uiText("Common.nav.administration")}
+        text={uiText("Common.interface.onboardNGOsManageWorkspaceAccountsReviewRulesAndMonitorPlanLimits")}
         action={
           <div className="heading-actions">
             <button
@@ -2087,15 +2085,13 @@ function AdministrationView({
               onClick={() => setShowInvite(true)}
             >
               <Users size={17} />
-              Add responsibility
-            </button>
+               {uiText("Common.interface.addResponsibility")} </button>
             <button
               className="button primary"
               onClick={() => setShowNewOrganization(true)}
             >
               <Plus size={17} />
-              Add organization
-            </button>
+               {uiText("Common.interface.addOrganization")} </button>
           </div>
         }
       />
@@ -2104,47 +2100,46 @@ function AdministrationView({
       <OrganizationComplianceProfile organizations={organizations} />
       <div className="admin-summary">
         <div>
-          <span>Current plan</span>
+          <span>{uiText("Subscriptions.currentPlan")}</span>
           <strong>{subscription.plan_name}</strong>
           <small>
-            {subscription.status.toLowerCase()} through{" "}
+            {subscription.status.toLowerCase()}  {uiText("Common.interface.through")}{" "}
             {niceDate(subscription.period_end)}
           </small>
         </div>
         <div>
-          <span>Organizations</span>
+          <span>{uiText("GlobalSearch.groups.organizations")}</span>
           <strong>
-            {organizations.length} / {subscription.organization_limit ?? "Not assigned"}
+            {organizations.length} / {subscription.organization_limit ?? uiText("Common.interface.notAssigned")}
           </strong>
-          <small>Consultant portfolio capacity</small>
+          <small>{uiText("Common.interface.consultantPortfolioCapacity")}</small>
         </div>
         <div>
-          <span>Members</span>
+          <span>{uiText("Common.interface.members")}</span>
           <strong>
-            {activeMembers} / {subscription.user_limit ?? "Not assigned"}
+            {activeMembers} / {subscription.user_limit ?? uiText("Common.interface.notAssigned")}
           </strong>
           <small>
             {memberships.filter((member) => member.status === "INVITED").length}{" "}
-            invitations pending
-          </small>
+             {uiText("Common.interface.invitationsPending")} </small>
         </div>
         <div>
-          <span>Active rules</span>
+          <span>{uiText("Common.interface.activeRules")}</span>
           <strong>{definitions.length}</strong>
-          <small>Versioned catalogue entries</small>
+          <small>{uiText("Common.interface.versionedCatalogueEntries")}</small>
         </div>
       </div>
       <div className="admin-grid">
         <section className="card admin-organizations">
           <CardTitle
-            title="Organizations"
-            sub="Legal entities inside this tenant"
+            title={uiText("GlobalSearch.groups.organizations")}
+            sub={uiText("Common.interface.legalEntitiesTenant")}
             action={
               <button
                 className="text-button"
                 onClick={() => setShowNewOrganization(true)}
               >
-                Add organization <Plus size={15} />
+                 {uiText("Common.interface.addOrganization")} <Plus size={15} />
               </button>
             }
           />
@@ -2171,11 +2166,11 @@ function AdministrationView({
                   <div className="org-card-stats">
                     <b>
                       {rows.length}
-                      <small>obligations</small>
+                      <small>{uiText("Common.interface.obligations")}</small>
                     </b>
                     <b className={risk ? "risk" : "safe"}>
                       {risk}
-                      <small>high risk</small>
+                      <small>{uiText("Common.interface.highRisk")}</small>
                     </b>
                   </div>
                   <StatusBadge status={organization.status} />
@@ -2186,47 +2181,45 @@ function AdministrationView({
         </section>
         <section className="card plan-card">
           <CardTitle
-            title="Plan & entitlements"
-            sub="Limits are enforced server-side"
+            title={uiText("Common.interface.planEntitlements")}
+            sub={uiText("Common.interface.serverLimits")}
           />
           <div className="plan-name">
             <ShieldCheck size={22} />
             <div>
               <strong>{subscription.plan_name}</strong>
-              <span>Core compliance · portfolio management · reports</span>
+              <span>{uiText("Common.interface.coreCompliancePortfolioManagementReports")}</span>
             </div>
           </div>
           <UsageBar
-            label="Organizations"
+            label={uiText("Common.interface.organization")}
             value={organizations.length}
             limit={subscription.organization_limit}
           />
           <UsageBar
-            label="Members"
+            label={uiText("Common.interface.members")}
             value={activeMembers}
             limit={subscription.user_limit}
           />
           <UsageBar
-            label="Storage allocation"
+            label={uiText("Common.interface.storageAllocation")}
             value={0}
             limit={subscription.storage_limit_gb}
             suffix=" GB"
           />
           <p className="plan-note">
-            Changing plans never deletes organization records or evidence
-            history.
-          </p>
+             {uiText("Common.interface.changingPlansNeverDeletesOrganizationRecordsOrEvidenceHistory")} </p>
         </section>
         <section className="card team-card">
           <CardTitle
-            title="Responsibility directory"
-            sub="Legacy planning records only; login access is managed above"
+            title={uiText("Common.interface.responsibilityDirectory")}
+            sub={uiText("Common.interface.legacyPlanning")}
             action={
               <button
                 className="text-button"
                 onClick={() => setShowInvite(true)}
               >
-                Add responsibility <Plus size={15} />
+                 {uiText("Common.interface.addResponsibility")} <Plus size={15} />
               </button>
             }
           />
@@ -2248,7 +2241,7 @@ function AdministrationView({
                           (organization) =>
                             organization.id === member.organization_id,
                         )?.name
-                      : "All organizations"}
+                      : uiText("Common.allOrganizations")}
                   </strong>
                   <small>{member.status.toLowerCase()}</small>
                 </span>
@@ -2258,8 +2251,8 @@ function AdministrationView({
         </section>
         <section className="card rules-card">
           <CardTitle
-            title="Compliance catalogue"
-            sub="Active, versioned onboarding rules"
+            title={uiText("Common.interface.complianceCatalogue")}
+            sub={uiText("Common.interface.activeOnboardingRules")}
           />
           <div className="rule-list">
             {definitions.map((definition) => (
@@ -2268,18 +2261,17 @@ function AdministrationView({
                 <span>
                   <strong>{definition.title}</strong>
                   <small>
-                    {definition.category} · Rule v{definition.rule_version}
+                    {definition.category}  {uiText("Common.interface.ruleV")}{definition.rule_version}
                   </small>
                 </span>
                 <span>
                   <b>
                     {definition.requires_fcra
-                      ? "FCRA only"
+                      ? uiText("Common.interface.fcraOnly")
                       : definition.applicable_legal_types.replaceAll(",", ", ")}
                   </b>
                   <small>
-                    Target {definition.internal_lead_days} days early
-                  </small>
+                     {uiText("Common.interface.target")} {definition.internal_lead_days}  {uiText("Common.interface.daysEarly")} </small>
                 </span>
                 <span
                   className={`priority-pill ${definition.priority.toLowerCase()}`}
@@ -2290,9 +2282,7 @@ function AdministrationView({
             ))}
           </div>
           <p className="rule-disclaimer">
-            Catalogue dates are configurable demonstration data and require
-            qualified domain validation before production use.
-          </p>
+             {uiText("Common.interface.catalogueDatesAreConfigurableDemonstrationDataAndRequireQualifiedDomainValidationBeforeProductionUse")} </p>
         </section>
       </div>
     </div>
@@ -2310,6 +2300,7 @@ function UsageBar({
   limit: number | null;
   suffix?: string;
 }) {
+  const uiText = useTranslations();
   const percent = limit === null ? 0 : Math.min(100, Math.round((value / Math.max(1, limit)) * 100));
   return (
     <div className="usage-row">
@@ -2317,7 +2308,7 @@ function UsageBar({
         <span>{label}</span>
         <strong>
           {value}
-          {suffix} of {limit ?? "Not assigned"}
+          {suffix}  {uiText("Common.interface.of")} {limit ?? uiText("Common.interface.notAssigned")}
           {suffix}
         </strong>
       </div>
@@ -2339,19 +2330,19 @@ function NotificationPanel({
   onReadAll: () => void;
   onViewAll: () => void;
 }) {
+  const uiText = useTranslations();
   return (
     <div className="notification-panel">
       <div className="panel-head">
         <div>
-          <strong>Notifications</strong>
-          <span>{items.filter((i) => !i.is_read).length} unread</span>
+          <strong>{uiText("Settings.notificationsTitle")}</strong>
+          <span>{items.filter((i) => !i.is_read).length}  {uiText("Common.interface.unread")}</span>
         </div>
         <button
           onClick={onReadAll}
           disabled={items.every((item) => item.is_read)}
         >
-          Mark all read
-        </button>
+           {uiText("Common.interface.markAllRead")} </button>
       </div>
       {items.slice(0, 4).map((item) => (
         <button
@@ -2377,8 +2368,7 @@ function NotificationPanel({
         </button>
       ))}
       <button className="panel-foot" onClick={onViewAll}>
-        View all notifications
-      </button>
+         {uiText("Common.interface.viewAllNotifications")} </button>
     </div>
   );
 }
@@ -2411,6 +2401,7 @@ function ComplianceDrawer({
   attachEvidence: () => void;
   showToast: (message: string) => void;
 }) {
+  const uiText = useTranslations();
   const runtimeLabel = useTranslations("Runtime")("open");
   const cancelLabel = useTranslations("Common")("status.CANCELLED");
   const [transition, setTransition] = useState<string | null>(null);
@@ -2429,69 +2420,69 @@ function ComplianceDrawer({
   > = {
     PLANNED: {
       status: "IN_PROGRESS",
-      label: "Start work",
+      label: uiText("Common.interface.startWork"),
       secondary: {
         status: "NOT_APPLICABLE",
-        label: "Mark not applicable",
+        label: uiText("Common.interface.markNotApplicable"),
         needsReason: true,
       },
     },
     NOT_STARTED: {
       status: "IN_PROGRESS",
-      label: "Start work",
+      label: uiText("Common.interface.startWork"),
       secondary: {
         status: "NOT_APPLICABLE",
-        label: "Mark not applicable",
+        label: uiText("Common.interface.markNotApplicable"),
         needsReason: true,
       },
     },
     IN_PROGRESS: {
       status: "UNDER_REVIEW",
-      label: "Send for review",
+      label: uiText("Common.interface.sendForReview"),
       secondary: {
         status: "ON_HOLD",
-        label: "Place on hold",
+        label: uiText("Common.interface.placeOnHold"),
         needsReason: true,
       },
     },
     UNDER_REVIEW: {
       status: "READY_TO_FILE",
-      label: "Approve for filing",
+      label: uiText("Common.interface.approveForFiling"),
       secondary: {
         status: "CHANGES_REQUESTED",
-        label: "Request changes",
+        label: uiText("Common.interface.requestChanges"),
         needsReason: true,
       },
     },
-    CHANGES_REQUESTED: { status: "IN_PROGRESS", label: "Resume work" },
+    CHANGES_REQUESTED: { status: "IN_PROGRESS", label: uiText("Common.interface.resumeWork") },
     READY_TO_FILE: {
       status: "FILED",
-      label: "Record filing",
+      label: uiText("Common.interface.recordFiling"),
       needsReference: true,
       secondary: {
         status: "CHANGES_REQUESTED",
-        label: "Request changes",
+        label: uiText("Common.interface.requestChanges"),
         needsReason: true,
       },
     },
-    FILED: { status: "COMPLETED", label: "Complete compliance" },
+    FILED: { status: "COMPLETED", label: uiText("Common.interface.completeCompliance") },
     COMPLETED: {
       status: "IN_PROGRESS",
-      label: "Reopen compliance",
+      label: uiText("Common.interface.reopenCompliance"),
       needsReason: true,
     },
-    ON_HOLD: { status: "IN_PROGRESS", label: "Resume work", secondary: { status: "CANCELLED", label: cancelLabel, needsReason: true } },
+    ON_HOLD: { status: "IN_PROGRESS", label: uiText("Common.interface.resumeWork"), secondary: { status: "CANCELLED", label: cancelLabel, needsReason: true } },
     NOT_APPLICABLE: {
       status: "IN_PROGRESS",
-      label: "Reopen as applicable",
+      label: uiText("Common.interface.reopenAsApplicable"),
       needsReason: true,
     },
     OVERDUE: {
       status: "IN_PROGRESS",
-      label: "Record recovery work",
+      label: uiText("Common.interface.recordRecoveryWork"),
       secondary: {
         status: "ON_HOLD",
-        label: "Place on hold",
+        label: uiText("Common.interface.placeOnHold"),
         needsReason: true,
       },
     },
@@ -2537,7 +2528,7 @@ function ComplianceDrawer({
     <>
       <button
         className="drawer-scrim"
-        aria-label="Close compliance details"
+        aria-label={uiText("Common.interface.closeComplianceDetails")}
         onClick={close}
       />
       <aside className="drawer">
@@ -2550,7 +2541,7 @@ function ComplianceDrawer({
           </div>
           <button
             className="icon-button plain"
-            aria-label="Close compliance details"
+            aria-label={uiText("Common.interface.closeComplianceDetails")}
             onClick={close}
           >
             <X size={20} />
@@ -2560,14 +2551,13 @@ function ComplianceDrawer({
           <div className="drawer-status">
             <StatusBadge status={item.status} />
             <span className={`priority-pill ${item.priority.toLowerCase()}`}>
-              {item.priority} priority
-            </span>
+              {item.priority}  {uiText("Common.interface.priority")} </span>
           </div>
           <Link className="button secondary" href={`/compliances/${item.id}`}>{runtimeLabel}</Link>
           {item.template_version_id && <ComplianceTemplateRuntime item={item} updated={templateUpdated} />}
           <div className="progress-block">
             <div>
-              <span>Preparation progress</span>
+              <span>{uiText("Common.interface.preparationProgress")}</span>
               <strong>{item.progress}%</strong>
             </div>
             <div className="progress-track">
@@ -2578,50 +2568,49 @@ function ComplianceDrawer({
             <div className="risk-note">
               <AlertTriangle size={17} />
               <div>
-                <strong>Attention needed</strong>
+                <strong>{uiText("Common.interface.attentionNeeded")}</strong>
                 <p>{item.risk_note}</p>
               </div>
             </div>
           )}
           <section className="detail-section">
-            <h3>Key details</h3>
+            <h3>{uiText("Common.interface.keyDetails")}</h3>
             <div className="detail-grid">
               <div>
-                <span>Organization</span>
+                <span>{uiText("Authentication.organization")}</span>
                 <strong>{org?.name}</strong>
               </div>
               <div>
-                <span>Category</span>
+                <span>{uiText("ComplianceMaster.category")}</span>
                 <strong>{item.category}</strong>
               </div>
               <div>
-                <span>Statutory deadline</span>
+                <span>{uiText("ComplianceMaster.statutoryDeadline")}</span>
                 <strong>{niceDate(item.statutory_deadline)}</strong>
               </div>
               <div>
-                <span>Internal target</span>
+                <span>{uiText("Calendar.internalTarget")}</span>
                 <strong>{niceDate(item.internal_target)}</strong>
               </div>
               <div>
-                <span>Accountable owner</span>
+                <span>{uiText("Common.interface.accountableOwner")}</span>
                 <strong className="owner-detail">
                   <Avatar name={item.owner_name} label={item.owner_initials} />
                   {item.owner_name}
                 </strong>
               </div>
               <div>
-                <span>Legal reference</span>
+                <span>{uiText("ComplianceMaster.legal_reference")}</span>
                 <strong>{item.legal_reference}</strong>
               </div>
             </div>
           </section>
           <section className="detail-section">
             <div className="section-title">
-              <h3>Checklist</h3>
+              <h3>{uiText("ComplianceMaster.checklist")}</h3>
               <span>
                 {relatedTasks.filter((task) => task.status === "DONE").length}/
-                {relatedTasks.length} complete
-              </span>
+                {relatedTasks.length}  {uiText("Common.interface.complete")} </span>
             </div>
             {relatedTasks.length ? (
               relatedTasks.map((task) => (
@@ -2629,30 +2618,30 @@ function ComplianceDrawer({
                   <button
                     aria-label={
                       task.status === "DONE"
-                        ? `Reopen ${task.title}`
-                        : `Complete ${task.title}`
+                        ? uiText("Common.interface.reopenNamed", { name: task.title })
+                        : uiText("Common.interface.completeNamed", { name: task.title })
                     }
                     onClick={() => toggleTask(task)}
-                    className={task.status === "DONE" ? "complete" : ""}
+                    className={task.status === "DONE" ? uiText("Common.interface.complete") : ""}
                   >
                     {task.status === "DONE" && <Check size={13} />}
                   </button>
                   <div>
                     <strong>{task.title}</strong>
                     <small>
-                      {task.assignee_name} · Due {niceDate(task.due_at, true)}
+                      {task.assignee_name}  {uiText("Common.interface.dueLabel")} {niceDate(task.due_at, true)}
                     </small>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="muted">No tasks linked yet.</p>
+              <p className="muted">{uiText("Common.interface.noTasksLinkedYet")}</p>
             )}
           </section>
           <section className="detail-section">
             <div className="section-title">
-              <h3>Evidence</h3>
-              <span>{relatedDocs.length} files</span>
+              <h3>{uiText("Common.interface.evidence")}</h3>
+              <span>{relatedDocs.length}  {uiText("Common.interface.files")}</span>
             </div>
             {relatedDocs.map((doc) => (
               <div className="drawer-list document" key={doc.id}>
@@ -2662,11 +2651,11 @@ function ComplianceDrawer({
                 <div>
                   <strong>{doc.name}</strong>
                   <small>
-                    Version {doc.version} · {doc.size_label}
+                     {uiText("Common.interface.version")} {doc.version} · {doc.size_label}
                   </small>
                 </div>
                 <button
-                  aria-label={`Download record for ${doc.name}`}
+                  aria-label={uiText("Common.interface.downloadNamed", { name: doc.name })}
                   onClick={() => {
                     documentReceipt(doc);
                     showToast("Document record downloaded");
@@ -2678,8 +2667,7 @@ function ComplianceDrawer({
             ))}
             <button className="upload-evidence" onClick={attachEvidence}>
               <Upload size={18} />
-              Attach required evidence
-            </button>
+               {uiText("Common.interface.attachRequiredEvidence")} </button>
           </section>
           <ComplianceDiscussion complianceId={item.id} />
           {transition && selected && (
@@ -2687,25 +2675,25 @@ function ComplianceDrawer({
               <strong>{selected.label}</strong>
               {"needsReason" in selected && selected.needsReason && (
                 <label>
-                  <span>Reason</span>
+                  <span>{uiText("Common.interface.reason")}</span>
                   <textarea
                     autoFocus
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
-                    placeholder="Record the reason for the audit trail"
+                    placeholder={uiText("Common.interface.recordTheReasonForTheAuditTrail")}
                   />
                 </label>
               )}
               {"needsReference" in selected && selected.needsReference && (
                 <label>
-                  <span>Submission or acknowledgement reference</span>
+                  <span>{uiText("Common.interface.submissionOrAcknowledgementReference")}</span>
                   <input
                     autoFocus
                     value={submissionReference}
                     onChange={(event) =>
                       setSubmissionReference(event.target.value)
                     }
-                    placeholder="e.g. portal acknowledgement number"
+                    placeholder={uiText("Common.interface.eGPortalAcknowledgementNumber")}
                   />
                 </label>
               )}
@@ -2714,8 +2702,7 @@ function ComplianceDrawer({
                   className="button secondary small"
                   onClick={() => setTransition(null)}
                 >
-                  Cancel
-                </button>
+                   {uiText("Common.actions.cancel")} </button>
                 <button
                   className="button primary small"
                   disabled={
@@ -2726,7 +2713,7 @@ function ComplianceDrawer({
                   }
                   onClick={confirmTransition}
                 >
-                  {saving ? "Saving..." : "Confirm"}
+                  {saving ? uiText("Common.actions.saving") : uiText("Common.interface.confirm")}
                 </button>
               </div>
             </section>
@@ -2734,8 +2721,7 @@ function ComplianceDrawer({
         </div>
         <div className="drawer-foot">
           <button className="button secondary" onClick={close}>
-            Close
-          </button>
+             {uiText("Common.actions.close")} </button>
           {action?.secondary && (
             <button
               className="button secondary"
@@ -2771,6 +2757,7 @@ function ComplianceDrawer({
 }
 
 function ComplianceDiscussion({ complianceId }: { complianceId: string }) {
+  const uiText = useTranslations();
   const currentUser = useCurrentUser();
   const [comments, setComments] = useState<ComplianceComment[]>([]);
   const [body, setBody] = useState("");
@@ -2780,7 +2767,7 @@ function ComplianceDiscussion({ complianceId }: { complianceId: string }) {
   useEffect(() => {
     loadComplianceComments(complianceId)
       .then(setComments)
-      .catch(() => setError("Discussion history is unavailable."));
+      .catch(() => setError(uiText("Common.interface.discussionHistoryIsUnavailable")));
   }, [complianceId]);
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -2792,7 +2779,7 @@ function ComplianceDiscussion({ complianceId }: { complianceId: string }) {
       setBody("");
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Could not save comment",
+        localizedError(reason, uiText, uiText("Common.interface.couldNotSaveComment")),
       );
     } finally {
       setSaving(false);
@@ -2801,8 +2788,8 @@ function ComplianceDiscussion({ complianceId }: { complianceId: string }) {
   return (
     <section className="detail-section discussion">
       <div className="section-title">
-        <h3>Discussion and exceptions</h3>
-        <span>{comments.length} entries</span>
+        <h3>{uiText("Common.interface.discussionAndExceptions")}</h3>
+        <span>{comments.length}  {uiText("Common.interface.entries")}</span>
       </div>
       {comments.slice(0, 5).map((comment) => (
         <div className="discussion-entry" key={comment.id}>
@@ -2814,7 +2801,7 @@ function ComplianceDiscussion({ complianceId }: { complianceId: string }) {
             </strong>
             <p>{comment.body}</p>
             <small>
-              {new Date(comment.created_at).toLocaleString("en-IN")}
+              {formatDateTime(comment.created_at)}
             </small>
           </div>
         </div>
@@ -2822,27 +2809,27 @@ function ComplianceDiscussion({ complianceId }: { complianceId: string }) {
       {currentUser.role !== "VIEWER" && (
         <form onSubmit={submit}>
           <select
-            aria-label="Entry type"
+            aria-label={uiText("Common.interface.entryType")}
             value={kind}
             onChange={(event) =>
               setKind(event.target.value as ComplianceComment["kind"])
             }
           >
-            <option value="COMMENT">Comment</option>
-            <option value="CORRECTION">Correction request</option>
-            <option value="EXCEPTION">Exception</option>
-            <option value="RECOVERY_PLAN">Recovery plan</option>
+            <option value="COMMENT">{uiText("Common.interface.comment")}</option>
+            <option value="CORRECTION">{uiText("Common.interface.correctionRequest")}</option>
+            <option value="EXCEPTION">{uiText("Common.interface.exception")}</option>
+            <option value="RECOVERY_PLAN">{uiText("Common.interface.recoveryPlan")}</option>
           </select>
           <textarea
-            aria-label="Discussion entry"
+            aria-label={uiText("Common.interface.discussionEntry")}
             required
             minLength={2}
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            placeholder="Record context, a correction request, exception or recovery plan"
+            placeholder={uiText("Common.interface.recordContextACorrectionRequestExceptionOrRecoveryPlan")}
           />
           <button className="button primary small" disabled={saving}>
-            {saving ? "Saving..." : "Add entry"}
+            {saving ? uiText("Common.actions.saving") : uiText("Common.interface.addEntry")}
           </button>
         </form>
       )}
@@ -2862,10 +2849,11 @@ function GuideModal({
   close: () => void;
   go: (view: View) => void;
 }) {
+  const uiText = useTranslations();
   return (
     <Modal
-      title="Compliance workflow guide"
-      text="A simple operating rhythm for every obligation."
+      title={uiText("Common.interface.complianceWorkflowGuide")}
+      text={uiText("Common.interface.aSimpleOperatingRhythmForEveryObligation")}
       close={close}
     >
       <div className="modal-content">
@@ -2873,51 +2861,41 @@ function GuideModal({
           <div>
             <span>1</span>
             <div>
-              <strong>Register the obligation</strong>
+              <strong>{uiText("Common.interface.registerTheObligation")}</strong>
               <p>
-                Choose the NGO, deadline, accountable owner, category and risk
-                priority.
-              </p>
+                 {uiText("Common.interface.chooseTheNGODeadlineAccountableOwnerCategoryAndRiskPriority")} </p>
             </div>
           </div>
           <div>
             <span>2</span>
             <div>
-              <strong>Assign preparation tasks</strong>
+              <strong>{uiText("Common.interface.assignPreparationTasks")}</strong>
               <p>
-                Break the obligation into clear evidence, review and filing
-                actions.
-              </p>
+                 {uiText("Common.interface.breakTheObligationIntoClearEvidenceReviewAndFilingActions")} </p>
             </div>
           </div>
           <div>
             <span>3</span>
             <div>
-              <strong>Attach evidence</strong>
+              <strong>{uiText("Common.interface.attachEvidence")}</strong>
               <p>
-                Link each document record to its organization and compliance
-                item.
-              </p>
+                 {uiText("Common.interface.linkEachDocumentRecordToItsOrganizationAndComplianceItem")} </p>
             </div>
           </div>
           <div>
             <span>4</span>
             <div>
-              <strong>Review and complete</strong>
+              <strong>{uiText("Common.interface.reviewAndComplete")}</strong>
               <p>
-                Send prepared work for review, approve it, and retain the audit
-                trail.
-              </p>
+                 {uiText("Common.interface.sendPreparedWorkForReviewApproveItAndRetainTheAuditTrail")} </p>
             </div>
           </div>
         </div>
         <div className="modal-actions">
           <button className="button secondary" onClick={() => go("documents")}>
-            Open evidence library
-          </button>
+             {uiText("Common.interface.openEvidenceLibrary")} </button>
           <button className="button primary" onClick={() => go("compliance")}>
-            Open compliance register
-          </button>
+             {uiText("Common.interface.openComplianceRegister")} </button>
         </div>
       </div>
     </Modal>
@@ -2931,10 +2909,11 @@ function HelpModal({
   close: () => void;
   go: (view: View) => void;
 }) {
+  const uiText = useTranslations();
   return (
     <Modal
-      title="Help centre"
-      text="Quick answers for the Setu demonstration workspace."
+      title={uiText("Common.interface.helpCentre")}
+      text={uiText("Common.interface.quickAnswersForTheSetuDemonstrationWorkspace")}
       close={close}
     >
       <div className="modal-content">
@@ -2942,61 +2921,53 @@ function HelpModal({
           <section>
             <ClipboardCheck size={19} />
             <div>
-              <strong>Compliance register</strong>
+              <strong>{uiText("Compliance.title")}</strong>
               <p>
-                Search, filter and open an obligation to manage its review
-                lifecycle.
-              </p>
+                 {uiText("Common.interface.searchFilterAndOpenAnObligationToManageItsReviewLifecycle")} </p>
             </div>
             <button onClick={() => go("compliance")}>
-              Open <ArrowRight size={14} />
+               {uiText("Common.actions.open")} <ArrowRight size={14} />
             </button>
           </section>
           <section>
             <ListChecks size={19} />
             <div>
-              <strong>Tasks</strong>
+              <strong>{uiText("Common.nav.tasks")}</strong>
               <p>
-                Create assignments, filter by owner and mark checklist work
-                complete.
-              </p>
+                 {uiText("Common.interface.createAssignmentsFilterByOwnerAndMarkChecklistWorkComplete")} </p>
             </div>
             <button onClick={() => go("tasks")}>
-              Open <ArrowRight size={14} />
+               {uiText("Common.actions.open")} <ArrowRight size={14} />
             </button>
           </section>
           <section>
             <FolderOpen size={19} />
             <div>
-              <strong>Evidence documents</strong>
+              <strong>{uiText("Common.interface.evidenceDocuments")}</strong>
               <p>
-                Register document metadata and link evidence to an obligation.
-              </p>
+                 {uiText("Common.interface.registerDocumentMetadataAndLinkEvidenceToAnObligation")} </p>
             </div>
             <button onClick={() => go("documents")}>
-              Open <ArrowRight size={14} />
+               {uiText("Common.actions.open")} <ArrowRight size={14} />
             </button>
           </section>
           <section>
             <Gauge size={19} />
             <div>
-              <strong>Reports</strong>
-              <p>Review portfolio health and export a CSV management report.</p>
+              <strong>{uiText("Common.nav.reports")}</strong>
+              <p>{uiText("Common.interface.reviewPortfolioHealthAndExportACSVManagementReport")}</p>
             </div>
             <button onClick={() => go("reports")}>
-              Open <ArrowRight size={14} />
+               {uiText("Common.actions.open")} <ArrowRight size={14} />
             </button>
           </section>
         </div>
         <div className="form-info">
           <CircleHelp size={17} />
-          This is a local MVP. Actual file storage and production sign-in are
-          planned backend integrations.
-        </div>
+           {uiText("Common.interface.thisIsALocalMVPActualFileStorageAndProductionSignInArePlannedBackendIntegrations")} </div>
         <div className="modal-actions">
           <button className="button primary" onClick={close}>
-            Done
-          </button>
+             {uiText("Common.status.DONE")} </button>
         </div>
       </div>
     </Modal>
@@ -3010,6 +2981,7 @@ function SettingsModal({
   close: () => void;
   onSave: (leadDays: number) => void;
 }) {
+  const uiText = useTranslations();
   const [preference, setPreference] = useState<NotificationPreference | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -3018,7 +2990,7 @@ function SettingsModal({
   async function load() {
     setLoading(true); setError("");
     try { setPreference(await loadNotificationPreference()); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not load notification preferences"); }
+    catch (reason) { setError(localizedError(reason, uiText, uiText("Common.interface.couldNotLoadNotificationPreferences"))); }
     finally { setLoading(false); }
   }
   useEffect(() => {
@@ -3042,23 +3014,23 @@ function SettingsModal({
       try { localStorage.setItem("setu-workspace-preferences", JSON.stringify({ leadDays })); }
       catch { /* Backend notification preferences remain saved when browser storage is unavailable. */ }
       onSave(leadDays);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save notification preferences"); }
+    } catch (reason) { setError(localizedError(reason, uiText, uiText("Common.interface.couldNotSaveNotificationPreferences"))); }
     finally { setSaving(false); }
   }
   return (
     <Modal
-      title="Workspace settings"
-      text="Configure your notification preferences and local internal lead time."
+      title={uiText("Common.interface.workspaceSettings")}
+      text={uiText("Common.interface.configureYourNotificationPreferencesAndLocalInternalLeadTime")}
       close={close}
     >
       <div className="modal-content">
-        {loading && <p role="status">Loading notification preferences...</p>}
-        {error && <p className="form-error" role="alert">{error}<button className="text-button" disabled={loading || saving} onClick={() => void load()}>Try again</button></p>}
+        {loading && <p role="status">{uiText("Common.interface.loadingNotificationPreferences")}</p>}
+        {error && <p className="form-error" role="alert">{error}<button className="text-button" disabled={loading || saving} onClick={() => void load()}>{uiText("Common.actions.tryAgain")}</button></p>}
         <div className="settings-list">
           <label className="setting-row">
             <span>
-              <strong>Compliance and deadline reminders</strong>
-              <small>Receive compliance alerts through your configured notification channels.</small>
+              <strong>{uiText("Common.interface.complianceAndDeadlineReminders")}</strong>
+              <small>{uiText("Common.interface.receiveComplianceAlertsThroughYourConfiguredNotificationChannels")}</small>
             </span>
             <input
               type="checkbox"
@@ -3069,8 +3041,8 @@ function SettingsModal({
           </label>
           <label className="setting-row">
             <span>
-              <strong>Weekly portfolio digest</strong>
-              <small>Weekly digest delivery is not available.</small>
+              <strong>{uiText("Common.interface.weeklyPortfolioDigest")}</strong>
+              <small>{uiText("Common.interface.weeklyDigestDeliveryIsNotAvailable")}</small>
             </span>
             <input
               type="checkbox"
@@ -3080,8 +3052,8 @@ function SettingsModal({
           </label>
           <label className="setting-row stacked">
             <span>
-              <strong>Default internal lead time</strong>
-              <small>Days before the statutory deadline.</small>
+              <strong>{uiText("Common.interface.defaultInternalLeadTime")}</strong>
+              <small>{uiText("Common.interface.daysBeforeTheStatutoryDeadline")}</small>
             </span>
             <input
               type="number"
@@ -3097,14 +3069,13 @@ function SettingsModal({
         </div>
         <div className="form-info">
           <Settings size={17} />
-          Notification preferences are saved to your account. Internal lead time is local to this browser. <Link href="/account">Manage notification channels</Link>
+           {uiText("Common.interface.notificationPreferencesAreSavedToYourAccountInternalLeadTimeIsLocalToThisBrowser")} <Link href="/account">{uiText("Common.interface.manageNotificationChannels")}</Link>
         </div>
         <div className="modal-actions">
           <button className="button secondary" disabled={saving} onClick={close}>
-            Cancel
-          </button>
+             {uiText("Common.actions.cancel")} </button>
           <button className="button primary" disabled={loading || saving || !preference} onClick={() => void save()}>
-            {saving ? "Saving..." : "Save preferences"}
+            {saving ? uiText("Common.actions.saving") : uiText("Common.interface.savePreferences")}
           </button>
         </div>
       </div>
@@ -3121,9 +3092,10 @@ function NotificationCenter({
   close: () => void;
   onRead: (id: string) => void;
 }) {
+  const uiText = useTranslations();
   return (
     <Modal
-      title="Notification centre"
+      title={uiText("Common.interface.notificationCentre")}
       text={`${items.filter((item) => !item.is_read).length} unread updates across your workspace.`}
       close={close}
     >
@@ -3155,8 +3127,7 @@ function NotificationCenter({
         </div>
         <div className="modal-actions">
           <button className="button primary" onClick={close}>
-            Done
-          </button>
+             {uiText("Common.status.DONE")} </button>
         </div>
       </div>
     </Modal>
@@ -3176,6 +3147,7 @@ function TaskDetailsModal({
   taskUpdated: (task: ComplianceTask) => void;
   close: () => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Tasks");
   const common = useTranslations("Common");
   const [assignees, setAssignees] = useState<EligibleAssignee[]>([]);
@@ -3214,7 +3186,7 @@ function TaskDetailsModal({
       });
       taskUpdated(updated);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("updateError"));
+      setError(localizedError(requestError, uiText, t("updateError")));
     } finally {
       setBusy(false);
     }
@@ -3229,7 +3201,7 @@ function TaskDetailsModal({
       setComments((items) => [...items, row]);
       setComment("");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("commentError"));
+      setError(localizedError(requestError, uiText, t("commentError")));
     } finally {
       setBusy(false);
     }
@@ -3243,7 +3215,7 @@ function TaskDetailsModal({
       setAttachments((items) => items.some((item) => item.id === row.id) ? items : [row, ...items]);
       setDocumentId("");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("attachmentError"));
+      setError(localizedError(requestError, uiText, t("attachmentError")));
     } finally {
       setBusy(false);
     }
@@ -3255,7 +3227,7 @@ function TaskDetailsModal({
       await archiveTaskAttachment(task.id, linkId);
       setAttachments((items) => items.filter((item) => item.id !== linkId));
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("attachmentError"));
+      setError(localizedError(requestError, uiText, t("attachmentError")));
     } finally {
       setBusy(false);
     }
@@ -3318,6 +3290,7 @@ function NewTaskModal({
   close: () => void;
   onCreate: (item: ComplianceTask) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Tasks");
   const [title, setTitle] = useState("");
   const [org, setOrg] = useState(
@@ -3338,7 +3311,7 @@ function NewTaskModal({
     loadEligibleAssignees(org).then((rows) => {
       setAssignees(rows);
       setAssigneeId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id || "");
-    }).catch((requestError) => setError(requestError instanceof Error ? requestError.message : t("loadError")));
+    }).catch((requestError) => setError(localizedError(requestError, uiText, t("loadError"))));
   }, [org, t]);
 
   async function submit(e: React.FormEvent) {
@@ -3358,9 +3331,7 @@ function NewTaskModal({
       onCreate(item);
     } catch (requestError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t("updateError"),
+        localizedError(requestError, uiText, t("updateError")),
       );
       setSaving(false);
     }
@@ -3439,10 +3410,10 @@ function NewTaskModal({
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
             >
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="LOW">Low</option>
+              <option value="MEDIUM">{uiText("Common.priority.MEDIUM")}</option>
+              <option value="HIGH">{uiText("Common.priority.HIGH")}</option>
+              <option value="CRITICAL">{uiText("Common.priority.CRITICAL")}</option>
+              <option value="LOW">{uiText("Common.priority.LOW")}</option>
             </select>
           </label>
         </div>
@@ -3487,6 +3458,7 @@ function NewComplianceModal({
   close: () => void;
   onCreate: (item: Compliance) => void;
 }) {
+  const uiText = useTranslations();
   const currentUser = useCurrentUser();
   const [title, setTitle] = useState("");
   const [org, setOrg] = useState(
@@ -3522,9 +3494,7 @@ function NewComplianceModal({
       onCreate(item);
     } catch (requestError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Could not add this compliance.",
+        localizedError(requestError, uiText, uiText("Common.interface.couldNotAddThisCompliance")),
       );
       setSaving(false);
     }
@@ -3532,25 +3502,25 @@ function NewComplianceModal({
 
   return (
     <Modal
-      title="Add compliance"
-      text="Create a tracked obligation with a clear owner and deadline."
+      title={uiText("Compliance.add")}
+      text={uiText("Common.interface.createATrackedObligationWithAClearOwnerAndDeadline")}
       close={close}
     >
       <form onSubmit={submit} className="form">
         <label>
-          <span>Compliance title</span>
+          <span>{uiText("Common.interface.complianceTitle")}</span>
           <input
             autoFocus
             required
             minLength={3}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Annual activity report"
+            placeholder={uiText("Common.interface.eGAnnualActivityReport")}
           />
         </label>
         <div className="form-row">
           <label>
-            <span>Organization</span>
+            <span>{uiText("Authentication.organization")}</span>
             <select
               required
               value={org}
@@ -3564,7 +3534,7 @@ function NewComplianceModal({
             </select>
           </label>
           <label>
-            <span>Statutory deadline</span>
+            <span>{uiText("ComplianceMaster.statutoryDeadline")}</span>
             <input
               type="date"
               required
@@ -3575,34 +3545,34 @@ function NewComplianceModal({
         </div>
         <div className="form-row">
           <label>
-            <span>Category</span>
+            <span>{uiText("ComplianceMaster.category")}</span>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option>General</option>
+              <option value="General">{uiText("Common.interface.general")}</option>
               <option>Income Tax</option>
               <option>FCRA</option>
               <option>GST</option>
-              <option>Labour</option>
-              <option>Governance</option>
+              <option value="Labour">{uiText("Common.interface.labour")}</option>
+              <option value="Governance">{uiText("Common.interface.governance")}</option>
             </select>
           </label>
           <label>
-            <span>Priority</span>
+            <span>{uiText("Compliance.priority")}</span>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
             >
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="LOW">Low</option>
+              <option value="MEDIUM">{uiText("Common.priority.MEDIUM")}</option>
+              <option value="HIGH">{uiText("Common.priority.HIGH")}</option>
+              <option value="CRITICAL">{uiText("Common.priority.CRITICAL")}</option>
+              <option value="LOW">{uiText("Common.priority.LOW")}</option>
             </select>
           </label>
         </div>
         <label>
-          <span>Owner</span>
+          <span>{uiText("Compliance.owner")}</span>
           <input value={currentUser.name} readOnly />
         </label>
         {error && (
@@ -3613,9 +3583,7 @@ function NewComplianceModal({
         )}
         <div className="form-info">
           <ShieldCheck size={17} />
-          This action will be recorded in the audit history. The internal target
-          is set {leadDays} days early.
-        </div>
+           {uiText("Common.interface.thisActionWillBeRecordedInTheAuditHistoryTheInternalTargetIsSet")} {leadDays}  {uiText("Common.interface.daysEarlyLabel")} </div>
         <div className="modal-actions">
           <button
             type="button"
@@ -3623,10 +3591,9 @@ function NewComplianceModal({
             onClick={close}
             disabled={saving}
           >
-            Cancel
-          </button>
+             {uiText("Common.actions.cancel")} </button>
           <button className="button primary" type="submit" disabled={saving}>
-            {saving ? "Adding..." : "Add to register"}
+            {saving ? uiText("Common.interface.adding") : uiText("Common.interface.addToRegister")}
           </button>
         </div>
       </form>
@@ -3649,6 +3616,7 @@ function NewOrganizationModal({
     generated_compliances: Compliance[];
   }) => void;
 }) {
+  const uiText = useTranslations();
   const [name, setName] = useState("");
   const [legalType, setLegalType] = useState("TRUST");
   const [registrationNumber, setRegistrationNumber] = useState("");
@@ -3678,9 +3646,7 @@ function NewOrganizationModal({
       );
     } catch (requestError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Could not onboard this organization.",
+        localizedError(requestError, uiText, uiText("Common.interface.couldNotOnboardThisOrganization")),
       );
       setSaving(false);
     }
@@ -3688,36 +3654,36 @@ function NewOrganizationModal({
 
   return (
     <Modal
-      title="Onboard organization"
-      text="Create the legal-entity profile and generate a rule-based compliance plan."
+      title={uiText("Common.interface.onboardOrganization")}
+      text={uiText("Common.interface.createTheLegalEntityProfileAndGenerateARuleBasedCompliancePlan")}
       close={close}
     >
       <form className="form" onSubmit={submit}>
         <label>
-          <span>Organization name</span>
+          <span>{uiText("Authentication.organizationName")}</span>
           <input
             autoFocus
             required
             minLength={3}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. Seva Community Foundation"
+            placeholder={uiText("Common.interface.eGSevaCommunityFoundation")}
           />
         </label>
         <div className="form-row">
           <label>
-            <span>Legal structure</span>
+            <span>{uiText("Common.interface.legalStructure")}</span>
             <select
               value={legalType}
               onChange={(event) => setLegalType(event.target.value)}
             >
-              <option value="TRUST">Trust</option>
-              <option value="SOCIETY">Society</option>
-              <option value="SECTION 8">Section 8 company</option>
+              <option value="TRUST">{uiText("Authentication.types.TRUST")}</option>
+              <option value="SOCIETY">{uiText("Authentication.types.SOCIETY")}</option>
+              <option value="SECTION 8">{uiText("Authentication.types.SECTION_8")}</option>
             </select>
           </label>
           <label>
-            <span>City</span>
+            <span>{uiText("ComplianceMaster.fields.city")}</span>
             <input
               required
               minLength={2}
@@ -3728,23 +3694,23 @@ function NewOrganizationModal({
           </label>
         </div>
         <label>
-          <span>Registration number</span>
+          <span>{uiText("ComplianceMaster.fields.registration_number")}</span>
           <input
             required
             minLength={2}
             value={registrationNumber}
             onChange={(event) => setRegistrationNumber(event.target.value)}
-            placeholder="Legal registration identifier"
+            placeholder={uiText("Common.interface.legalRegistrationIdentifier")}
           />
         </label>
         <div className="form-row">
           <label>
-            <span>PAN</span>
+            <span>{uiText("ComplianceMaster.fields.pan")}</span>
             <input
               maxLength={20}
               value={pan}
               onChange={(event) => setPan(event.target.value)}
-              placeholder="Optional"
+              placeholder={uiText("Authentication.optional")}
             />
           </label>
           <label className="checkbox-field">
@@ -3754,8 +3720,8 @@ function NewOrganizationModal({
               onChange={(event) => setFcraActive(event.target.checked)}
             />
             <span>
-              <strong>FCRA active</strong>
-              <small>Include FCRA-specific rule candidates</small>
+              <strong>{uiText("ComplianceMaster.fields.fcra_active")}</strong>
+              <small>{uiText("Common.interface.includeFCRASpecificRuleCandidates")}</small>
             </span>
           </label>
         </div>
@@ -3766,10 +3732,9 @@ function NewOrganizationModal({
             onChange={(event) => setGeneratePlan(event.target.checked)}
           />
           <span>
-            <strong>Generate initial compliance plan</strong>
+            <strong>{uiText("Common.interface.generateInitialCompliancePlan")}</strong>
             <small>
-              Evaluate active rule versions against this organization profile.
-            </small>
+               {uiText("Common.interface.evaluateActiveRuleVersionsAgainstThisOrganizationProfile")} </small>
           </span>
         </label>
         {error && (
@@ -3780,9 +3745,7 @@ function NewOrganizationModal({
         )}
         <div className="form-info">
           <ShieldCheck size={17} />
-          Generated deadlines remain reviewable configuration and must be
-          validated before production use.
-        </div>
+           {uiText("Common.interface.generatedDeadlinesRemainReviewableConfigurationAndMustBeValidatedBeforeProductionUse")} </div>
         <div className="modal-actions">
           <button
             className="button secondary"
@@ -3790,10 +3753,9 @@ function NewOrganizationModal({
             onClick={close}
             disabled={saving}
           >
-            Cancel
-          </button>
+             {uiText("Common.actions.cancel")} </button>
           <button className="button primary" type="submit" disabled={saving}>
-            {saving ? "Onboarding..." : "Onboard organization"}
+            {saving ? uiText("Common.interface.onboardingProgress") : uiText("Common.interface.onboardOrganization")}
           </button>
         </div>
       </form>
@@ -3810,6 +3772,7 @@ function InviteMemberModal({
   close: () => void;
   onCreate: (member: Membership) => void;
 }) {
+  const uiText = useTranslations();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("COMPLIANCE_OFFICER");
@@ -3824,7 +3787,7 @@ function InviteMemberModal({
     if (saving) return;
     setAttempted(true);
     if (emailError) {
-      setError(emailError);
+      setError(uiText(email.trim() ? "Authentication.validation.email" : "Authentication.validation.required"));
       return;
     }
     setSaving(true);
@@ -3840,9 +3803,7 @@ function InviteMemberModal({
       );
     } catch (requestError) {
       setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Could not create this invitation.",
+        localizedError(requestError, uiText, uiText("Common.interface.couldNotCreateThisInvitation")),
       );
       setSaving(false);
     }
@@ -3850,14 +3811,14 @@ function InviteMemberModal({
 
   return (
     <Modal
-      title="Add responsibility"
-      text="Grant a role at tenant or organization scope."
+      title={uiText("Common.interface.addResponsibility")}
+      text={uiText("Common.interface.grantARoleAtTenantOrOrganizationScope")}
       close={close}
     >
       <form className="form" onSubmit={submit} noValidate>
         <div className="form-row">
           <label>
-            <span>Full name</span>
+            <span>{uiText("Auth.fullName")}</span>
             <input
               autoFocus
               required
@@ -3867,7 +3828,7 @@ function InviteMemberModal({
             />
           </label>
           <label>
-            <span>Email</span>
+            <span>{uiText("Integrations.categories.EMAIL")}</span>
             <input
               type="email"
               inputMode="email"
@@ -3886,34 +3847,34 @@ function InviteMemberModal({
             />
             {attempted && emailError && (
               <small className="field-error" id="responsibility-email-error">
-                {emailError}
+                {uiText(email.trim() ? "Authentication.validation.email" : "Authentication.validation.required")}
               </small>
             )}
           </label>
         </div>
         <label>
-          <span>Role</span>
+          <span>{uiText("Common.interface.role")}</span>
           <select
             value={role}
             onChange={(event) => setRole(event.target.value)}
           >
-            <option value="TENANT_ADMIN">Tenant admin</option>
-            <option value="ORGANIZATION_ADMIN">Organization admin</option>
-            <option value="COMPLIANCE_OFFICER">Compliance officer</option>
-            <option value="ACCOUNTANT">Accountant</option>
-            <option value="AUDITOR">Auditor</option>
-            <option value="CONSULTANT">Consultant</option>
-            <option value="MANAGEMENT">Management</option>
-            <option value="VIEWER">Viewer</option>
+            <option value="TENANT_ADMIN">{uiText("Common.interface.tenantAdmin")}</option>
+            <option value="ORGANIZATION_ADMIN">{uiText("Common.interface.organizationAdmin")}</option>
+            <option value="COMPLIANCE_OFFICER">{uiText("ComplianceMaster.roles.COMPLIANCE_OFFICER")}</option>
+            <option value="ACCOUNTANT">{uiText("ComplianceMaster.roles.ACCOUNTANT")}</option>
+            <option value="AUDITOR">{uiText("ComplianceMaster.roles.AUDITOR")}</option>
+            <option value="CONSULTANT">{uiText("ComplianceMaster.roles.CONSULTANT")}</option>
+            <option value="MANAGEMENT">{uiText("ComplianceMaster.roles.MANAGEMENT")}</option>
+            <option value="VIEWER">{uiText("ComplianceMaster.roles.VIEWER")}</option>
           </select>
         </label>
         <label>
-          <span>Organization scope</span>
+          <span>{uiText("Integrations.organizationScope")}</span>
           <select
             value={organizationId}
             onChange={(event) => setOrganizationId(event.target.value)}
           >
-            <option value="">All organizations in tenant</option>
+            <option value="">{uiText("Common.interface.allOrganizationsInTenant")}</option>
             {organizations.map((organization) => (
               <option key={organization.id} value={organization.id}>
                 {organization.name}
@@ -3929,9 +3890,7 @@ function InviteMemberModal({
         )}
         <div className="form-info">
           <ShieldCheck size={17} />
-          The invitation, role and scope are audit logged. Access is denied
-          outside the selected scope.
-        </div>
+           {uiText("Common.interface.theInvitationRoleAndScopeAreAuditLoggedAccessIsDeniedOutsideTheSelectedScope")} </div>
         <div className="modal-actions">
           <button
             type="button"
@@ -3939,10 +3898,9 @@ function InviteMemberModal({
             onClick={close}
             disabled={saving}
           >
-            Cancel
-          </button>
+             {uiText("Common.actions.cancel")} </button>
           <button className="button primary" type="submit" disabled={saving}>
-            {saving ? "Creating..." : "Create invitation"}
+            {saving ? uiText("Common.interface.creating") : uiText("Common.interface.createInvitation")}
           </button>
         </div>
       </form>
@@ -3959,10 +3917,10 @@ const impactRecordTypes = [
 type ImpactRecordType = (typeof impactRecordTypes)[number];
 const programmeLabels: Partial<Record<PortfolioRecord["record_type"], string>> =
   {
-    GRANT: "Grants",
-    DONOR: "Donors",
-    CSR_PROJECT: "CSR projects",
-    VOLUNTEER: "Volunteers",
+    GRANT: "Common.interface.grants",
+    DONOR: "Common.interface.donors",
+    CSR_PROJECT: "Common.interface.cSRProjects",
+    VOLUNTEER: "Common.interface.volunteers",
   };
 function isImpactRecord(
   item: PortfolioRecord,
@@ -3987,6 +3945,7 @@ function ProgrammesView({
   onDelete: (id:string) => void;
   onRefresh: () => Promise<void>;
 }) {
+  const uiText = useTranslations();
   const [tab, setTab] = useState<"ALL" | PortfolioRecord["record_type"]>("ALL");
   const [showNewRecord, setShowNewRecord] = useState(false);
   const [selectedId,setSelectedId]=useState<string|null>(null);
@@ -4002,9 +3961,9 @@ function ProgrammesView({
     <>
       <div className="page">
         <PageHeading
-          eyebrow="Expansion modules"
-          title="Impact portfolio"
-          text="Track grant, donor and volunteer records alongside compliance. Manage CSR workflows in CSR partners."
+          eyebrow={uiText("Common.interface.expansionModules")}
+          title={uiText("Common.interface.impactPortfolio")}
+          text={uiText("Common.interface.trackGrantDonorAndVolunteerRecordsAlongsideComplianceManageCSRWorkflowsInCSRPartners")}
           action={
             !readOnly && (
               <button
@@ -4012,14 +3971,13 @@ function ProgrammesView({
                 onClick={() => setShowNewRecord(true)}
               >
                 <Plus size={17} />
-                Add record
-              </button>
+                 {uiText("Common.interface.addRecord")} </button>
             )
           }
         />
-        <p className="notice info">These are operational records, not accounting, payments or attendance systems. Owner and value fields are descriptive text. <Link href="/dashboard?view=csr">Manage CSR in CSR partners</Link>. Existing generic CSR records are retained for reference only.</p>
-        <div className="toolbar"><label className="search-box"><Search size={16}/><input aria-label="Search impact records" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search impact records..."/></label><label>Status filter<select aria-label="Impact status filter" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="">All statuses</option>{Array.from(new Set(impactItems.map(item=>item.status))).sort().map(status=><option key={status}>{status}</option>)}</select></label><button className="button secondary" disabled={refreshing} onClick={async()=>{setRefreshing(true);setRefreshError("");try{await onRefresh();}catch(reason){setRefreshError(reason instanceof Error?reason.message:"Could not refresh records");}finally{setRefreshing(false);}}}>Refresh records</button></div>
-        {refreshing&&<p role="status">Loading records...</p>}{refreshError&&<p className="form-error" role="alert">{refreshError}</p>}
+        <p className="notice info">{uiText("Common.interface.theseAreOperationalRecordsNotAccountingPaymentsOrAttendanceSystemsOwnerAndValueFieldsAreDescriptiveText")} <Link href="/dashboard?view=csr">{uiText("Common.interface.manageCSRInCSRPartners")}</Link>{uiText("Common.interface.existingGenericCSRRecordsAreRetainedForReferenceOnly")}</p>
+        <div className="toolbar"><label className="search-box"><Search size={16}/><input aria-label={uiText("Common.interface.searchImpactRecords")} value={query} onChange={event=>setQuery(event.target.value)} placeholder={uiText("Common.interface.searchImpactRecordsLabel")}/></label><label>{uiText("Common.interface.statusFilter")}<select aria-label={uiText("Common.interface.impactStatusFilter")} value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="">{uiText("Reports.allStatuses")}</option>{Array.from(new Set(impactItems.map(item=>item.status))).sort().map(status=><option key={status} value={status}>{localizedStatus(status, uiText)}</option>)}</select></label><button className="button secondary" disabled={refreshing} onClick={async()=>{setRefreshing(true);setRefreshError("");try{await onRefresh();}catch(reason){setRefreshError(localizedError(reason, uiText, uiText("Common.interface.couldNotRefreshRecords")));}finally{setRefreshing(false);}}}>{uiText("Common.interface.refreshRecords")}</button></div>
+        {refreshing&&<p role="status">{uiText("Common.interface.loadingRecords")}</p>}{refreshError&&<p className="form-error" role="alert">{refreshError}</p>}
         <div className="module-metrics">
           {(
             Object.keys(programmeLabels) as PortfolioRecord["record_type"][]
@@ -4032,7 +3990,7 @@ function ProgrammesView({
               <strong>
                 {items.filter((item) => item.record_type === type).length}
               </strong>
-              <span>{programmeLabels[type]}</span>
+              <span>{uiText(programmeLabels[type]!)}</span>
             </button>
           ))}
         </div>
@@ -4042,8 +4000,7 @@ function ProgrammesView({
               className={tab === "ALL" ? "active" : ""}
               onClick={() => setTab("ALL")}
             >
-              All
-            </button>
+               {uiText("ComplianceMaster.all")} </button>
             {(
               Object.keys(programmeLabels) as PortfolioRecord["record_type"][]
             ).map((type) => (
@@ -4052,7 +4009,7 @@ function ProgrammesView({
                 className={tab === type ? "active" : ""}
                 onClick={() => setTab(type)}
               >
-                {programmeLabels[type]}
+                {uiText(programmeLabels[type]!)}
               </button>
             ))}
           </div>
@@ -4065,9 +4022,9 @@ function ProgrammesView({
                   <HandHeart size={19} />
                 </i>
                 <div>
-                  <span>{programmeLabels[item.record_type]}</span>
+                  <span>{uiText(programmeLabels[item.record_type]!)}</span>
                   <h3>{item.title}</h3>
-                  <p>{item.notes || "No notes recorded."}</p>
+                  <p>{item.notes || uiText("Common.interface.noNotesRecorded")}</p>
                 </div>
                 <div>
                   <StatusBadge status={item.status} />
@@ -4084,10 +4041,10 @@ function ProgrammesView({
                   <strong>{item.owner_name}</strong>
                   <small>
                     {item.due_at
-                      ? `Due ${niceDate(item.due_at)}`
-                      : "No due date"}
+                      ? uiText("Common.interface.dueNamed", { date: niceDate(item.due_at) })
+                      : uiText("Common.interface.noDueDate")}
                   </small>
-                  <button className="button secondary" onClick={()=>setSelectedId(item.id)} aria-label={`View ${item.title}`}>View record</button>
+                  <button className="button secondary" onClick={()=>setSelectedId(item.id)} aria-label={uiText("Common.interface.viewNamed", { name: item.title })}>{uiText("Common.interface.viewRecord")}</button>
                 </div>
               </article>
             ))}
@@ -4095,8 +4052,8 @@ function ProgrammesView({
           {!visible.length && (
             <EmptyState
               icon={<HandHeart />}
-              title="No records in this module"
-              text="Add a record to begin managing this impact portfolio."
+              title={uiText("Common.interface.noRecordsInThisModule")}
+              text={uiText("Common.interface.addARecordToBeginManagingThisImpactPortfolio")}
             />
           )}
         </section>
@@ -4128,6 +4085,7 @@ function NewPortfolioRecordModal({
   close: () => void;
   onCreate: (item: PortfolioRecord) => void;
 }) {
+  const uiText = useTranslations();
   const currentUser = useCurrentUser();
   const [recordType, setRecordType] =
     useState<PortfolioRecord["record_type"]>("GRANT");
@@ -4160,7 +4118,7 @@ function NewPortfolioRecordModal({
       );
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Could not create record",
+        localizedError(reason, uiText, uiText("Common.interface.couldNotCreateRecord")),
       );
     } finally {
       setSaving(false);
@@ -4168,14 +4126,14 @@ function NewPortfolioRecordModal({
   }
   return (
     <Modal
-      title="Add impact record"
-      text="Create a tenant-scoped grant, donor or volunteer tracking record. CSR is managed in CSR partners."
+      title={uiText("Common.interface.addImpactRecord")}
+      text={uiText("Common.interface.createATenantScopedGrantDonorOrVolunteerTrackingRecordCSRIsManagedInCSRPartners")}
       close={close}
     >
       <form className="form" onSubmit={submit}>
         <div className="form-row">
           <label>
-            <span>Module</span>
+            <span>{uiText("Settings.module")}</span>
             <select
               value={recordType}
               onChange={(event) =>
@@ -4188,13 +4146,13 @@ function NewPortfolioRecordModal({
                 Object.keys(programmeLabels).filter(type=>type!=="CSR_PROJECT") as PortfolioRecord["record_type"][]
               ).map((type) => (
                 <option value={type} key={type}>
-                  {programmeLabels[type]}
+                  {uiText(programmeLabels[type]!)}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            <span>Organization</span>
+            <span>{uiText("Authentication.organization")}</span>
             <select
               required
               value={organizationId}
@@ -4209,7 +4167,7 @@ function NewPortfolioRecordModal({
           </label>
         </div>
         <label>
-          <span>Record title</span>
+          <span>{uiText("Common.interface.recordTitle")}</span>
           <input
             autoFocus
             required
@@ -4217,25 +4175,25 @@ function NewPortfolioRecordModal({
             maxLength={220}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Programme, relationship or engagement name"
+            placeholder={uiText("Common.interface.programmeRelationshipOrEngagementName")}
           />
         </label>
         <div className="form-row">
-          <label><span>Responsible person / contact</span><input required minLength={2} maxLength={120} value={ownerName} onChange={event=>setOwnerName(event.target.value)}/></label>
-          <label><span>Recorded status</span><input required minLength={2} maxLength={30} value={status} onChange={event=>setStatus(event.target.value)}/></label>
+          <label><span>{uiText("Common.interface.responsiblePersonContact")}</span><input required minLength={2} maxLength={120} value={ownerName} onChange={event=>setOwnerName(event.target.value)}/></label>
+          <label><span>{uiText("Common.interface.recordedStatus")}</span><input required minLength={2} maxLength={30} value={status} onChange={event=>setStatus(event.target.value)}/></label>
         </div>
         <div className="form-row">
           <label>
-            <span>Value or scale</span>
+            <span>{uiText("Common.interface.valueOrScale")}</span>
             <input
               maxLength={80}
               value={valueLabel}
               onChange={(event) => setValueLabel(event.target.value)}
-              placeholder="e.g. INR 10 lakh or 20 volunteers"
+              placeholder={uiText("Common.interface.eGINR10LakhOr20Volunteers")}
             />
           </label>
           <label>
-            <span>Milestone date</span>
+            <span>{uiText("Common.interface.milestoneDate")}</span>
             <input
               type="date"
               value={dueAt}
@@ -4244,12 +4202,12 @@ function NewPortfolioRecordModal({
           </label>
         </div>
         <label>
-          <span>Notes</span>
+          <span>{uiText("Common.interface.notes")}</span>
           <textarea
             maxLength={2000}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Objectives, reporting needs, stewardship or delivery notes"
+            placeholder={uiText("Common.interface.objectivesReportingNeedsStewardshipOrDeliveryNotes")}
           />
         </label>
         {error && (
@@ -4259,10 +4217,9 @@ function NewPortfolioRecordModal({
         )}
         <div className="modal-actions">
           <button type="button" className="button secondary" onClick={close}>
-            Cancel
-          </button>
+             {uiText("Common.actions.cancel")} </button>
           <button className="button primary" disabled={saving}>
-            {saving ? "Saving..." : "Add record"}
+            {saving ? uiText("Common.actions.saving") : uiText("Common.interface.addRecord")}
           </button>
         </div>
       </form>
@@ -4271,30 +4228,31 @@ function NewPortfolioRecordModal({
 }
 
 function PortfolioRecordDetail({item,organizations,readOnly,close,onUpdate,onDelete}:{item:PortfolioRecord;organizations:Organization[];readOnly:boolean;close:()=>void;onUpdate:(item:PortfolioRecord)=>void;onDelete:(id:string)=>void}) {
+  const uiText = useTranslations();
   const [editing,setEditing]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState("");
   const [title,setTitle]=useState(item.title),[owner,setOwner]=useState(item.owner_name),[status,setStatus]=useState(item.status),[value,setValue]=useState(item.value_label),[due,setDue]=useState(item.due_at||""),[notes,setNotes]=useState(item.notes);
   async function save(event:React.FormEvent){
     event.preventDefault();if(saving||readOnly||!item.can_edit) return;setSaving(true);setError("");
     try{onUpdate(await patchPortfolioRecord(item.id,{title:title.trim(),owner_name:owner.trim(),status:status.trim(),value_label:value.trim(),due_at:due||null,notes:notes.trim()}));close();}
-    catch(reason){setError(reason instanceof Error?reason.message:"Could not update record");}
+    catch(reason){setError(localizedError(reason, uiText, uiText("Common.interface.couldNotUpdateRecord")));}
     finally{setSaving(false);}
   }
   async function remove(){
-    if(saving||readOnly||!item.can_delete||!window.confirm(`Delete ${item.title}? This action is audit logged.`)) return;setSaving(true);setError("");
-    try{await deletePortfolioRecord(item.id);onDelete(item.id);close();}catch(reason){setError(reason instanceof Error?reason.message:"Could not delete record");}finally{setSaving(false);}
+    if(saving||readOnly||!item.can_delete||!window.confirm(uiText("Common.interface.deleteRecordConfirm", { title: item.title }))) return;setSaving(true);setError("");
+    try{await deletePortfolioRecord(item.id);onDelete(item.id);close();}catch(reason){setError(localizedError(reason, uiText, uiText("Common.interface.couldNotDeleteRecord")));}finally{setSaving(false);}
   }
-  return <Modal title={editing?"Edit operational record":"Record details"} text="Record tracking only. Status changes do not settle funds, deliver messages, publish content or generate documents." close={()=>{if(!saving) close();}}>
-    <p>Organization: {organizations.find(org=>org.id===item.organization_id)?.name||"Organization"} · Type: {item.record_type}</p>
+  return <Modal title={editing?uiText("Common.interface.editOperationalRecord"):uiText("Common.interface.recordDetails")} text={uiText("Common.interface.recordTrackingOnlyStatusChangesDoNotSettleFundsDeliverMessagesPublishContentOrGenerateDocuments")} close={()=>{if(!saving) close();}}>
+    <p>{uiText("Common.interface.organization")} {organizations.find(org=>org.id===item.organization_id)?.name||uiText("Common.interface.organization")}  {uiText("Common.interface.type")} {item.record_type}</p>
     {error&&<p className="form-error" role="alert">{error}</p>}
     {editing?<form className="form" onSubmit={save}>
-      <label>Record title<input required minLength={2} maxLength={220} value={title} onChange={event=>setTitle(event.target.value)}/></label>
-      <label>Responsible person / contact<input required minLength={2} maxLength={120} value={owner} onChange={event=>setOwner(event.target.value)}/></label>
-      <label>Recorded status<input required minLength={2} maxLength={30} value={status} onChange={event=>setStatus(event.target.value)}/></label>
-      <label>Value / reference<input maxLength={80} value={value} onChange={event=>setValue(event.target.value)}/></label>
-      <label>Date<input type="date" value={due} onChange={event=>setDue(event.target.value)}/></label>
-      <label>Notes<textarea maxLength={2000} value={notes} onChange={event=>setNotes(event.target.value)}/></label>
-      <div className="modal-actions"><button type="button" className="button secondary" disabled={saving} onClick={()=>setEditing(false)}>Cancel edit</button><button className="button primary" disabled={saving}>{saving?"Saving...":"Save record"}</button></div>
-    </form>:<><h3>{item.title}</h3><p>Status: {item.status}</p><p>Owner / contact: {item.owner_name}</p><p>Value / reference: {item.value_label||"Not recorded"}</p><p>Date: {item.due_at?niceDate(item.due_at):"Not recorded"}</p><p>{item.notes||"No notes recorded"}</p><p>Created: {item.created_at} · Updated: {item.updated_at}</p><div className="modal-actions">{!readOnly&&item.can_edit&&<button className="button primary" onClick={()=>setEditing(true)}>Edit record</button>}{!readOnly&&item.can_delete&&<button className="button secondary" disabled={saving} onClick={()=>void remove()}>Delete record</button>}</div></>}
+      <label>{uiText("Common.interface.recordTitle")}<input required minLength={2} maxLength={220} value={title} onChange={event=>setTitle(event.target.value)}/></label>
+      <label>{uiText("Common.interface.responsiblePersonContact")}<input required minLength={2} maxLength={120} value={owner} onChange={event=>setOwner(event.target.value)}/></label>
+      <label>{uiText("Common.interface.recordedStatus")}<input required minLength={2} maxLength={30} value={status} onChange={event=>setStatus(event.target.value)}/></label>
+      <label>{uiText("Common.interface.valueReference")}<input maxLength={80} value={value} onChange={event=>setValue(event.target.value)}/></label>
+      <label>{uiText("GlobalSearch.dateSort")}<input type="date" value={due} onChange={event=>setDue(event.target.value)}/></label>
+      <label>{uiText("Common.interface.notes")}<textarea maxLength={2000} value={notes} onChange={event=>setNotes(event.target.value)}/></label>
+      <div className="modal-actions"><button type="button" className="button secondary" disabled={saving} onClick={()=>setEditing(false)}>{uiText("Common.interface.cancelEdit")}</button><button className="button primary" disabled={saving}>{saving?uiText("Common.actions.saving"):uiText("Common.interface.saveRecord")}</button></div>
+    </form>:<><h3>{item.title}</h3><p>{uiText("Common.interface.status")} {item.status}</p><p>{uiText("Common.interface.ownerContact")} {item.owner_name}</p><p>{uiText("Common.interface.valueReferenceLabel")} {item.value_label||uiText("Common.interface.notRecorded")}</p><p>{uiText("Common.interface.date")} {item.due_at?niceDate(item.due_at):uiText("Common.interface.notRecorded")}</p><p>{item.notes||uiText("Common.interface.noNotesRecorded")}</p><p>{uiText("Common.interface.created")} {formatDateTime(item.created_at)}  {uiText("Common.interface.updated")} {formatDateTime(item.updated_at)}</p><div className="modal-actions">{!readOnly&&item.can_edit&&<button className="button primary" onClick={()=>setEditing(true)}>{uiText("Common.interface.editRecord")}</button>}{!readOnly&&item.can_delete&&<button className="button secondary" disabled={saving} onClick={()=>void remove()}>{uiText("Common.interface.deleteRecord")}</button>}</div></>}
   </Modal>;
 }
 
@@ -4338,184 +4296,184 @@ type OperationMeta = {
 };
 const operationMeta: Record<OperationalRecordType, OperationMeta> = {
   MEMBERSHIP: {
-    label: "Memberships",
+    label: "Common.interface.memberships",
     singular: "membership",
     group: "People",
-    description: "Application, fee reference and validity records",
+    description: "Common.interface.applicationFeeReferenceAndValidityRecords",
     defaultStatus: "PENDING",
     statuses: ["PENDING", "VERIFIED", "BLOCKED", "EXPIRED"],
-    valueLabel: "Fee / transaction",
-    dateLabel: "Valid until",
+    valueLabel: "Common.interface.feeTransaction",
+    dateLabel: "Common.interface.validUntil",
   },
   VOLUNTEER: {
-    label: "Volunteers",
+    label: "Common.interface.volunteers",
     singular: "volunteer",
     group: "People",
-    description: "Applications, approvals and validity",
+    description: "Common.interface.applicationsApprovalsAndValidity",
     defaultStatus: "PENDING",
     statuses: ["PENDING", "ACTIVE", "APPROVED", "REJECTED", "EXPIRED"],
-    valueLabel: "Location / ID",
-    dateLabel: "Valid until",
+    valueLabel: "Common.interface.locationID",
+    dateLabel: "Common.interface.validUntil",
   },
   VOLUNTEER_ACTIVITY: {
-    label: "Volunteer activities",
+    label: "Common.interface.volunteerActivities",
     singular: "activity",
     group: "People",
-    description: "Activity, hours and event references; no attendance system",
+    description: "Common.interface.activityHoursAndEventReferencesNoAttendanceSystem",
     defaultStatus: "LOGGED",
     statuses: ["LOGGED", "APPROVED", "REJECTED"],
-    valueLabel: "Hours / event",
-    dateLabel: "Activity date",
+    valueLabel: "Common.interface.hoursEvent",
+    dateLabel: "Common.interface.activityDate",
   },
   MANAGEMENT_MEMBER: {
-    label: "Management body",
+    label: "Common.interface.managementBody",
     singular: "management member",
     group: "People",
-    description: "Board member, department and role reference records",
+    description: "Common.interface.boardMemberDepartmentAndRoleReferenceRecords",
     defaultStatus: "ACTIVE",
     statuses: ["ACTIVE", "INACTIVE"],
-    valueLabel: "Role / department",
-    dateLabel: "Term end",
+    valueLabel: "Common.interface.roleDepartment",
+    dateLabel: "Common.interface.termEnd",
   },
   CSR_PROJECT: {
-    label: "Projects & funds",
+    label: "Common.interface.projectsFunds",
     singular: "project",
     group: "Fundraising",
-    description: "Legacy project references; manage CSR in CSR partners",
+    description: "Common.interface.legacyProjectReferencesManageCSRInCSRPartners",
     defaultStatus: "ACTIVE",
     statuses: ["DRAFT", "ACTIVE", "ON_TRACK", "COMPLETED", "ON_HOLD"],
-    valueLabel: "Target / raised",
-    dateLabel: "End date",
+    valueLabel: "Common.interface.targetRaised",
+    dateLabel: "Common.interface.endDate",
   },
   DONATION: {
-    label: "Donations",
+    label: "Common.interface.donations",
     singular: "donation",
     group: "Fundraising",
-    description: "Donor, amount and transaction reference records",
+    description: "Common.interface.donorAmountAndTransactionReferenceRecords",
     defaultStatus: "PENDING",
     statuses: ["PENDING", "VERIFIED", "APPROVED", "REJECTED"],
-    valueLabel: "Amount / transaction",
-    dateLabel: "Donation date",
+    valueLabel: "Common.interface.amountTransaction",
+    dateLabel: "Common.interface.donationDate",
   },
   CAMPAIGN: {
-    label: "Crowdfunding",
+    label: "Common.interface.crowdfunding",
     singular: "campaign",
     group: "Fundraising",
-    description: "Campaign goal and progress references (record only)",
+    description: "Common.interface.campaignGoalAndProgressReferencesRecordOnly",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "ACTIVE", "CLOSED"],
-    valueLabel: "Goal / raised",
-    dateLabel: "Closing date",
+    valueLabel: "Common.interface.goalRaised",
+    dateLabel: "Common.interface.closingDate",
   },
   SPONSOR: {
-    label: "Sponsors",
+    label: "Common.interface.sponsors",
     singular: "sponsor",
     group: "Fundraising",
-    description: "Sponsor identity, website and priority",
+    description: "Common.interface.sponsorIdentityWebsiteAndPriority",
     defaultStatus: "ACTIVE",
     statuses: ["ACTIVE", "INACTIVE"],
-    valueLabel: "Website / priority",
-    dateLabel: "Review date",
+    valueLabel: "Common.interface.websitePriority",
+    dateLabel: "Common.interface.reviewDate",
   },
   EVENT: {
-    label: "Events",
+    label: "Common.interface.events",
     singular: "event",
     group: "Engagement",
-    description: "Date, location and capacity references; no registration system",
+    description: "Common.interface.dateLocationAndCapacityReferencesNoRegistrationSystem",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "COMPLETED", "CANCELLED"],
-    valueLabel: "Location / capacity",
-    dateLabel: "Event date",
+    valueLabel: "Common.interface.locationCapacity",
+    dateLabel: "Common.interface.eventDate",
   },
   MESSAGE: {
-    label: "Messages",
+    label: "Common.interface.messages",
     singular: "message",
     group: "Engagement",
-    description: "Message and audience references; no message delivery",
+    description: "Common.interface.messageAndAudienceReferencesNoMessageDelivery",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "SENT", "FAILED"],
-    valueLabel: "Audience / channel",
-    dateLabel: "Send date",
+    valueLabel: "Common.interface.audienceChannel",
+    dateLabel: "Common.interface.sendDate",
   },
   INQUIRY: {
-    label: "Inquiries",
+    label: "Common.interface.inquiries",
     singular: "inquiry",
     group: "Engagement",
-    description: "Category, urgency, status and admin notes",
+    description: "Common.interface.categoryUrgencyStatusAndAdminNotes",
     defaultStatus: "OPEN",
     statuses: ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"],
-    valueLabel: "Category / urgency",
-    dateLabel: "Follow-up date",
+    valueLabel: "Common.interface.categoryUrgency",
+    dateLabel: "Common.interface.followUpDate",
   },
   CERTIFICATE: {
-    label: "Certificates",
+    label: "Common.interface.certificates",
     singular: "certificate",
     group: "Publishing",
-    description: "Certificate references; no generation or email delivery",
+    description: "Common.interface.certificateReferencesNoGenerationOrEmailDelivery",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "ISSUED", "EMAILED", "REVOKED"],
-    valueLabel: "Recipient / number",
-    dateLabel: "Issue date",
+    valueLabel: "Common.interface.recipientNumber",
+    dateLabel: "Common.interface.issueDate",
   },
   DOCUMENT_TEMPLATE: {
-    label: "Document templates",
+    label: "Common.interface.documentTemplates",
     singular: "template",
     group: "Publishing",
-    description: "Template descriptions; no document generation",
+    description: "Common.interface.templateDescriptionsNoDocumentGeneration",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
-    valueLabel: "Brand / document type",
-    dateLabel: "Review date",
+    valueLabel: "Common.interface.brandDocumentType",
+    dateLabel: "Common.interface.reviewDate",
   },
   NEWS: {
-    label: "News & updates",
+    label: "Common.interface.newsUpdates",
     singular: "article",
     group: "Publishing",
-    description: "Announcement records; no public publishing",
+    description: "Common.interface.announcementRecordsNoPublicPublishing",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
-    valueLabel: "Slug / category",
-    dateLabel: "Publish date",
+    valueLabel: "Common.interface.slugCategory",
+    dateLabel: "Common.interface.publishDate",
   },
   GALLERY_ITEM: {
-    label: "Gallery",
+    label: "Common.interface.gallery",
     singular: "gallery item",
     group: "Publishing",
-    description: "Image and video references; no public publishing",
+    description: "Common.interface.imageAndVideoReferencesNoPublicPublishing",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
-    valueLabel: "Image / video",
-    dateLabel: "Publish date",
+    valueLabel: "Common.interface.imageVideo",
+    dateLabel: "Common.interface.publishDate",
   },
   TESTIMONIAL: {
-    label: "Testimonials",
+    label: "Common.interface.testimonials",
     singular: "testimonial",
     group: "Publishing",
-    description: "Review content, stars and display priority",
+    description: "Common.interface.reviewContentStarsAndDisplayPriority",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "INACTIVE"],
-    valueLabel: "Role / stars",
-    dateLabel: "Publish date",
+    valueLabel: "Common.interface.roleStars",
+    dateLabel: "Common.interface.publishDate",
   },
   TRAINING_VIDEO: {
-    label: "Training",
+    label: "Common.interface.training",
     singular: "training video",
     group: "Publishing",
-    description: "Member training videos and resources",
+    description: "Common.interface.memberTrainingVideosAndResources",
     defaultStatus: "ACTIVE",
     statuses: ["ACTIVE", "INACTIVE"],
-    valueLabel: "Video URL / category",
-    dateLabel: "Review date",
+    valueLabel: "Common.interface.videoURLCategory",
+    dateLabel: "Common.interface.reviewDate",
   },
   CONTENT_PAGE: {
-    label: "Website content",
+    label: "Common.interface.websiteContent",
     singular: "content page",
     group: "Publishing",
-    description: "About, objectives, legal, contact and slider content",
+    description: "Common.interface.aboutObjectivesLegalContactAndSliderContent",
     defaultStatus: "DRAFT",
     statuses: ["DRAFT", "PUBLISHED", "ARCHIVED"],
-    valueLabel: "Page / section",
-    dateLabel: "Publish date",
+    valueLabel: "Common.interface.pageSection",
+    dateLabel: "Common.interface.publishDate",
   },
 };
 function isOperationalRecord(
@@ -4541,6 +4499,7 @@ function OperationsView({
   onDelete: (id: string) => void;
   onRefresh: () => Promise<void>;
 }) {
+  const uiText = useTranslations();
   const [group, setGroup] = useState<OperationGroup>("People");
   const [module, setModule] = useState<OperationalRecordType | "ALL">("ALL");
   const [query, setQuery] = useState("");
@@ -4572,14 +4531,14 @@ function OperationsView({
       onUpdate(await patchPortfolioRecord(item.id, { status: nextStatus }));
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Could not update record",
+        localizedError(reason, uiText, uiText("Common.interface.couldNotUpdateRecord")),
       );
     } finally {
       setWorking("");
     }
   }
   async function remove(item: PortfolioRecord) {
-    if (!window.confirm(`Delete ${item.title}? This action is audit logged.`))
+    if (!window.confirm(uiText("Common.interface.deleteRecordConfirm", { title: item.title })))
       return;
     setWorking(item.id);
     setError("");
@@ -4588,7 +4547,7 @@ function OperationsView({
       onDelete(item.id);
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Could not delete record",
+        localizedError(reason, uiText, uiText("Common.interface.couldNotDeleteRecord")),
       );
     } finally {
       setWorking("");
@@ -4598,32 +4557,28 @@ function OperationsView({
     <>
       <div className="page operations-page">
         <PageHeading
-          eyebrow="Reference portal parity"
-          title="NGO operations centre"
-          text="Track membership, fundraising, engagement and content records in your organization-scoped workspace."
+          eyebrow={uiText("Common.interface.referencePortalParity")}
+          title={uiText("Common.interface.nGOOperationsCentre")}
+          text={uiText("Common.interface.trackMembershipFundraisingEngagementAndContentRecordsInYourOrganizationScopedWorkspace")}
           action={
             <button className="button primary" disabled={module==="CSR_PROJECT"} onClick={() => setShowNew(true)}>
               <Plus size={17} />
-              Add operational record
-            </button>
+               {uiText("Common.interface.addOperationalRecord")} </button>
           }
         />
-        <p className="notice info">Statuses are recorded labels, not enforced approvals. SENT, PUBLISHED, ISSUED and VERIFIED do not send messages, publish content, generate certificates or settle funds. These records are not an accounting or attendance system. <Link href="/dashboard?view=csr">Manage CSR in CSR partners</Link>; generic CSR records are reference-only.</p>
+        <p className="notice info">{uiText("Common.interface.statusesAreRecordedLabelsNotEnforcedApprovalsSENTPUBLISHEDISSUEDAndVERIFIEDDoNotSendMessagesPublishContentGenerateCertificatesOrSettleFundsTheseRecordsAreNotAnAccountingOrAttendanceSystem")} <Link href="/dashboard?view=csr">{uiText("Common.interface.manageCSRInCSRPartners")}</Link>{uiText("Common.interface.genericCSRRecordsAreReferenceOnly")}</p>
         <div className="operations-hero">
           <div>
             <span>
               <Sparkles size={14} />
-              Unified control room
-            </span>
-            <h2>From first inquiry to verified impact.</h2>
+               {uiText("Common.interface.unifiedControlRoom")} </span>
+            <h2>{uiText("Common.interface.fromFirstInquiryToVerifiedImpact")}</h2>
             <p>
-              Every operational record belongs to an organization, supports a
-              review status and is included in the audit trail.
-            </p>
+               {uiText("Common.interface.everyOperationalRecordBelongsToAnOrganizationSupportsAReviewStatusAndIsIncludedInTheAuditTrail")} </p>
           </div>
           <div>
             <strong>{operationalItems.length}</strong>
-            <span>operational records</span>
+            <span>{uiText("Common.interface.operationalRecords")}</span>
           </div>
         </div>
         <div className="operation-groups">
@@ -4645,7 +4600,7 @@ function OperationsView({
               ) : (
                 <Newspaper />
               )}
-              <span>{item}</span>
+              <span>{uiText(`Common.interface.${item.toLowerCase()}`)}</span>
               <strong>
                 {
                   operationalItems.filter(
@@ -4676,8 +4631,8 @@ function OperationsView({
                 )}
               </i>
               <span>
-                <strong>{operationMeta[type].label}</strong>
-                <small>{operationMeta[type].description}</small>
+                <strong>{uiText(operationMeta[type].label)}</strong>
+                <small>{uiText(operationMeta[type].description)}</small>
               </span>
               <b>
                 {
@@ -4692,20 +4647,20 @@ function OperationsView({
           <label className="search-box">
             <Search size={16} />
             <input
-              aria-label="Search operational records"
+              aria-label={uiText("Common.interface.searchOperationalRecords")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search ${group.toLowerCase()} records...`}
+              placeholder={uiText("Common.interface.searchGroup", { group: uiText("Common.interface."+group.toLowerCase()) })}
             />
           </label>
-          <label>Status filter<select aria-label="Operations status filter" value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="">All statuses</option>{Array.from(new Set(operationalItems.map(item=>item.status))).sort().map(status=><option key={status}>{status}</option>)}</select></label>
-          <button className="button secondary" disabled={!!working} onClick={async()=>{setWorking("refresh");setError("");try{await onRefresh();}catch(reason){setError(reason instanceof Error?reason.message:"Could not refresh records");}finally{setWorking("");}}}>Refresh records</button>
+          <label>{uiText("Common.interface.statusFilter")}<select aria-label={uiText("Common.interface.operationsStatusFilter")} value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option value="">{uiText("Reports.allStatuses")}</option>{Array.from(new Set(operationalItems.map(item=>item.status))).sort().map(status=><option key={status} value={status}>{localizedStatus(status, uiText)}</option>)}</select></label>
+          <button className="button secondary" disabled={!!working} onClick={async()=>{setWorking("refresh");setError("");try{await onRefresh();}catch(reason){setError(localizedError(reason, uiText, uiText("Common.interface.couldNotRefreshRecords")));}finally{setWorking("");}}}>{uiText("Common.interface.refreshRecords")}</button>
           <div className="filter-tabs">
             <button
               className={module === "ALL" ? "active" : ""}
               onClick={() => setModule("ALL")}
             >
-              All {group}
+               {uiText("ComplianceMaster.all")} {group}
             </button>
             {groupModules.map((type) => (
               <button
@@ -4713,7 +4668,7 @@ function OperationsView({
                 className={module === type ? "active" : ""}
                 onClick={() => setModule(type)}
               >
-                {operationMeta[type].label}
+                {uiText(operationMeta[type].label)}
               </button>
             ))}
           </div>
@@ -4724,42 +4679,42 @@ function OperationsView({
             {error}
           </div>
         )}
-        {working==="refresh"&&<p role="status">Loading records...</p>}
+        {working==="refresh"&&<p role="status">{uiText("Common.interface.loadingRecords")}</p>}
         <section className="table-card operations-table">
           <div className="table-head">
-            <span>Record</span>
-            <span>Organization</span>
-            <span>Value / reference</span>
-            <span>Date</span>
-            <span>Status</span>
-            <span>Actions</span>
+            <span>{uiText("Common.interface.record")}</span>
+            <span>{uiText("Authentication.organization")}</span>
+            <span>{uiText("Common.interface.valueReference")}</span>
+            <span>{uiText("GlobalSearch.dateSort")}</span>
+            <span>{uiText("ComplianceMaster.status")}</span>
+            <span>{uiText("ComplianceMaster.actions")}</span>
           </div>
           {visible.map((item) => (
             <div className="table-row" key={item.id}>
               <span>
-                <small>{operationMeta[item.record_type].label}</small>
+                <small>{uiText(operationMeta[item.record_type].label)}</small>
                 <strong>{item.title}</strong>
-                <em>{item.notes || "No notes recorded"}</em>
+                <em>{item.notes || uiText("Common.interface.noNotesRecorded")}</em>
               </span>
               <span>
                 <strong>
                   {organizations.find(
                     (organization) => organization.id === item.organization_id,
-                  )?.name || "Organization"}
+                  )?.name || uiText("Common.interface.organization")}
                 </strong>
                 <small>{item.owner_name}</small>
               </span>
               <span>
                 <strong>{item.value_label || "—"}</strong>
-                <small>{operationMeta[item.record_type].valueLabel}</small>
+                <small>{uiText(operationMeta[item.record_type].valueLabel)}</small>
               </span>
               <span>
                 <strong>{item.due_at ? niceDate(item.due_at) : "—"}</strong>
-                <small>{operationMeta[item.record_type].dateLabel}</small>
+                <small>{uiText(operationMeta[item.record_type].dateLabel)}</small>
               </span>
               <span>
                 <select
-                  aria-label={`Status for ${item.title}`}
+                  aria-label={uiText("Common.interface.statusNamed", { name: item.title })}
                   value={item.status}
                   disabled={!!working||!item.can_edit||item.record_type==="CSR_PROJECT"}
                   onChange={(event) =>
@@ -4767,16 +4722,16 @@ function OperationsView({
                   }
                 >
                   {Array.from(new Set([item.status,...operationMeta[item.record_type].statuses])).map((status) => (
-                    <option key={status}>{status}</option>
+                    <option key={status} value={status}>{localizedStatus(status, uiText)}</option>
                   ))}
                 </select>
               </span>
               <span>
-                <button className="button secondary" aria-label={`View ${item.title}`} onClick={()=>setSelectedId(item.id)}>View</button>
+                <button className="button secondary" aria-label={uiText("Common.interface.viewNamed", { name: item.title })} onClick={()=>setSelectedId(item.id)}>{uiText("ComplianceMaster.view")}</button>
                 {item.can_delete&&item.record_type!=="CSR_PROJECT"&&
                 <button
                   className="icon-button plain danger"
-                  aria-label={`Delete ${item.title}`}
+                  aria-label={uiText("Common.interface.deleteNamed", { name: item.title })}
                   disabled={!!working}
                   onClick={() => void remove(item)}
                 >
@@ -4788,8 +4743,8 @@ function OperationsView({
           {!visible.length && (
             <EmptyState
               icon={<Megaphone />}
-              title={`No ${module === "ALL" ? group.toLowerCase() : operationMeta[module].label.toLowerCase()} records yet`}
-              text="Add the first operational record; it will be stored securely under the selected organization."
+              title={uiText("Common.interface.emptyRecords", { module: module === "ALL" ? uiText(`Common.interface.${group.toLowerCase()}`) : uiText(operationMeta[module].label) })}
+              text={uiText("Common.interface.addTheFirstOperationalRecordItWillBeStoredSecurelyUnderTheSelectedOrganization")}
             />
           )}
         </section>
@@ -4828,6 +4783,7 @@ function NewOperationModal({
   close: () => void;
   onCreate: (item: PortfolioRecord) => void;
 }) {
+  const uiText = useTranslations();
   const currentUser = useCurrentUser();
   const [recordType, setRecordType] =
     useState<OperationalRecordType>(initialType);
@@ -4861,21 +4817,21 @@ function NewOperationModal({
       );
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Could not create record",
+        localizedError(reason, uiText, uiText("Common.interface.couldNotCreateRecord")),
       );
       setSaving(false);
     }
   }
   return (
     <Modal
-      title={`Add ${meta.singular}`}
-      text="Create a secure, tenant-scoped operational record with a reviewable status."
+      title={uiText("Common.interface.addOperationalRecord")}
+      text={uiText("Common.interface.createASecureTenantScopedOperationalRecordWithAReviewableStatus")}
       close={close}
     >
       <form className="form" onSubmit={submit}>
         <div className="form-row">
           <label>
-            <span>Module</span>
+            <span>{uiText("Settings.module")}</span>
             <select
               value={recordType}
               onChange={(event) =>
@@ -4883,12 +4839,12 @@ function NewOperationModal({
               }
             >
               {operationGroups.map((item) => (
-                <optgroup key={item} label={item}>
+                <optgroup key={item} label={uiText(`Common.interface.${item.toLowerCase()}`)}>
                   {operationModules
                     .filter((type) => operationMeta[type].group === item && type!=="CSR_PROJECT")
                     .map((type) => (
                       <option value={type} key={type}>
-                        {operationMeta[type].label}
+                        {uiText(operationMeta[type].label)}
                       </option>
                     ))}
                 </optgroup>
@@ -4896,7 +4852,7 @@ function NewOperationModal({
             </select>
           </label>
           <label>
-            <span>Organization</span>
+            <span>{uiText("Authentication.organization")}</span>
             <select
               required
               value={organizationId}
@@ -4911,7 +4867,7 @@ function NewOperationModal({
           </label>
         </div>
         <label>
-          <span>Title / person / subject</span>
+          <span>{uiText("Common.interface.titlePersonSubject")}</span>
           <input
             autoFocus
             required
@@ -4919,12 +4875,12 @@ function NewOperationModal({
             maxLength={220}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder={`Name this ${meta.singular}`}
+            placeholder={uiText("Common.interface.nameRecord")}
           />
         </label>
         <div className="form-row">
           <label>
-            <span>Responsible person / contact</span>
+            <span>{uiText("Common.interface.responsiblePersonContact")}</span>
             <input
               required
               minLength={2}
@@ -4934,17 +4890,17 @@ function NewOperationModal({
             />
           </label>
           <label>
-            <span>{meta.valueLabel}</span>
+            <span>{uiText(meta.valueLabel)}</span>
             <input
               maxLength={80}
               value={valueLabel}
               onChange={(event) => setValueLabel(event.target.value)}
-              placeholder={meta.valueLabel}
+              placeholder={uiText(meta.valueLabel)}
             />
           </label>
         </div>
         <label>
-          <span>{meta.dateLabel}</span>
+          <span>{uiText(meta.dateLabel)}</span>
           <input
             type="date"
             value={dueAt}
@@ -4952,12 +4908,12 @@ function NewOperationModal({
           />
         </label>
         <label>
-          <span>Details and internal notes</span>
+          <span>{uiText("Common.interface.detailsAndInternalNotes")}</span>
           <textarea
             maxLength={2000}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder={meta.description}
+            placeholder={uiText(meta.description)}
           />
         </label>
         {error && (
@@ -4968,9 +4924,7 @@ function NewOperationModal({
         )}
         <div className="form-info">
           <ShieldCheck size={17} />
-          Initial status: {meta.defaultStatus.replaceAll("_", " ")}. You can
-          update the recorded status from the operations table. This does not execute an external workflow.
-        </div>
+           {uiText("Common.interface.initialStatus")} {meta.defaultStatus.replaceAll("_", " ")}{uiText("Common.interface.youCanUpdateTheRecordedStatusFromTheOperationsTableThisDoesNotExecuteAnExternalWorkflow")} </div>
         <div className="modal-actions">
           <button
             type="button"
@@ -4978,13 +4932,12 @@ function NewOperationModal({
             onClick={close}
             disabled={saving}
           >
-            Cancel
-          </button>
+             {uiText("Common.actions.cancel")} </button>
           <button
             className="button primary"
             disabled={saving || !organizationId}
           >
-            {saving ? "Saving..." : `Add ${meta.singular}`}
+            {saving ? uiText("Common.actions.saving") : uiText(`Common.interface.addRecordType.${recordType}`)}
           </button>
         </div>
       </form>
@@ -5008,6 +4961,7 @@ function IntegrationsView({
   isAdmin: boolean;
   onAutomation: (result: AutomationResult) => void;
 }) {
+  const uiText = useTranslations();
   const [working, setWorking] = useState("");
   const [error, setError] = useState("");
   async function automate() {
@@ -5017,7 +4971,7 @@ function IntegrationsView({
       onAutomation(await runAutomation());
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Automation run failed",
+        localizedError(reason, uiText, uiText("Common.interface.automationRunFailed")),
       );
     } finally {
       setWorking("");
@@ -5026,9 +4980,9 @@ function IntegrationsView({
   return (
     <div className="page">
       <PageHeading
-        eyebrow="Provider abstraction"
-        title="Integrations and automation"
-        text="Manage external capability readiness without coupling compliance data to a single vendor."
+        eyebrow={uiText("Common.interface.providerAbstraction")}
+        title={uiText("Common.interface.integrationsAndAutomation")}
+        text={uiText("Common.interface.manageExternalCapabilityReadinessWithoutCouplingComplianceDataToASingleVendor")}
         action={
           isAdmin && (
             <button
@@ -5037,7 +4991,7 @@ function IntegrationsView({
               onClick={() => void automate()}
             >
               <RefreshCw size={17} />
-              {working === "automation" ? "Running..." : "Run daily automation"}
+              {working === "automation" ? uiText("Common.interface.running") : uiText("Common.interface.runDailyAutomation")}
             </button>
           )
         }
@@ -5065,10 +5019,10 @@ function IntegrationsView({
                   className="button secondary small"
                   href="/settings/integrations"
                 >
-                  {item.status === "CONNECTED" ? "Manage connection" : "Connect"}
+                  {item.status === "CONNECTED" ? uiText("Common.interface.manageConnection") : uiText("Common.interface.connect")}
                 </Link>
               ) : (
-                <small>Admin managed</small>
+                <small>{uiText("Common.interface.adminManaged")}</small>
               )}
             </footer>
           </article>
@@ -5077,13 +5031,9 @@ function IntegrationsView({
       <section className="automation-note">
         <ShieldCheck size={21} />
         <div>
-          <h2>Idempotent daily operations</h2>
+          <h2>{uiText("Common.interface.idempotentDailyOperations")}</h2>
           <p>
-            The manual run uses the same safe workflow intended for a scheduler:
-            it flags overdue obligations, creates task and expiry alerts once,
-            and rolls completed recurring obligations into the next annual cycle
-            without changing historical records.
-          </p>
+             {uiText("Common.interface.theManualRunUsesTheSameSafeWorkflowIntendedForASchedulerItFlagsOverdueObligationsCreatesTaskAndExpiryAlertsOnceAndRollsCompletedRecurringObligationsIntoTheNextAnnualCycleWithoutChangingHistoricalRecords")} </p>
         </div>
       </section>
     </div>
@@ -5101,11 +5051,12 @@ function Modal({
   close: () => void;
   children: React.ReactNode;
 }) {
+  const uiText = useTranslations();
   return (
     <>
       <button
         className="modal-scrim"
-        aria-label={`Close ${title}`}
+        aria-label={uiText("Common.interface.closeNamed", { name: title })}
         onClick={close}
       />
       <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
@@ -5116,7 +5067,7 @@ function Modal({
           </div>
           <button
             className="icon-button plain"
-            aria-label={`Close ${title}`}
+            aria-label={uiText("Common.interface.closeNamed", { name: title })}
             onClick={close}
           >
             <X size={20} />

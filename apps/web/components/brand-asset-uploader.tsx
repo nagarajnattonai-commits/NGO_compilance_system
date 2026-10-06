@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError } from "@/i18n/display";
+
 import { useId, useRef, useState } from "react";
 import { ImagePlus, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -21,6 +23,7 @@ export default function BrandAssetUploader({
   onRemove: () => void;
   onError: (message: string) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("WhiteLabel");
   const input = useRef<HTMLInputElement>(null);
   const id = useId();
@@ -41,7 +44,7 @@ export default function BrandAssetUploader({
     try {
       onUpload(await uploadBrandAsset(file, type));
     } catch (error) {
-      onError(error instanceof Error ? error.message : t("failed"));
+      onError(localizedError(error, uiText, t("failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

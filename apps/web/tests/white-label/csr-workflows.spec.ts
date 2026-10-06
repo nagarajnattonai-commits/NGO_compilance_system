@@ -49,14 +49,14 @@ test("CSR existing records support edits, evidence, tasks, decisions and history
   await partner.getByLabel("Partner status").selectOption("ACTIVE");
   await partner.getByLabel("Shared notes").fill("Shared onboarding update");
   await partner.getByRole("button",{name:"Save partner",exact:true}).click();
-  await expect(partner.getByRole("cell",{name:"ACTIVE",exact:true})).toBeVisible();
+  await expect(partner.getByRole("cell",{name:"Active",exact:true})).toBeVisible();
   await page.getByRole("tab",{name:"Projects",exact:true}).click();
   const project=page.locator(`#csr-record-${workspace.project}`);
   await project.getByText("Edit project",{exact:true}).click();
   await project.getByLabel("Project name").fill("Updated CSR Project");
   await project.getByLabel("Project status").selectOption("ACTIVE");
   await project.getByRole("button",{name:"Save project",exact:true}).click();
-  await expect(project.getByRole("cell",{name:"ACTIVE",exact:true})).toBeVisible();
+  await expect(project.getByRole("cell",{name:"Active",exact:true})).toBeVisible();
   await page.getByRole("tab",{name:"Due diligence",exact:true}).click();
   const item=page.getByRole("region",{name:"Registration evidence",exact:true});
   await item.getByText("Link existing evidence / task",{exact:true}).click();
@@ -65,13 +65,13 @@ test("CSR existing records support edits, evidence, tasks, decisions and history
   await expect(item.getByRole("listitem").filter({hasText:"CSR registration.png v1"})).toBeVisible();
   await item.getByRole("combobox",{name:"Existing task",exact:true}).selectOption(workspace.task);
   await item.getByRole("button",{name:"Link task",exact:true}).click();
-  await expect(item.getByText("CSR evidence follow-up · TODO",{exact:true})).toBeVisible();
-  for(const status of ["SUBMITTED","UNDER_REVIEW","APPROVED"]) {
-    await expect(item.getByLabel("Checklist status")).toContainText(status);
+  await expect(item.getByText("CSR evidence follow-up · To do",{exact:true})).toBeVisible();
+  for(const [status, label] of [["SUBMITTED","Submitted"],["UNDER_REVIEW","Under review"],["APPROVED","Approved"]]) {
+    await expect(item.getByLabel("Checklist status")).toContainText(label);
     await item.getByLabel("Checklist status").selectOption(status);
     await item.getByRole("textbox",{name:"Response",exact:true}).fill("Evidence reviewed against the operational checklist");
     await item.getByRole("button",{name:"Save response / decision",exact:true}).click();
-    await expect(item.locator(".status-pill")).toHaveText(status);
+    await expect(item.locator(".status-pill")).toHaveText(label);
   }
   const review=page.locator(`#csr-record-${workspace.review}`);
   await review.getByText("Status / history",{exact:true}).click();
@@ -79,7 +79,7 @@ test("CSR existing records support edits, evidence, tasks, decisions and history
   const saved=await(await request.get(`/api/v1/csr/reviews/${workspace.review}`)).json();
   expect(saved.status).toBe("APPROVED");expect(saved.items[0].evidence[0].version_id).toBe(workspace.version);expect(saved.items[0].tasks[0].id).toBe(workspace.task);
   await page.reload();await page.getByRole("button",{name:"CSR partners",exact:true}).click();await page.getByRole("tab",{name:"Due diligence",exact:true}).click();
-  await expect(page.locator(`#csr-record-${workspace.review} .status-pill`)).toHaveText("APPROVED");
+  await expect(page.locator(`#csr-record-${workspace.review} .status-pill`)).toHaveText("Approved");
 });
 
 test("CSR NGO collaborators see only shared records and supported response controls",async({page,request,workspace})=>{
@@ -99,11 +99,11 @@ test("CSR NGO collaborators see only shared records and supported response contr
   await expect(page.getByRole("heading",{name:"Corporate private review",exact:true})).toHaveCount(0);
   const item=page.getByRole("region",{name:"Registration evidence",exact:true});
   await expect(item.getByLabel("Corporate internal notes")).toHaveCount(0);
-  await expect(item.getByLabel("Checklist status")).not.toContainText("APPROVED");
+  await expect(item.getByLabel("Checklist status")).not.toContainText("Approved");
   await item.getByRole("textbox",{name:"Response",exact:true}).fill("NGO evidence response");
   await item.getByLabel("Checklist status").selectOption("SUBMITTED");
   await item.getByRole("button",{name:"Save response / decision",exact:true}).click();
-  await expect(item.locator(".status-pill")).toHaveText("SUBMITTED");
+  await expect(item.locator(".status-pill")).toHaveText("Submitted");
   await expect(item.getByText("Link existing evidence / task",{exact:true})).toHaveCount(0);
 });
 
@@ -112,7 +112,7 @@ test("CSR viewer remains read-only and failed mutations preserve safe errors",as
   await page.locator(`#csr-record-${workspace.partner}`).getByText("Edit partner",{exact:true}).click();
   await page.route(`**/api/v1/csr/partners/${workspace.partner}`,route=>route.fulfill({status:409,json:{detail:"Partner update could not be applied"}}));
   await page.getByRole("button",{name:"Save partner",exact:true}).click();
-  await expect(page.locator('[aria-labelledby="csr-title"]').getByRole("alert")).toContainText("Partner update could not be applied");
+  await expect(page.locator('[aria-labelledby="csr-title"]').getByRole("alert")).toHaveText("The record state does not allow this action. Refresh and review before trying again.Try again");
   await page.unroute(`**/api/v1/csr/partners/${workspace.partner}`);
   fixtureRole(workspace,"VIEWER");await page.reload();await page.getByRole("button",{name:"CSR partners",exact:true}).click();
   await expect(page.getByText("Edit partner",{exact:true})).toHaveCount(0);await expect(page.getByText("Grant NGO collaborator access",{exact:true})).toHaveCount(0);

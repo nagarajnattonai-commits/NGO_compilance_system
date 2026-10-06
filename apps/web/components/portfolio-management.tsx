@@ -1,5 +1,7 @@
 "use client";
 
+import { localizedError, localizedStatus } from "@/i18n/display";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -32,6 +34,7 @@ export default function PortfolioManagement({
   organizations: Organization[]; memberships: Membership[]; role: string;
   onOpenClient: (id: string) => void; onOpenCompliance: (id: string) => void;
 }) {
+  const uiText = useTranslations();
   const t = useTranslations("Portfolio");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [clients, setClients] = useState<Page<Client> | null>(null);
@@ -70,13 +73,13 @@ export default function PortfolioManagement({
       apiRequest<Page<Deadline>>("/portfolio/deadlines"),
     ]).then(([overview, directory, queue, due]) => {
       if (active) { setDashboard(overview); setClients(directory); setTasks(queue); setDeadlines(due); }
-    }).catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : t("loadError")); });
+    }).catch((reason) => { if (active) setError(localizedError(reason, uiText, t("loadError"))); });
     return () => { active = false; };
   }, [t]);
 
   async function refreshDirectory(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
-    try { await loadDirectory(); } catch (reason) { setError(reason instanceof Error ? reason.message : t("loadError")); }
+    try { await loadDirectory(); } catch (reason) { setError(localizedError(reason, uiText, t("loadError"))); }
     finally { setBusy(false); }
   }
   async function reassign() {
@@ -86,7 +89,7 @@ export default function PortfolioManagement({
       await apiRequest("/portfolio/bulk/tasks/assignee", "POST", { target_ids: selectedTasks, assignee_user_id: assignee });
       setMessage(t("assignmentSaved", { count: selectedTasks.length }));
       await loadOperational();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("assignmentError")); }
+    } catch (reason) { setError(localizedError(reason, uiText, t("assignmentError"))); }
     finally { setBusy(false); }
   }
   async function invite(event: React.FormEvent<HTMLFormElement>) {
@@ -97,7 +100,7 @@ export default function PortfolioManagement({
         name: form.get("name"), email: form.get("email"), role: form.get("role"), organization_ids: [form.get("organization_id")],
       });
       setMessage(t("inviteSaved")); event.currentTarget.reset();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("inviteError")); }
+    } catch (reason) { setError(localizedError(reason, uiText, t("inviteError"))); }
     finally { setBusy(false); }
   }
 
@@ -137,7 +140,7 @@ export default function PortfolioManagement({
       <div className="report-table-scroll"><table className="report-table"><thead><tr>{role !== "VIEWER" && <th>{t("select")}</th>}<th>{t("task")}</th><th>{t("organization")}</th><th>{t("compliance")}</th><th>{t("assignee")}</th><th>{t("due")}</th><th>{t("status")}</th></tr></thead><tbody>{tasks.items.map((task) => <tr key={task.id}>{role !== "VIEWER" && <td><input type="checkbox" aria-label={t("selectTask", { title: task.title })} checked={selectedTasks.includes(task.id)} onChange={(event) => setSelectedTasks((items) => event.target.checked ? [...items, task.id] : items.filter((id) => id !== task.id))} /></td>}<td><strong>{task.title}</strong><br /><small>{task.priority}</small></td><td>{task.organization_name}</td><td>{task.compliance || "—"}</td><td>{task.assignee || t("unassigned")}</td><td>{formatShortDate(task.due_at)}</td><td>{task.overdue ? t("overdue") : task.status}</td></tr>)}</tbody></table></div>
     </section>
 
-    <section className="card report-deadline-panel"><div className="report-section-heading"><div><h2>{t("deadlines")}</h2><p>{t("deadlinesHelp", { count: deadlines.total })}</p></div></div><div className="report-table-scroll"><table className="report-table"><thead><tr><th>{t("compliance")}</th><th>{t("organization")}</th><th>{t("owner")}</th><th>{t("due")}</th><th>{t("daysRemaining")}</th><th>{t("status")}</th></tr></thead><tbody>{deadlines.items.map((item) => <tr key={item.id}><td><button className="report-record-link" type="button" onClick={() => onOpenCompliance(item.id)}>{item.code} · {item.title}</button></td><td>{item.organization_name}</td><td>{item.owner || t("unassigned")}</td><td>{formatShortDate(item.deadline)}</td><td>{item.days_remaining}</td><td>{item.status}</td></tr>)}</tbody></table></div></section>
+    <section className="card report-deadline-panel"><div className="report-section-heading"><div><h2>{t("deadlines")}</h2><p>{t("deadlinesHelp", { count: deadlines.total })}</p></div></div><div className="report-table-scroll"><table className="report-table"><thead><tr><th>{t("compliance")}</th><th>{t("organization")}</th><th>{t("owner")}</th><th>{t("due")}</th><th>{t("daysRemaining")}</th><th>{t("status")}</th></tr></thead><tbody>{deadlines.items.map((item) => <tr key={item.id}><td><button className="report-record-link" type="button" onClick={() => onOpenCompliance(item.id)}>{item.code} · {item.title}</button></td><td>{item.organization_name}</td><td>{item.owner || t("unassigned")}</td><td>{formatShortDate(item.deadline)}</td><td>{item.days_remaining}</td><td>{localizedStatus(item.status, uiText)}</td></tr>)}</tbody></table></div></section>
 
     {role === "ADMIN" && <section className="card"><div className="report-section-heading"><div><h2>{t("inviteClientUser")}</h2><p>{t("inviteHelp")}</p></div></div><form className="report-filters" onSubmit={invite}><label>{t("name")}<input name="name" required minLength={2} maxLength={120} /></label><label>{t("email")}<input name="email" type="email" required maxLength={200} /></label><label>{t("organization")}<select name="organization_id" required defaultValue=""><option value="" disabled>{t("chooseClient")}</option>{organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{t("access")}<select name="role" defaultValue="VIEWER"><option value="VIEWER">{t("viewer")}</option><option value="MEMBER">{t("contributor")}</option></select></label><button className="button primary" disabled={busy}>{t("invite")}</button></form></section>}
   </section>;

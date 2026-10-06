@@ -77,13 +77,13 @@ test("impact detail editing, safe retry, scoped filtering and refresh use backen
   await dialog.getByRole("textbox",{name:"Recorded status",exact:true}).fill("REVIEWED");
   await dialog.getByLabel("Date",{exact:true}).fill("");
   await page.route(`**/api/v1/portfolio-records/${workspace.grant}`,route=>route.fulfill({status:503,json:{detail:"Temporary update failure"}}));
-  await dialog.getByRole("button",{name:"Save record",exact:true}).click();await expect(dialog.getByRole("alert")).toContainText("Temporary update failure");
+  await dialog.getByRole("button",{name:"Save record",exact:true}).click();await expect(dialog.getByRole("alert")).toHaveText("The server is unavailable. Please try again shortly.");
   await expect(dialog.getByRole("textbox",{name:"Record title",exact:true})).toHaveValue("Updated grant");
   await page.unroute(`**/api/v1/portfolio-records/${workspace.grant}`);await dialog.getByRole("button",{name:"Save record",exact:true}).click();
   await expect(page.getByRole("button",{name:"View Updated grant",exact:true})).toBeVisible();
   await page.route("**/api/v1/portfolio-records",route=>route.fulfill({status:503,json:{detail:"Temporary refresh failure"}}));
   await page.getByRole("button",{name:"Refresh records",exact:true}).click();
-  await expect(page.locator(".page").getByRole("alert")).toContainText("Temporary refresh failure");
+  await expect(page.locator(".page").getByRole("alert")).toHaveText("The server is unavailable. Please try again shortly.");
   await expect(page.getByRole("button",{name:"View Updated grant",exact:true})).toBeVisible();
   await page.unroute("**/api/v1/portfolio-records");
   await page.locator(".org-switcher").click();await page.locator(".org-menu").getByRole("button").filter({has:page.getByText("Operations NGO",{exact:true})}).click();

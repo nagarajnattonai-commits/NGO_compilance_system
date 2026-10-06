@@ -1,4 +1,6 @@
 "use client";
+
+import { localizedError } from "@/i18n/display";
 import Link from "next/link";
 import {useEffect,useState} from "react";
 import {useTranslations} from "next-intl";
@@ -11,6 +13,7 @@ import OrganizationShell from "./organization-shell";
 import ComplianceTemplateRuntime from "./compliance-template-runtime";
 
 export default function RuntimeDetailView({id,user}:{id:string;user:AuthUser}) {
+  const uiText = useTranslations();
  const t=useTranslations("Runtime"), common=useTranslations("Common"), roles=useTranslations("ComplianceMaster");
  const [detail,setDetail]=useState<RuntimeDetail|null>(null),[candidates,setCandidates]=useState<{id:string;name:string;role:string}[]>([]);
  const [owner,setOwner]=useState(""),[reason,setReason]=useState(""),[overrideReason,setOverrideReason]=useState(""),[decision,setDecision]=useState("FORCE_APPLICABLE");
@@ -18,9 +21,9 @@ export default function RuntimeDetailView({id,user}:{id:string;user:AuthUser}) {
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState(""),[nextId,setNextId]=useState("");
  const allowed=user.role==="ADMIN";
  const canDecide=user.role!=="VIEWER";
- async function load(){try{const [d,m]=await Promise.all([apiRequest<RuntimeDetail>(`/compliances/${id}/runtime-detail`),apiRequest<typeof candidates>(`/compliances/${id}/owner-candidates`)]);setDetail(d);setCandidates(m);setOwner(d.owner?.owner_id||"");}catch(e){setError(e instanceof Error?e.message:t("error"));}}
+ async function load(){try{const [d,m]=await Promise.all([apiRequest<RuntimeDetail>(`/compliances/${id}/runtime-detail`),apiRequest<typeof candidates>(`/compliances/${id}/owner-candidates`)]);setDetail(d);setCandidates(m);setOwner(d.owner?.owner_id||"");}catch(e){setError(localizedError(e, uiText, t("error")));}}
  useEffect(()=>{void load();},[id]);
- async function act(action:()=>Promise<unknown>){setBusy(true);setError("");setMessage("");try{await action();await load();setMessage(t("saved"));}catch(e){setError(e instanceof Error?e.message:t("error"));}finally{setBusy(false);}}
+ async function act(action:()=>Promise<unknown>){setBusy(true);setError("");setMessage("");try{await action();await load();setMessage(t("saved"));}catch(e){setError(localizedError(e, uiText, t("error")));}finally{setBusy(false);}}
  return <OrganizationShell><h1>{detail?.compliance.title||t("title")}</h1>{error&&<p className="auth-alert error" role="alert">{error}<button className="text-button" onClick={()=>{setError("");void load();}}>{t("retry")}</button></p>}{message&&<p role="status">{message}</p>}{!detail&&!error&&<p role="status">{t("loading")}</p>}{detail&&<>
  <section className="organization-panel"><dl className="runtime-facts">
  <dt>{t("organization")}</dt><dd><Link href={`/organizations/${detail.organization.id}`}>{detail.organization.name}</Link></dd>

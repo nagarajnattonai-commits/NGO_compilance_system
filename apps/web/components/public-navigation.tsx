@@ -27,6 +27,7 @@ import { BrandIdentity, useTenantBrand } from "@/branding/client";
 type OpenMenu = "about" | "donation" | "more" | "language" | null;
 
 export default function PublicNavigation({ localization }: { localization?: LocalizationSettings | null }) {
+  const uiText = useTranslations();
   const t = useTranslations("Marketing");
   const [changingLanguage, setChangingLanguage] = useState(false);
   const languages = availableLocales(localization?.locales);
@@ -178,7 +179,7 @@ export default function PublicNavigation({ localization }: { localization?: Loca
           <i />
         </span>
         <strong>
-          Setu NGO<small>{t("complianceAndImpactManagement")}</small>
+           {uiText("Common.brand")}<small>{t("complianceAndImpactManagement")}</small>
         </strong></>}
       </Link>
 

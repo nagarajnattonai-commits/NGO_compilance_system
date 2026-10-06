@@ -82,9 +82,9 @@ const loaders = {
       import("../messages/hi-IN/automation.json"),
       import("../messages/hi-IN/global-search.json"),
       import("../messages/hi-IN/workflow.json"),
-      import("../messages/en-IN/portfolio.json"),
-      import("../messages/en-IN/portfolio-import.json"),
-      import("../messages/en-IN/csr.json"),
+      import("../messages/hi-IN/portfolio.json"),
+      import("../messages/hi-IN/portfolio-import.json"),
+      import("../messages/hi-IN/csr.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -110,9 +110,9 @@ const loaders = {
       import("../messages/kn-IN/automation.json"),
       import("../messages/kn-IN/global-search.json"),
       import("../messages/kn-IN/workflow.json"),
-      import("../messages/en-IN/portfolio.json"),
-      import("../messages/en-IN/portfolio-import.json"),
-      import("../messages/en-IN/csr.json"),
+      import("../messages/kn-IN/portfolio.json"),
+      import("../messages/kn-IN/portfolio-import.json"),
+      import("../messages/kn-IN/csr.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -138,9 +138,9 @@ const loaders = {
       import("../messages/mr-IN/automation.json"),
       import("../messages/mr-IN/global-search.json"),
       import("../messages/mr-IN/workflow.json"),
-      import("../messages/en-IN/portfolio.json"),
-      import("../messages/en-IN/portfolio-import.json"),
-      import("../messages/en-IN/csr.json"),
+      import("../messages/mr-IN/portfolio.json"),
+      import("../messages/mr-IN/portfolio-import.json"),
+      import("../messages/mr-IN/csr.json"),
     ]),
 } satisfies Record<
   AppLocale,
