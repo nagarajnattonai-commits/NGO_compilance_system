@@ -30,7 +30,7 @@ This document records Phase 26 acceptance evidence. It is not a production certi
 | --- | --- | --- |
 | P0 | None confirmed | No action required |
 | P1 | None confirmed | No action required |
-| P2 | Real malware scanner adapter is not configured | Production must keep `DOCUMENT_SCAN_REQUIRED=false` or supply a reviewed adapter before requiring scanning |
+| P2 | Real malware scanner adapter is not configured | Resolved in Phase 27 code: ClamAV adapter (`DOCUMENT_SCANNER=clamav`). Deploy clamd in staging and verify with the EICAR test file before setting `DOCUMENT_SCAN_REQUIRED=true` |
 | P2 | Backup/object-storage restore was not rehearsed locally | Rehearse in staging and record measured RPO/RTO |
 | P3 | Some en-IN screens emit safe fallback warnings for missing optional labels | Deferred with the final localization phase; functional assertions pass |
 

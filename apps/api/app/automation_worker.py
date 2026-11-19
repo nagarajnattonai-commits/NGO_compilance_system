@@ -8,6 +8,7 @@ import uuid
 from .automation_service import claim_job, execute_job, fail_job, finish_job
 from .database import SessionLocal
 from .process_control import install_signal_handlers, stop_event, wait
+from .process_health import beat
 
 
 def process_one(worker_id: str | None = None) -> bool:
@@ -46,6 +47,7 @@ def main():
     install_signal_handlers()
     while not stop_event.is_set():
         processed = process_batch(max(1, min(args.limit, 200)))
+        beat("automation-worker", processed)
         if not args.loop:
             break
         wait(1 if processed else 5)

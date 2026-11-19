@@ -184,13 +184,15 @@ def test_google_signup_collects_organization_and_never_provisions_platform(monke
         assert client.get("/api/v1/admin/auth/access").json()["allowed"] is False
         assert client.post("/api/v1/auth/google/signup",headers=HEADERS,json=payload).status_code==400
 
-def test_admin_mfa_policy_fails_closed_until_provider_exists(monkeypatch):
+def test_admin_mfa_policy_requires_enrollment_before_admin_access(monkeypatch):
     monkeypatch.setenv("AUTH_ADMIN_MFA_REQUIRED","1");monkeypatch.setenv("PLATFORM_ADMIN_EMAILS","auth-owner@example.test")
     with TestClient(app) as client:
         signup(client)
         with SessionLocal() as db:grant(db,"auth-owner@example.test")
-        assert login(client,admin=True).status_code==503
+        assert login(client,admin=True).status_code==200
+        assert client.get("/api/v1/admin/auth/access").json()["detail"]["code"]=="MFA_ENROLLMENT_REQUIRED"
         assert login(client).status_code==200
+        assert client.get("/api/v1/auth/me").status_code==200
 
 def test_verification_resend_is_rate_limited(email_delivery):
     with TestClient(app) as client:

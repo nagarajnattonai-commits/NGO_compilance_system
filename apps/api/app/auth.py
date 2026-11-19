@@ -94,6 +94,8 @@ def current_user(request: Request, db: DB) -> User:
     from .auth_experience import apply_context
     auth_context=apply_context(db, user, session)
     user._admin_audience=bool(auth_context and auth_context.audience=="admin")
+    from .mfa import enforce as enforce_mfa
+    enforce_mfa(request, db, user, session, auth_context)
     from .brand_domains import enforce_request_tenant
     enforce_request_tenant(request, db, user.tenant_id)
     request.state.actor_name = user.name
@@ -340,8 +342,6 @@ def login(payload: LoginInput, request: Request, response: Response, db: DB):
     verified_login(db,user)
     from .auth_policy import is_platform_admin
     from .brand_domains import request_hostname, platform_hosts
-    if payload.admin_only and os.getenv("AUTH_ADMIN_MFA_REQUIRED")=="1":
-        raise HTTPException(503,"Administrator MFA provider is not configured")
     if payload.admin_only and (not is_platform_admin(user) or request_hostname(request) not in platform_hosts()):
         security_event(db,request,"ADMIN_LOGIN_FAILED",user,"admin");db.commit()
         raise HTTPException(403, "Platform administrator access is required")

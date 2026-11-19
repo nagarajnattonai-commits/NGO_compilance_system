@@ -94,7 +94,8 @@ def main():
     while not stop_event.is_set():
         if time.time()-last_cleanup>3600:
             prune_rate_windows();last_cleanup=time.time()
-        process_batch()
+        from .process_health import beat
+        beat("integration-worker",process_batch())
         if not args.loop:break
         wait(5)
 if __name__=="__main__":main()

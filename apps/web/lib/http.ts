@@ -21,12 +21,17 @@ export async function apiRequest<T>(path: string, method = "GET", body?: unknown
   if (!response.ok) {
     if (isLogout) explicitLogoutInProgress = false;
     let message = response.status >= 500 ? "The server is unavailable. Please try again shortly." : `Request failed (${response.status})`;
+    let code = "";
     try {
       const data = await response.json();
       if (typeof data.detail === "string") message = data.detail;
-      else if (data.detail && typeof data.detail.message === "string") message = data.detail.message;
+      else if (data.detail && typeof data.detail.message === "string") { message = data.detail.message; code = String(data.detail.code || ""); }
       else if (Array.isArray(data.detail)) message = data.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(", ");
     } catch { /* An upstream failure may return HTML, not JSON. */ }
+    if ((code === "MFA_REQUIRED" || code === "MFA_ENROLLMENT_REQUIRED") && !path.startsWith("/auth/mfa") && typeof window !== "undefined") {
+      window.location.assign("/auth/mfa?next=" + encodeURIComponent(window.location.pathname + window.location.search));
+      throw new ApiError(message, response.status);
+    }
     if (response.status === 401 && !path.startsWith("/auth/") && !explicitLogoutInProgress && typeof window !== "undefined") window.location.assign("/login?expired=1");
     throw new ApiError(message, response.status);
   }

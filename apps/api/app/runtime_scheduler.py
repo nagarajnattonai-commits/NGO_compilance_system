@@ -4,6 +4,7 @@ import argparse
 from .automation_service import schedule_scans
 from .database import SessionLocal
 from .process_control import install_signal_handlers, stop_event, wait
+from .process_health import beat, prune
 
 
 def schedule_once():
@@ -18,7 +19,11 @@ def main():
     args = parser.parse_args()
     install_signal_handlers()
     while not stop_event.is_set():
-        schedule_once()
+        result = schedule_once()
+        beat("scheduler", result.get("created", 0))
+        with SessionLocal() as db:
+            prune(db)
+            db.commit()
         if not args.loop:
             break
         wait(max(10, min(args.interval, 3600)))

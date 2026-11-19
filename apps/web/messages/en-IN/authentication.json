@@ -140,6 +140,45 @@
     "save": "Save",
     "saved": "Settings saved.",
     "newEmail": "New email address",
-    "changeEmailDescription": "Confirm your password to change an unverified signup email."
+    "changeEmailDescription": "Confirm your password to change an unverified signup email.",
+    "mfa": {
+      "title": "Two-step verification",
+      "verifyTitle": "Enter your verification code",
+      "verifyDescription": "Open your authenticator app and enter the 6-digit code for Setu. You can also use one of your recovery codes.",
+      "code": "Verification code",
+      "verify": "Verify and continue",
+      "setupTitle": "Set up two-step verification",
+      "setupRequired": "Platform administration requires two-step verification. Set it up to continue.",
+      "setupDescription": "Add Setu to an authenticator app such as Google Authenticator, Microsoft Authenticator or Authy.",
+      "secretLabel": "Setup key",
+      "secretHelp": "Enter this key in your authenticator app, or open the setup link on your phone. Then enter the code the app shows.",
+      "openApp": "Open in authenticator app",
+      "enable": "Turn on",
+      "start": "Set up two-step verification",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryDescription": "Each code works once if you lose your phone. Store them somewhere safe. They will not be shown again.",
+      "continue": "Continue",
+      "statusOn": "Two-step verification is on.",
+      "statusOff": "Two-step verification is off.",
+      "recoveryRemaining": "Recovery codes left: {count}",
+      "regenerate": "Create new recovery codes",
+      "regenerateConfirm": "Enter a current code from your authenticator app. Your old recovery codes will stop working.",
+      "disable": "Turn off",
+      "disableConfirm": "Enter your password and a current code to turn off two-step verification.",
+      "disableFailed": "Password or code is not valid.",
+      "cancel": "Cancel",
+      "unavailable": "Two-step verification is not available right now.",
+      "invalidCode": "That code is not valid. Check your authenticator app and try again.",
+      "tooMany": "Too many attempts. Wait 15 minutes and try again.",
+      "signOut": "Sign out",
+      "events": {
+        "enabled": "Two-step verification turned on",
+        "disabled": "Two-step verification turned off",
+        "verified": "Two-step verification passed",
+        "failed": "Two-step verification failed",
+        "recoveryUsed": "Recovery code used",
+        "recoveryRegenerated": "Recovery codes replaced"
+      }
+    }
   }
 }

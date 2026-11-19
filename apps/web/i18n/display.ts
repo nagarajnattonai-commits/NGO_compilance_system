@@ -23,6 +23,9 @@ export function localizedSecurityEvent(value: string, t: Translator) {
     LOGOUT: "Common.interface.securityLogout", PASSWORD_CHANGED: "Common.interface.securityPasswordChange",
     PASSWORD_RESET_COMPLETED: "Common.interface.securityPasswordReset", SESSION_REVOKED: "Common.interface.securitySessionRevoked",
     EMAIL_VERIFIED: "Authentication.verified", INVITATION_ACCEPTED: "Authentication.invitationSuccess",
+    MFA_ENABLED: "Authentication.mfa.events.enabled", MFA_DISABLED: "Authentication.mfa.events.disabled",
+    MFA_VERIFIED: "Authentication.mfa.events.verified", MFA_FAILED: "Authentication.mfa.events.failed",
+    MFA_RECOVERY_USED: "Authentication.mfa.events.recoveryUsed", MFA_RECOVERY_REGENERATED: "Authentication.mfa.events.recoveryRegenerated",
   };
   return t(keys[value] || "Common.interface.securityOther");
 }
