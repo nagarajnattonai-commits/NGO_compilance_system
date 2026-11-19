@@ -147,3 +147,4 @@ def test_phase14_migration_is_idempotent(tmp_path):
     assert inspect(target).has_table("automation_definitions")
     assert inspect(target).has_table("automation_executions")
     assert inspect(target).has_table("automation_action_executions")
+    target.dispose()

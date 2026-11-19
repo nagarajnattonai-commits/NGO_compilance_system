@@ -246,3 +246,4 @@ def test_phase17_migration_is_idempotent(tmp_path):
     assert apply(target) == VERSION and apply(target) == VERSION
     with target.connect() as connection:
         assert connection.execute(select(AiConversation)).all() == []
+    target.dispose()

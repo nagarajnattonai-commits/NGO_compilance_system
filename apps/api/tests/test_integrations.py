@@ -279,6 +279,7 @@ def test_additive_migration_preserves_existing_register_and_is_idempotent():
     with target.connect() as conn:
         assert conn.execute(text("SELECT provider FROM integration_connections WHERE id='legacy'")).scalar()=="Existing provider"
         assert conn.execute(text("SELECT COUNT(*) FROM integration_schema_versions")).scalar()==1
+    target.dispose()
 
 def test_provider_http_errors_and_smtp_allowlist_are_safe(monkeypatch):
     from app.integration_providers import SMTPAdapter, GoogleCalendarAdapter
@@ -446,3 +447,4 @@ def test_phase15_additive_scope_migration_is_idempotent():
     assert "organization_id" in {column["name"] for column in inspect(target).get_columns("webhook_subscriptions")}
     with target.connect() as connection:
         assert connection.execute(text("SELECT id FROM webhook_subscriptions")).scalar()=="legacy-hook"
+    target.dispose()

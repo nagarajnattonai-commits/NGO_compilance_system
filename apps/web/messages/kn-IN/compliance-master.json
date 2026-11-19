@@ -1,12 +1,12 @@
 {
   "ComplianceMaster": {
-    "filingProofType": "Filing proof type",
-    "filingProofTypes": "Allowed filing proof types (comma-separated identifiers)",
-    "filingChannel": "Filing channel",
-    "filingNotes": "Filing notes",
-    "requestApproval": "Request approval",
-    "separatePreparerReviewer": "Require a different preparer and reviewer",
-    "separateReviewerApprover": "Require a different reviewer and approver",
+    "filingProofType": "ಸಲ್ಲಿಕೆಯ ಪುರಾವೆಯ ಪ್ರಕಾರ",
+    "filingProofTypes": "ಅನುಮತಿಸಲಾದ ಸಲ್ಲಿಕೆ ಪುರಾವೆ ಪ್ರಕಾರಗಳು (ಅಲ್ಪವಿರಾಮದಿಂದ ಬೇರ್ಪಡಿಸಿದ ಗುರುತುಗಳು)",
+    "filingChannel": "ಸಲ್ಲಿಕೆಯ ಮಾಧ್ಯಮ",
+    "filingNotes": "ಸಲ್ಲಿಕೆಯ ಟಿಪ್ಪಣಿಗಳು",
+    "requestApproval": "ಅನುಮೋದನೆಗೆ ವಿನಂತಿಸಿ",
+    "separatePreparerReviewer": "ತಯಾರಕ ಮತ್ತು ಪರಿಶೀಲಕ ಬೇರೆ ಬೇರೆ ವ್ಯಕ್ತಿಗಳಾಗಿರಬೇಕು",
+    "separateReviewerApprover": "ಪರಿಶೀಲಕ ಮತ್ತು ಅನುಮೋದಕ ಬೇರೆ ಬೇರೆ ವ್ಯಕ್ತಿಗಳಾಗಿರಬೇಕು",
     "title": "ಅನುಸರಣೆ ಮಾಸ್ಟರ್",
     "ownerRequired": "ಹೊಣೆಗಾರ ಅಗತ್ಯ — ಸಕ್ರಿಯ ಹೊಣೆಗಾರ ಅಥವಾ ಪರ್ಯಾಯ ಕಂಡಿಲ್ಲ.",
     "existingEvidence": "ಸಂಸ್ಥೆಯ ಈಗಿರುವ ಸಾಕ್ಷ್ಯ",
@@ -254,38 +254,38 @@
       "pan": "PAN",
       "registration_number": "ನೋಂದಣಿ ಸಂಖ್ಯೆ",
       "organization": {
-        "legal_type": "Organization legal type",
-        "registration_date": "Organization registration date",
-        "pan_present": "PAN provided",
-        "tan_present": "TAN provided",
+        "legal_type": "ಸಂಸ್ಥೆಯ ಕಾನೂನು ಸ್ವರೂಪ",
+        "registration_date": "ಸಂಸ್ಥೆಯ ನೋಂದಣಿ ದಿನಾಂಕ",
+        "pan_present": "PAN ಒದಗಿಸಲಾಗಿದೆ",
+        "tan_present": "TAN ಒದಗಿಸಲಾಗಿದೆ",
         "gst": {
-          "registered": "GST registration declared",
-          "status": "GST status",
-          "expiry_date": "GST expiry date"
+          "registered": "GST ನೋಂದಣಿ ಘೋಷಿಸಲಾಗಿದೆ",
+          "status": "GST ಸ್ಥಿತಿ",
+          "expiry_date": "GST ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ"
         },
         "12a": {
-          "status": "12A registration status",
-          "expiry_date": "12A expiry date"
+          "status": "12A ನೋಂದಣಿ ಸ್ಥಿತಿ",
+          "expiry_date": "12A ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ"
         },
         "12ab": {
-          "status": "12AB registration status",
-          "expiry_date": "12AB expiry date"
+          "status": "12AB ನೋಂದಣಿ ಸ್ಥಿತಿ",
+          "expiry_date": "12AB ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ"
         },
         "80g": {
-          "status": "80G registration status",
-          "expiry_date": "80G expiry date"
+          "status": "80G ನೋಂದಣಿ ಸ್ಥಿತಿ",
+          "expiry_date": "80G ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ"
         },
         "fcra": {
-          "status": "FCRA registration status",
-          "expiry_date": "FCRA expiry date"
+          "status": "FCRA ನೋಂದಣಿ ಸ್ಥಿತಿ",
+          "expiry_date": "FCRA ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ"
         },
         "csr": {
-          "status": "CSR registration status",
-          "expiry_date": "CSR expiry date"
+          "status": "CSR ನೋಂದಣಿ ಸ್ಥಿತಿ",
+          "expiry_date": "CSR ಅವಧಿ ಮುಗಿಯುವ ದಿನಾಂಕ"
         }
       },
       "financial": {
-        "annual_revenue": "Financial annual revenue"
+        "annual_revenue": "ಹಣಕಾಸು ವಾರ್ಷಿಕ ಆದಾಯ"
       }
     },
     "operators": {

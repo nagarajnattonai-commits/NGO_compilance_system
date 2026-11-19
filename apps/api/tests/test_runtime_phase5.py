@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from threading import Barrier
@@ -161,7 +162,7 @@ def test_complete_frozen_workflow_real_evidence_tasks_filing_history(monkeypatch
 def test_concurrent_due_and_next_cycle_are_idempotent_in_disposable_sqlite(monkeypatch,tmp_path):
     with platform_client(monkeypatch) as client:
         row=configured(client);database=tmp_path/"runtime-concurrency.db"
-        with engine.connect() as source, sqlite3.connect(database) as target:
+        with engine.connect() as source, closing(sqlite3.connect(database)) as target:
             source.connection.driver_connection.backup(target)
         scoped=create_engine(f"sqlite:///{database}",connect_args={"timeout":30})
         barrier=Barrier(2)
