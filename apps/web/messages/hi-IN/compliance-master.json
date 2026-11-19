@@ -1,12 +1,12 @@
 {
   "ComplianceMaster": {
-    "filingProofType": "Filing proof type",
-    "filingProofTypes": "Allowed filing proof types (comma-separated identifiers)",
-    "filingChannel": "Filing channel",
-    "filingNotes": "Filing notes",
-    "requestApproval": "Request approval",
-    "separatePreparerReviewer": "Require a different preparer and reviewer",
-    "separateReviewerApprover": "Require a different reviewer and approver",
+    "filingProofType": "दाखिला प्रमाण का प्रकार",
+    "filingProofTypes": "अनुमत दाखिला प्रमाण प्रकार (अल्पविराम से अलग पहचानकर्ता)",
+    "filingChannel": "दाखिला माध्यम",
+    "filingNotes": "दाखिला नोट्स",
+    "requestApproval": "अनुमोदन का अनुरोध करें",
+    "separatePreparerReviewer": "तैयारकर्ता और समीक्षक अलग-अलग व्यक्ति हों",
+    "separateReviewerApprover": "समीक्षक और अनुमोदक अलग-अलग व्यक्ति हों",
     "title": "अनुपालन मास्टर",
     "ownerRequired": "जिम्मेदार आवश्यक — सक्रिय जिम्मेदार या विकल्प नहीं मिला।",
     "existingEvidence": "संगठन के मौजूदा साक्ष्य",
@@ -254,38 +254,38 @@
       "pan": "PAN",
       "registration_number": "पंजीकरण संख्या",
       "organization": {
-        "legal_type": "Organization legal type",
-        "registration_date": "Organization registration date",
-        "pan_present": "PAN provided",
-        "tan_present": "TAN provided",
+        "legal_type": "संगठन का कानूनी प्रकार",
+        "registration_date": "संगठन पंजीकरण तिथि",
+        "pan_present": "PAN दिया गया",
+        "tan_present": "TAN दिया गया",
         "gst": {
-          "registered": "GST registration declared",
-          "status": "GST status",
-          "expiry_date": "GST expiry date"
+          "registered": "GST पंजीकरण घोषित",
+          "status": "GST स्थिति",
+          "expiry_date": "GST समाप्ति तिथि"
         },
         "12a": {
-          "status": "12A registration status",
-          "expiry_date": "12A expiry date"
+          "status": "12A पंजीकरण स्थिति",
+          "expiry_date": "12A समाप्ति तिथि"
         },
         "12ab": {
-          "status": "12AB registration status",
-          "expiry_date": "12AB expiry date"
+          "status": "12AB पंजीकरण स्थिति",
+          "expiry_date": "12AB समाप्ति तिथि"
         },
         "80g": {
-          "status": "80G registration status",
-          "expiry_date": "80G expiry date"
+          "status": "80G पंजीकरण स्थिति",
+          "expiry_date": "80G समाप्ति तिथि"
         },
         "fcra": {
-          "status": "FCRA registration status",
-          "expiry_date": "FCRA expiry date"
+          "status": "FCRA पंजीकरण स्थिति",
+          "expiry_date": "FCRA समाप्ति तिथि"
         },
         "csr": {
-          "status": "CSR registration status",
-          "expiry_date": "CSR expiry date"
+          "status": "CSR पंजीकरण स्थिति",
+          "expiry_date": "CSR समाप्ति तिथि"
         }
       },
       "financial": {
-        "annual_revenue": "Financial annual revenue"
+        "annual_revenue": "वित्तीय वार्षिक राजस्व"
       }
     },
     "operators": {

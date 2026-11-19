@@ -147,3 +147,4 @@ def test_phase13_migration_is_idempotent(tmp_path):
     with target.connect() as connection:
         versions = connection.execute(select(1).select_from(SavedView.__table__)).all()
         assert versions == []
+    target.dispose()

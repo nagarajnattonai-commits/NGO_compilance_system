@@ -269,6 +269,7 @@ def test_phase20_migration_is_additive_and_idempotent(tmp_path):
     assert apply(target) == VERSION
     assert apply(target) == VERSION
     assert {"import_jobs", "import_row_results"} <= set(inspect(target).get_table_names())
+    target.dispose()
 
 
 def test_cancelled_import_cannot_validate_execute_or_mutate_and_replay_keeps_cancelled_state():

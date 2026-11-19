@@ -264,3 +264,4 @@ def test_validation_bounds_and_phase16_migration_are_idempotent(monkeypatch, tmp
     assert apply(target) == VERSION and apply(target) == VERSION
     with target.connect() as connection:
         assert connection.execute(select(DocumentChunk)).all() == []
+    target.dispose()

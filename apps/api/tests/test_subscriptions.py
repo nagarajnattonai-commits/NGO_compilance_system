@@ -118,6 +118,7 @@ def test_phase12_migration_adds_subscription_fields_idempotently(tmp_path):
     assert row.period_start is None
     assert row.integration_limit == 1
     assert row.cancel_at_period_end in (False, 0)
+    target.dispose()
 
 
 def test_tenant_subscription_view_is_scoped_and_viewer_read_only():

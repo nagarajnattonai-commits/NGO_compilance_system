@@ -248,3 +248,4 @@ def test_versions_reprocessing_assistant_labels_and_migration_are_idempotent(tmp
     assert apply(target) == VERSION and apply(target) == VERSION
     with target.connect() as connection:
         assert connection.execute(select(ExtractedDocumentFact)).all() == []
+    target.dispose()

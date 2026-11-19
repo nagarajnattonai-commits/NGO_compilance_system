@@ -75,3 +75,4 @@ def test_additive_migration_preserves_legacy_rows_and_is_idempotent():
     with engine.connect() as c:
         assert c.execute(select(Organization.__table__.c.name).where(Organization.__table__.c.id=="legacy")).scalar_one()=="Preserved NGO"
         assert c.execute(select(OrganizationDetails.__table__)).all()==[]
+    engine.dispose()
