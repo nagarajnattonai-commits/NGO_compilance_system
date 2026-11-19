@@ -1,16 +1,18 @@
-"""Additive Phase 27 two-step verification tables. Existing auth tables are unchanged."""
+"""Additive Phase 27 tables: two-step verification and process heartbeats. Existing tables are unchanged."""
 import argparse
 
 from .database import engine
 from .integration_models import IntegrationSchemaVersion
 from .mfa import MfaFactor, MfaRecoveryCode, MfaSessionVerification
+from .process_health import ProcessHeartbeat
 
 VERSION = "20261119_two_step_verification_v1"
 
 
 def apply(target=engine):
     with target.begin() as connection:
-        for table in (MfaFactor.__table__, MfaRecoveryCode.__table__, MfaSessionVerification.__table__):
+        for table in (MfaFactor.__table__, MfaRecoveryCode.__table__, MfaSessionVerification.__table__,
+                      ProcessHeartbeat.__table__):
             table.create(connection, checkfirst=True)
         IntegrationSchemaVersion.__table__.create(connection, checkfirst=True)
         ledger = IntegrationSchemaVersion.__table__

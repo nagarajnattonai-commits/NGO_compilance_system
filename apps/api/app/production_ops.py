@@ -38,10 +38,26 @@ def healthy(result: dict) -> bool:
         result[key] for key in ("invalid_job_states", "orphan_organizations", "orphan_document_blobs")))
 
 
+def worker_report(target=engine) -> dict:
+    from .process_health import problems, status
+    with SessionLocal(bind=target) as db:
+        result = status(db)
+    result["problems"] = problems(result)
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Read-only production database diagnostics")
     parser.add_argument("--check", action="store_true", help="exit non-zero when schema, database, or integrity checks fail")
+    parser.add_argument("--check-workers", action="store_true",
+                        help="exit non-zero when a scheduler/worker heartbeat is stale or due jobs wait too long")
     args = parser.parse_args()
+    if args.check_workers:
+        result = worker_report()
+        print(json.dumps(result, separators=(",", ":"), sort_keys=True))
+        if result["problems"]:
+            raise SystemExit(1)
+        return
     result = report()
     print(json.dumps(result, separators=(",", ":"), sort_keys=True))
     if args.check and not healthy(result):

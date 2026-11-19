@@ -30,6 +30,18 @@ Platform operators can inspect `/admin/automation`. The view shows type, state, 
 
 Only a platform administrator with `scheduler.manage` can retry a `FAILED`, `DEAD_LETTER`, or `CANCELLED` row. Manual retry resets attempts, records an audit event, and lets a worker claim the existing row. Do not create a replacement row by editing the database.
 
+## Liveness and backlog monitoring (Phase 27)
+
+The scheduler, automation worker and integration worker each record a heartbeat in `process_heartbeats` on every loop (`python -m app.migrate_phase27 --apply` creates the table). A heartbeat failure is logged and never stops the process. Run this from your monitor every few minutes:
+
+```
+python -m app.production_ops --check-workers
+```
+
+It prints seconds since each role's last heartbeat, due jobs, the age of the oldest due job and the dead-letter count, and exits 1 when a required role has no heartbeat within `WORKER_STALE_SECONDS` (default 300) or due work has waited longer than `BACKLOG_MAX_AGE_SECONDS` (default 900). `WORKER_REQUIRED_ROLES` (default `scheduler,automation-worker,integration-worker`) narrows the roles for deployments that do not run all three. Alert on a non-zero exit. Heartbeats of instances stopped for more than 7 days are pruned by the scheduler.
+
+The queue itself stays in the database: idempotent enqueue, compare-and-swap leases and dead letters already make it durable, so no separate queue service is needed.
+
 ## Downtime recovery and duplicate protection
 
 On restart, the scheduler enqueues the current daily scan bucket. Unique tenant/idempotency keys prevent duplicate scan jobs. Runtime generation additionally retains the frozen snapshot cycle constraint, `NextCycleGeneration` receipt, reminder receipt, and notification event receipt. A missed day is recovered because each scan evaluates current stored due dates, unfinished tasks, genuine document expiry, and completed recurring instances rather than assuming earlier polls ran.
