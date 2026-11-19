@@ -73,7 +73,11 @@ AUTH_REQUIRE_EMAIL_VERIFICATION=1 enables verification even for older API client
 
 AUTH_TERMS_URL and AUTH_PRIVACY_URL should point to actual approved legal documents. Published tenant legal links can override them. No invented terms/privacy page was added.
 
-AUTH_ADMIN_MFA_REQUIRED=1 blocks admin login until a real second-factor implementation exists. Default 0 does not claim that MFA is active.
+Two-step verification (Phase 27) uses authenticator-app codes (RFC 6238 TOTP, 6 digits, 30 seconds, one step of clock drift, no code reuse) plus ten single-use recovery codes. Any user can turn it on under Account settings. Verification is held per session: after a password or Google sign-in, the session can reach only `/api/v1/auth/mfa/*` until a code is entered, so every sign-in path is covered. Workspace switching keeps the verification. Attempts are limited to 10 per 15 minutes per user and every outcome is a security event.
+
+AUTH_MFA_ENCRYPTION_KEY is a 32-byte key, base64url encoded (`python -c "import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"`), used to seal authenticator secrets with AES-GCM. Development uses a built-in key; production refuses setup without a valid key. Rotating the key requires users to set up two-step verification again.
+
+AUTH_ADMIN_MFA_REQUIRED=1 makes platform administration require two-step verification: an admin session without it is sent to set it up before any admin API is reachable. In production this setting requires AUTH_MFA_ENCRYPTION_KEY. Apply `python -m app.migrate_phase27 --apply` before deploying.
 
 Secret settings reuse INTEGRATION_SECRET_BACKEND, INTEGRATION_SECRET_PREFIX, INTEGRATION_SECRET_KMS_KEY_ID and AWS settings. The production Compose configuration uses AWS Secrets Manager by default. The environment secret store is development-only and read-only through the application.
 
@@ -163,4 +167,4 @@ Existing records and the development database are preserved.
 
 ## 13. Recommended next step
 
-Configure actual email delivery and legal-document URLs, provision the approved operators, configure the Google web client and shared vault, then run live email/OAuth acceptance tests against the intended HTTPS platform and verified tenant domains. Add real MFA before enforcing AUTH_ADMIN_MFA_REQUIRED=1.
+Configure actual email delivery and legal-document URLs, provision the approved operators, configure the Google web client and shared vault, then run live email/OAuth acceptance tests against the intended HTTPS platform and verified tenant domains. Set AUTH_MFA_ENCRYPTION_KEY and enroll each operator before enforcing AUTH_ADMIN_MFA_REQUIRED=1.

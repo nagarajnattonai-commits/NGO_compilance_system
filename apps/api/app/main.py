@@ -107,6 +107,7 @@ from .phase20_api import router as phase20_router
 from .document_intelligence_api import router as document_intelligence_router
 from .csr_api import router as csr_router
 from .communication_api import router as communication_router
+from .mfa import router as mfa_router
 from .production_security import (BoundedSensitiveBody, limit_expensive, ready_database, security_headers,
                                   build_metadata, validate_production_configuration, validate_production_schema)
 from .production_observability import access_record, logger as access_logger, request_id
@@ -171,6 +172,7 @@ app.include_router(phase20_router)
 app.include_router(document_intelligence_router)
 app.include_router(csr_router)
 app.include_router(communication_router)
+app.include_router(mfa_router)
 app.add_middleware(DocumentUploadLimit)
 
 

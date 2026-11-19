@@ -78,7 +78,6 @@ def start(request:Request,db:DB,audience:Literal["user","admin"]="user",intent:L
         if audience=="admin" or not domain:raise HTTPException(403,"Domain access denied")
         origin="https://"+domain.hostname;tenant=domain.tenant_id
     if audience=="admin" and intent=="signup":raise HTTPException(403,"Public admin registration is unavailable")
-    if audience=="admin" and os.getenv("AUTH_ADMIN_MFA_REQUIRED")=="1":raise HTTPException(503,"Administrator MFA provider is not configured")
     limit_attempts(db,"google-start:"+request_ip(request),30,3600)
     state=secrets.token_urlsafe(32);browser=secrets.token_urlsafe(32);verifier=secrets.token_urlsafe(48);nonce=secrets.token_urlsafe(32)
     try:
@@ -107,7 +106,6 @@ def callback(request:Request,db:DB,state:str="",code:str="",error:str=""):
     login_path="/admin/login" if flow.audience=="admin" else "/login"
     row=policy(db)
     try:
-        if flow.audience=="admin" and os.getenv("AUTH_ADMIN_MFA_REQUIRED")=="1":raise ValueError("MFA policy unavailable")
         if error or not code or not provider_options(db)["google"]["admin" if flow.audience=="admin" else "signup" if flow.intent=="signup" else "user"]:
             raise ValueError("Provider unavailable")
         with client(row) as session:

@@ -50,6 +50,8 @@ def validate_production_configuration(environment=None) -> None:
             raise RuntimeError(f"Production {key} must be an integer") from None
         if not minimum <= value <= maximum:
             raise RuntimeError(f"Production {key} is outside the supported range")
+    from .mfa import validate_mfa_configuration
+    validate_mfa_configuration(values)
     if values.get("DOCUMENT_SCAN_REQUIRED", "false").lower() == "true":
         raise RuntimeError("Production document scanning is required but no scanner adapter is configured")
 

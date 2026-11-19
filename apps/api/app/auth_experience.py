@@ -152,6 +152,8 @@ def switch_workspace(payload:WorkspaceInput,request:Request,response:Response,us
     if persistent:
         from .auth import SECURE_COOKIE
         response.set_cookie(COOKIE_NAME,raw,max_age=max(1,int(remaining.total_seconds())),httponly=True,secure=SECURE_COOKIE,samesite="lax",path="/")
+    from .mfa import carry_verification
+    carry_verification(db,session.token_hash,digest(raw),user.id)
     if context:db.delete(context);db.flush()
     db.delete(session)
     security_event(db,request,"WORKSPACE_SWITCHED",user)

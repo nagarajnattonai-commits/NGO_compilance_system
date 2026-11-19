@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { AuthSession } from "./auth-types";
 import { brandingRequestHeaders } from "@/branding/server";
@@ -15,6 +15,14 @@ export async function requireSession(loginPath = "/login"): Promise<AuthSession>
     });
   } catch {
     throw new Error("The authentication service is unavailable. Start the API server and try again.");
+  }
+  if (response.status === 401 || response.status === 403) {
+    // A signed-in session that still needs its second factor goes to the verification page.
+    const code = await response.json().then(data => String(data?.detail?.code || ""), () => "");
+    if (code === "MFA_REQUIRED" || code === "MFA_ENROLLMENT_REQUIRED") {
+      const path = (await headers()).get("x-setu-pathname") || "/dashboard";
+      redirect("/auth/mfa?next=" + encodeURIComponent(path.startsWith("/") && !path.startsWith("//") ? path : "/dashboard"));
+    }
   }
   if (response.status === 401) redirect(loginPath+"?expired=1");
   if (response.status === 403) redirect("/access-denied");
