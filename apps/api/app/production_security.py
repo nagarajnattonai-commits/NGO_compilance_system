@@ -52,7 +52,9 @@ def validate_production_configuration(environment=None) -> None:
             raise RuntimeError(f"Production {key} is outside the supported range")
     from .mfa import validate_mfa_configuration
     validate_mfa_configuration(values)
-    if values.get("DOCUMENT_SCAN_REQUIRED", "false").lower() == "true":
+    from .malware_scanner import scanner_from_environment
+    scanner = scanner_from_environment(values)  # raises on an incomplete scanner configuration
+    if values.get("DOCUMENT_SCAN_REQUIRED", "false").lower() == "true" and scanner is None:
         raise RuntimeError("Production document scanning is required but no scanner adapter is configured")
 
 

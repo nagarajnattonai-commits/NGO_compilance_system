@@ -116,6 +116,8 @@ from .production_observability import access_record, logger as access_logger, re
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     validate_production_configuration()
+    from .malware_scanner import configure_from_environment
+    configure_from_environment()
     if os.getenv("APP_ENV") == "production":
         validate_production_schema(engine, Base.metadata)
     else:

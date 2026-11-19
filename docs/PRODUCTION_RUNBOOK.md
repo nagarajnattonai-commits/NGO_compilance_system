@@ -14,7 +14,7 @@ Required core production settings are `APP_ENV=production`, HTTPS `APP_ORIGIN`, 
 
 Optional provider configuration includes SMTP, WhatsApp, Google OAuth/Calendar, AI/OCR, tenant provider connections, and webhook destinations. An optional provider outage does not make core `/ready` fail. Provider health is reported through the existing Integrations health view.
 
-No malware scanner adapter is bundled. `NOT_SCANNED` never means clean. Setting `DOCUMENT_SCAN_REQUIRED=true` deliberately prevents production startup until a reviewed scanner adapter is implemented and configured.
+A ClamAV adapter is bundled (Phase 27). Run a private `clamd` reachable only from the API (for example the official `clamav/clamav` image on port 3310, with signature updates enabled) and set `DOCUMENT_SCANNER=clamav`, `CLAMAV_HOST`, optionally `CLAMAV_PORT` (default 3310) and `CLAMAV_TIMEOUT_SECONDS` (default 30). Raise clamd's `StreamMaxLength` to at least `DOCUMENT_MAX_SIZE_MB`. Clean files are stored as `SCANNED_CLEAN`; detections are stored as `QUARANTINED` and only the signature name is logged. If clamd is unreachable or errors, the upload fails with 503 and nothing is stored. Set `DOCUMENT_SCAN_REQUIRED=true` once clamd is in place; startup refuses that setting without a configured adapter. `NOT_SCANNED` still never means clean.
 
 Keep `deploy/.env.white-label` outside source control. Prefer workload identity over static AWS keys. Provider secrets belong in the existing AWS Secrets Manager backend; never place them in Next.js public variables, Compose files, tickets, or logs.
 
