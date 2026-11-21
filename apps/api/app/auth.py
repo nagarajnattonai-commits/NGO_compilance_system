@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import logging
 import os
 import secrets
@@ -143,9 +144,62 @@ def limit_attempts(db: Session, scope: str, maximum: int, seconds: int = 900):
     quota(db,"auth:"+scope,maximum,seconds)
 
 
+def _trusted_proxies() -> list:
+    """Proxies allowed to report the client address (AUTH_TRUSTED_PROXIES: IPs/CIDRs, comma-separated).
+
+    Empty by default, so forwarding headers are ignored unless an operator names the
+    exact proxy addresses that sit in front of the API.
+    """
+    networks = []
+    for value in os.getenv("AUTH_TRUSTED_PROXIES", "").split(","):
+        value = value.strip()
+        if not value:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(value, strict=False))
+        except ValueError:
+            logging.getLogger(__name__).warning("Ignoring invalid AUTH_TRUSTED_PROXIES entry")
+    return networks
+
+
+def _is_trusted(address: str, networks: list) -> bool:
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    return any(parsed in network for network in networks)
+
+
 def request_ip(request: Request) -> str:
-    # Do not trust client-supplied forwarding headers.
-    return request.client.host if request.client else "unknown"
+    """Client address for rate limits and security events.
+
+    The socket peer is used unless it is a configured trusted proxy. Then the
+    X-Forwarded-For chain is read right to left and the first address that is not a
+    trusted proxy is the client. Malformed chains fall back to the peer, so a caller
+    can never choose its own rate-limit bucket by sending the header directly.
+    """
+    peer = request.client.host if request.client else "unknown"
+    networks = _trusted_proxies()
+    if not networks or not _is_trusted(peer, networks):
+        return peer
+    chain = [part.strip() for part in request.headers.get("x-forwarded-for", "").split(",") if part.strip()]
+    for hop in reversed(chain):
+        try:
+            ipaddress.ip_address(hop)
+        except ValueError:
+            return peer
+        if not _is_trusted(hop, networks):
+            return hop
+    return peer
+
+
+def configured_limit(name: str, default: int) -> int:
+    """Operator-tunable attempt limit; never below 1 and never above 10,000."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return min(10_000, max(1, value))
 
 
 class InputModel(BaseModel):
@@ -289,11 +343,7 @@ def signup(payload: SignupInput, request: Request, response: Response, db: DB):
     if verification:
         from .integration_notifications import email_available
         if not email_available(db): raise HTTPException(503, "Authentication email is not configured")
-    try:
-        signup_limit = int(os.getenv("AUTH_SIGNUP_RATE_LIMIT", "10"))
-    except ValueError:
-        signup_limit = 10
-    limit_attempts(db, f"signup:{request_ip(request)}", max(1, signup_limit), 3600)
+    limit_attempts(db, f"signup:{request_ip(request)}", configured_limit("AUTH_SIGNUP_RATE_LIMIT", 10), 3600)
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(409, "Unable to create this account. Try signing in or recovering your password.")
     workspace = Workspace(name=payload.workspace_name)
@@ -327,7 +377,7 @@ def signup(payload: SignupInput, request: Request, response: Response, db: DB):
 
 @router.post("/auth/login", response_model=UserOut)
 def login(payload: LoginInput, request: Request, response: Response, db: DB):
-    limit_attempts(db, f"login-ip:{request_ip(request)}", 60)
+    limit_attempts(db, f"login-ip:{request_ip(request)}", configured_limit("AUTH_LOGIN_IP_RATE_LIMIT", 60))
     limit_attempts(db, f"login-email:{payload.email}", 10)
     user = db.scalar(select(User).where(User.email == payload.email))
     valid = verify_password(payload.password, user.password_hash if user else None)
