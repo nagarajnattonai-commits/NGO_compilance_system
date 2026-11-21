@@ -357,6 +357,7 @@ def _apply_fact(db, tenant_id: str, user, fact: ExtractedDocumentFact, value: st
         if not match:
             return False
         current = next(item for item in data["registrations"] if item["kind"] == match.group(1))
+        current = {key: current[key] for key in RegistrationInput.model_fields if key in current}
         current[match.group(2)] = value or None
         current["document_id"] = fact.document_id
         payload = ProfileInput(expected_revision=data["revision"], registrations=[RegistrationInput.model_validate(current)])

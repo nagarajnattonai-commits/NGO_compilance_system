@@ -272,6 +272,7 @@ export type NotificationPreference = {
   task_enabled: boolean;
   document_enabled: boolean;
   system_enabled: boolean;
+  default_lead_days: number;
   updated_at: string;
 };
 

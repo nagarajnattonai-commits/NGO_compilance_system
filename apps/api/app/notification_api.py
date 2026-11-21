@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from .auth import AdminUser, CurrentUser, DB, check_mutation, tenant_context
@@ -28,6 +28,7 @@ class PreferenceInput(BaseModel):
     task_enabled: bool = True
     document_enabled: bool = True
     system_enabled: bool = True
+    default_lead_days: int = Field(default=7, ge=1, le=60)
 
 
 class PreferenceOut(PreferenceInput):

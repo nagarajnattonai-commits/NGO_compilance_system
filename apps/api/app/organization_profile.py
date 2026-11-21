@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from .auth import CurrentUser, get_db, tenant_context
 from .models import AuditEvent, Document, Organization, OrganizationComplianceProfile, utcnow
-from .organization_models import OrganizationDetails, OrganizationRegistration
+from .organization_models import OrganizationDetails, OrganizationProfileChange, OrganizationRegistration
 from .schemas import OrganizationOut
 from .validation import normalize_email
 
@@ -96,6 +96,9 @@ class RegistrationInput(Strict):
     expiry_date: date | None = None
     renewal_status: Literal["UNKNOWN", "NOT_REQUIRED", "PENDING", "RENEWED"] = "UNKNOWN"
     document_id: str | None = Field(default=None, max_length=36)
+    issuing_authority: str = Field(default="", max_length=160)
+    verification_status: Literal["UNVERIFIED", "VERIFIED", "NEEDS_REVIEW"] = "UNVERIFIED"
+    responsible_user_id: str | None = Field(default=None, max_length=36)
 
     @model_validator(mode="after")
     def date_order(self):
@@ -140,6 +143,25 @@ def owned_org(db, tenant, organization_id):
 def registration_rows(db, org):
     return db.scalars(select(OrganizationRegistration).where(OrganizationRegistration.organization_id == org.id, OrganizationRegistration.tenant_id == org.tenant_id)).all()
 
+def registration_output(row, kind):
+    if row is None:
+        return {**RegistrationInput(kind=kind).model_dump(mode="json"), "verified_by": "", "verified_at": None}
+    values = RegistrationInput.model_validate({key: getattr(row, key) for key in RegistrationInput.model_fields}).model_dump(mode="json")
+    return {**values, "verified_by": row.verified_by or "", "verified_at": row.verified_at.isoformat() if row.verified_at else None}
+
+# Values of these fields are kept only partly in profile history.
+SENSITIVE_HISTORY_FIELDS = {"pan", "tan", "contact_phone", "contact_email"}
+REGISTRATION_REVIEW_FIELDS = ("issuing_authority", "verification_status", "responsible_user_id")
+REGISTRATION_EVIDENCE_FIELDS = ("status", "number", "registration_date", "effective_date", "expiry_date", "issuing_authority", "document_id")
+
+
+def history_value(field, value):
+    text = "" if value is None else str(value)
+    if field.rsplit(".", 1)[-1] in SENSITIVE_HISTORY_FIELDS and text:
+        return "\u2022\u2022\u2022\u2022" + text[-4:] if len(text) > 4 else "\u2022\u2022\u2022\u2022"
+    return text[:500]
+
+
 def profile_data(db, org):
     details = db.get(OrganizationDetails, org.id)
     financial = db.get(OrganizationComplianceProfile, org.id)
@@ -149,7 +171,7 @@ def profile_data(db, org):
     return {"organization_id": org.id, "revision": details.revision if details else 0,
         "core": OrganizationOut.model_validate(org).model_dump(),
         "details": DetailsInput.model_validate_json(details.facts).model_dump(mode="json") if details else DetailsInput().model_dump(mode="json"),
-        "registrations": [RegistrationInput.model_validate({key: getattr(registrations[kind], key) for key in RegistrationInput.model_fields}).model_dump(mode="json") if kind in registrations else RegistrationInput(kind=kind).model_dump(mode="json") for kind in KINDS],
+        "registrations": [registration_output(registrations.get(kind), kind) for kind in KINDS],
         "financial": {"annual_revenue": str(financial.annual_revenue) if financial and financial.annual_revenue is not None else None, "revenue_period": financial.revenue_period if financial else ""}}
 
 def completeness(db, org):
@@ -207,6 +229,7 @@ def save_profile(organization_id, payload, db, tenant, actor, commit=True):
     if claimed.rowcount != 1:
         db.rollback(); raise HTTPException(409, "Profile changed; reload before saving")
     changed = []
+    history = []  # (field, old, new) recorded once the save succeeds
     if payload.core:
         values = payload.core.model_dump(); values["legal_type"] = values["legal_type"].replace("_", " ")
         duplicates = [func.lower(Organization.registration_number) == values["registration_number"].lower()]
@@ -214,11 +237,12 @@ def save_profile(organization_id, payload, db, tenant, actor, commit=True):
         if db.scalar(select(Organization.id).where(Organization.tenant_id == tenant, Organization.id != org.id, or_(*duplicates)).limit(1)):
             raise HTTPException(409, "Registration number or PAN already exists in this workspace")
         for key, value in values.items():
-            if getattr(org, key) != value: changed.append(key); setattr(org, key, value)
+            if getattr(org, key) != value: changed.append(key); history.append((key, getattr(org, key), value)); setattr(org, key, value)
     if payload.details:
         previous = json.loads(details.facts)
         values = DetailsInput.model_validate({**previous, **payload.details.model_dump(mode="json", exclude_unset=True)}).model_dump(mode="json")
-        changed.extend(key for key, value in values.items() if previous.get(key) != value)
+        for key, value in values.items():
+            if previous.get(key) != value: changed.append(key); history.append((key, previous.get(key), value))
         details.facts = json.dumps(values)
     if payload.registrations is not None:
         existing = {r.kind:r for r in registration_rows(db, org)}
@@ -226,15 +250,47 @@ def save_profile(organization_id, payload, db, tenant, actor, commit=True):
             if value.document_id:
                 document = db.scalar(select(Document).where(Document.id == value.document_id, Document.tenant_id == tenant, Document.organization_id == org.id))
                 if not document: raise HTTPException(404, "Registration document not found in this organization")
-            row = existing.get(value.kind) or OrganizationRegistration(tenant_id=tenant, organization_id=org.id, kind=value.kind)
+            if value.responsible_user_id:
+                from .phase8_api import eligible_users
+                if value.responsible_user_id not in {user.id for user, _ in eligible_users(db, tenant, org.id)}:
+                    raise HTTPException(422, "Responsible person must be a workspace member with access to this organization")
+            previous_row = existing.get(value.kind)
+            row = previous_row or OrganizationRegistration(tenant_id=tenant, organization_id=org.id, kind=value.kind)
+            before = {key: getattr(row, key, None) for key in RegistrationInput.model_fields} if previous_row else RegistrationInput(kind=value.kind).model_dump()
+            if previous_row:
+                # Older callers (imports, document facts) send only the original fields; keep
+                # the reviewer-owned fields they did not mention instead of resetting them.
+                kept = {key: before[key] for key in REGISTRATION_REVIEW_FIELDS if key not in value.model_fields_set}
+                if kept: value = value.model_copy(update=kept)
+            evidence_changed = any(before.get(key) != getattr(value, key) for key in REGISTRATION_EVIDENCE_FIELDS)
+            status = value.verification_status
+            if status == "VERIFIED" and before.get("verification_status") == "VERIFIED" and evidence_changed:
+                status = "NEEDS_REVIEW"  # changed facts need a fresh check against the evidence
+            if status == "VERIFIED" and not value.document_id:
+                raise HTTPException(422, "Attach the registration document before marking it verified")
             for key, field in value.model_dump().items(): setattr(row, key, field)
+            row.verification_status = status
+            if status == "VERIFIED" and before.get("verification_status") != "VERIFIED":
+                row.verified_by, row.verified_at = actor.name, utcnow()
+            elif status != "VERIFIED":
+                row.verified_by, row.verified_at = "", None
+            for key in RegistrationInput.model_fields:
+                if key != "kind" and before.get(key) != getattr(row, key):
+                    history.append((f"{value.kind}.{key}", before.get(key), getattr(row, key)))
             db.add(row); changed.append(value.kind+"_registration")
             if value.kind == "FCRA" and value.status != "UNKNOWN": org.fcra_active = value.status == "ACTIVE"
     if payload.financial:
         financial = db.get(OrganizationComplianceProfile, org.id) or OrganizationComplianceProfile(tenant_id=tenant, organization_id=org.id, updated_by=actor.name)
         if financial.tenant_id != tenant: raise HTTPException(409, "Financial profile ownership is inconsistent")
+        for key in ("annual_revenue", "revenue_period"):
+            if getattr(financial, key, None) != getattr(payload.financial, key):
+                history.append((key, getattr(financial, key, None), getattr(payload.financial, key)))
         financial.annual_revenue = payload.financial.annual_revenue; financial.revenue_period = payload.financial.revenue_period
         financial.updated_by = actor.name; financial.updated_at = utcnow(); db.add(financial); changed.append("financial")
+    for field, old, new in history:
+        db.add(OrganizationProfileChange(tenant_id=tenant, organization_id=org.id, revision=payload.expected_revision + 1,
+                                         field=field, old_value=history_value(field, old), new_value=history_value(field, new),
+                                         changed_by=actor.name))
     db.add(AuditEvent(tenant_id=tenant, actor_name=actor.name, action="ORGANIZATION_PROFILE_UPDATED", entity_type="Organization", entity_id=org.id, summary="Updated profile fields: "+", ".join(sorted(set(changed)))))
     if changed:
         from .automation_service import queue_applicability_reevaluation
@@ -243,6 +299,15 @@ def save_profile(organization_id, payload, db, tenant, actor, commit=True):
     else: db.flush()
     db.expire(details)
     return {**profile_data(db, org), "completeness": completeness(db, org)}
+
+@router.get("/organizations/{organization_id}/profile-history")
+def get_profile_history(organization_id: str, db: DB, tenant: Tenant, limit: int = 200):
+    org = owned_org(db, tenant, organization_id)
+    rows = db.scalars(select(OrganizationProfileChange).where(
+        OrganizationProfileChange.tenant_id == tenant, OrganizationProfileChange.organization_id == org.id,
+    ).order_by(OrganizationProfileChange.changed_at.desc(), OrganizationProfileChange.field).limit(max(1, min(limit, 500)))).all()
+    return [{"id": r.id, "revision": r.revision, "field": r.field, "old_value": r.old_value, "new_value": r.new_value,
+             "changed_by": r.changed_by, "changed_at": r.changed_at} for r in rows]
 
 @router.patch("/organizations/{organization_id}/profile")
 def patch_profile(organization_id: str, payload: ProfileInput, db: DB, tenant: Tenant, actor: CurrentUser):

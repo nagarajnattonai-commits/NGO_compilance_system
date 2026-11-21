@@ -28,3 +28,23 @@ class OrganizationRegistration(Base):
     expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     renewal_status: Mapped[str] = mapped_column(String(24), default="UNKNOWN")
     document_id: Mapped[str | None] = mapped_column(ForeignKey("documents.id"), nullable=True)
+    # Added by migrate_phase28: who issued it, who verified the evidence and who owns renewal.
+    issuing_authority: Mapped[str] = mapped_column(String(160), default="")
+    verification_status: Mapped[str] = mapped_column(String(24), default="UNVERIFIED")
+    verified_by: Mapped[str] = mapped_column(String(120), default="")
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    responsible_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+class OrganizationProfileChange(Base):
+    """Field-level profile history (migrate_phase28). Sensitive identifiers are stored masked."""
+    __tablename__ = "organization_profile_changes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    field: Mapped[str] = mapped_column(String(80))
+    old_value: Mapped[str] = mapped_column(Text, default="")
+    new_value: Mapped[str] = mapped_column(Text, default="")
+    changed_by: Mapped[str] = mapped_column(String(120), default="")
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

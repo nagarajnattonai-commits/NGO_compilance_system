@@ -101,6 +101,21 @@
     "INACTIVE": "ನಿಷ್ಕ್ರಿಯ",
     "DISABLED": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ",
     "revokeAccess": "ಹಿಂಪಡೆಯಿರಿ",
-    "grantAccess": "ಪ್ರವೇಶ ನೀಡಿ"
+    "grantAccess": "ಪ್ರವೇಶ ನೀಡಿ",
+    "issuing_authority": "ನೀಡಿದ ಪ್ರಾಧಿಕಾರ",
+    "verification_status": "ಪರಿಶೀಲನೆ",
+    "UNVERIFIED": "ಪರಿಶೀಲಿಸಲಾಗಿಲ್ಲ",
+    "VERIFIED": "ಪುರಾವೆಯೊಂದಿಗೆ ಪರಿಶೀಲಿಸಲಾಗಿದೆ",
+    "NEEDS_REVIEW": "ಪರಿಶೀಲನೆ ಅಗತ್ಯ",
+    "responsible_user_id": "ಜವಾಬ್ದಾರ ವ್ಯಕ್ತಿ",
+    "unavailablePerson": "ಈ ವ್ಯಕ್ತಿಗೆ ಈಗ ಪ್ರವೇಶವಿಲ್ಲ",
+    "verifiedBy": "{name} ಅವರು {date} ರಂದು ಪರಿಶೀಲಿಸಿದ್ದಾರೆ",
+    "verifyNeedsDocument": "ಪರಿಶೀಲಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸುವ ಮೊದಲು ನೋಂದಣಿ ದಾಖಲೆಯನ್ನು ಲಗತ್ತಿಸಿ.",
+    "profileHistory": "ಪ್ರೊಫೈಲ್ ಬದಲಾವಣೆ ಇತಿಹಾಸ",
+    "profileHistoryHelp": "ಉಳಿಸಿದ ಪ್ರತಿಯೊಂದು ಬದಲಾವಣೆ, ಹಿಂದಿನ ಮತ್ತು ಹೊಸ ಮೌಲ್ಯದೊಂದಿಗೆ. PAN, TAN, ಫೋನ್ ಮತ್ತು ಇಮೇಲ್ ಭಾಗಶಃ ಮರೆಮಾಡಲಾಗಿದೆ.",
+    "historyLoading": "ಪ್ರೊಫೈಲ್ ಇತಿಹಾಸ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+    "historyChange": "{old} → {new}",
+    "historyBy": "{name} · {date}",
+    "emptyValue": "(ಖಾಲಿ)"
   }
 }

@@ -119,6 +119,8 @@ async def lifespan(_: FastAPI):
         validate_production_schema(engine, Base.metadata)
     else:
         Base.metadata.create_all(bind=engine)
+        from .migrate_phase28 import apply as add_phase28_columns
+        add_phase28_columns(engine)  # idempotent; adds new columns to existing development databases
         with SessionLocal() as db:
             seed_demo_data(db)
     yield
