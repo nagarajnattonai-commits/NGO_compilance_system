@@ -150,3 +150,21 @@ def test_viewer_platform_admin_and_portfolio_ai_boundaries():
     with portfolio_client(role="ADMIN", audience="admin") as (client, _):
         assert client.get("/api/v1/portfolio/dashboard").status_code == 403
         assert client.get("/api/v1/portfolio/ai-context").status_code == 403
+
+
+def test_dashboard_team_workload_and_review_queue_stay_inside_accessible_clients():
+    with portfolio_client() as (client, user):
+        with SessionLocal() as db:
+            grant(db, user, "org-aarohan")
+            visible, _ = add_work(db, "org-aarohan", "WORK19V", -1, assignee=user)
+            visible.status = "UNDER_REVIEW"
+            hidden, _ = add_work(db, "org-udaan", "WORK19H", -1)
+            hidden.status = "UNDER_REVIEW"
+            db.commit()
+        body = client.get("/api/v1/portfolio/dashboard").json()
+        mine = next(row for row in body["team_workload"] if row["assignee_user_id"] == user.id)
+        assert mine["open_tasks"] >= 1 and mine["overdue_tasks"] >= 1 and mine["organizations"] == 1
+        assert all(row["assignee"] != "WORK19H assignee" for row in body["team_workload"])
+        codes = {item["code"] for item in body["review_queue"]["items"]}
+        assert "WORK19V" in codes and "WORK19H" not in codes
+        assert all(item["organization_id"] == "org-aarohan" for item in body["review_queue"]["items"])

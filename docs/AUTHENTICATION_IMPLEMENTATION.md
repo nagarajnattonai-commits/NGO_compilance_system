@@ -129,6 +129,8 @@ Organization type choices reuse the existing supported TRUST, SOCIETY and SECTIO
 
 HttpOnly session cookies; Secure in production; SameSite=Lax; random session secrets stored hashed; existing origin and mutation-header checks; atomic rate limits; password policy shared with the UI.
 
+Rate limits are keyed on the client address. By default this is the TCP peer, so behind a hosting proxy every user would share one address. AUTH_TRUSTED_PROXIES lists the proxy IPs or CIDRs (comma-separated) allowed to report the client through X-Forwarded-For; the chain is read right to left and the first address outside that list is used. Leave it empty unless you know your proxy's addresses, because a too-broad value lets callers choose their own address. AUTH_LOGIN_IP_RATE_LIMIT (default 60 per 15 minutes) and AUTH_SIGNUP_RATE_LIMIT (default 10 per hour) are bounded to 1-10,000; only the isolated browser test API raises them.
+
 Verification/reset/invitation and Google pending identities use expiring single-use proofs. Verification lasts 24 hours; password reset one hour; invitation 48 hours. Admin reset uses a distinct token purpose. Password reset and access changes revoke sessions.
 
 Google state is hashed, browser-bound, expiring and consumed before the code exchange. PKCE and nonce are validated. Tokens require a valid Google signature, issuer, audience, expiry, issued-at, subject, nonce and verified email, with authorized-party checks when present.

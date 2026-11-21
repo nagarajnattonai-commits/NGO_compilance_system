@@ -271,7 +271,7 @@
       "role": "भूमिका",
       "due": "समयसीमा:",
       "evidence": "साक्ष्य",
-      "notAssigned": "/ असाइन नहीं है",
+      "notAssigned": "नियुक्त नहीं",
       "userManagement": "उपयोगकर्ता प्रबंधन",
       "workspaceWideLoginAccountsOnlyAdministratorsCanChangeAccess": "पूरे कार्यक्षेत्र के लॉगिन खाते। केवल व्यवस्थापक पहुँच बदल सकते हैं।",
       "inviteUser": "उपयोगकर्ता आमंत्रित करें",
@@ -677,7 +677,6 @@
       "storageAllocation": "संग्रहण सीमा",
       "approvedWhatsAppTemplate": "स्वीकृत WhatsApp टेम्पलेट (वैकल्पिक)",
       "signingOut": "साइन आउट हो रहा है…",
-      "notAssigned": "नियुक्त नहीं",
       "fcraOnly": "केवल FCRA",
       "confirm": "पुष्टि करें",
       "adding": "जोड़ा जा रहा है…",
@@ -704,7 +703,15 @@
         "TESTIMONIAL": "प्रशंसापत्र जोड़ें",
         "TRAINING_VIDEO": "प्रशिक्षण वीडियो जोड़ें",
         "CONTENT_PAGE": "सामग्री पृष्ठ जोड़ें"
-      }
+      },
+      "configureYourNotificationPreferencesAndInternalLeadTime": "अपनी सूचना प्राथमिकताएं और आंतरिक अग्रिम समय सेट करें।",
+      "notificationPreferencesAndLeadTimeAreSavedToYourAccount": "सूचना प्राथमिकताएं और अग्रिम समय आपके खाते में सहेजे जाते हैं।",
+      "workspaceNotificationPolicy": "वर्कस्पेस सूचना नीति",
+      "mandatoryChannelsHelp": "वे माध्यम जिनसे हर सदस्य को वर्कस्पेस अलर्ट मिलते हैं, भले ही उन्होंने उन्हें व्यक्तिगत रूप से बंद किया हो।",
+      "inAppNotifications": "ऐप में सूचनाएं",
+      "inAppAlwaysOn": "हमेशा चालू, ताकि हर अलर्ट वर्कस्पेस इतिहास में रहे।",
+      "mandatoryEmail": "सभी सदस्यों के लिए ईमेल अनिवार्य करें",
+      "mandatoryWhatsapp": "सभी सदस्यों के लिए WhatsApp अनिवार्य करें"
     }
   }
 }

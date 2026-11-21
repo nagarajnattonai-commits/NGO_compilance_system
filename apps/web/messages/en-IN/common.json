@@ -271,7 +271,7 @@
       "role": "Role",
       "due": "Due:",
       "evidence": "Evidence",
-      "notAssigned": "/ Not assigned",
+      "notAssigned": "Not assigned",
       "userManagement": "User Management",
       "workspaceWideLoginAccountsOnlyAdministratorsCanChangeAccess": "Workspace-wide login accounts. Only administrators can change access.",
       "inviteUser": "Invite user",
@@ -677,7 +677,6 @@
       "storageAllocation": "Storage allocation",
       "approvedWhatsAppTemplate": "Approved WhatsApp template (optional)",
       "signingOut": "Signing out…",
-      "notAssigned": "Not assigned",
       "fcraOnly": "FCRA only",
       "confirm": "Confirm",
       "adding": "Adding…",
@@ -704,7 +703,15 @@
         "TESTIMONIAL": "Add testimonial",
         "TRAINING_VIDEO": "Add training video",
         "CONTENT_PAGE": "Add content page"
-      }
+      },
+      "configureYourNotificationPreferencesAndInternalLeadTime": "Configure your notification preferences and internal lead time.",
+      "notificationPreferencesAndLeadTimeAreSavedToYourAccount": "Notification preferences and lead time are saved to your account.",
+      "workspaceNotificationPolicy": "Workspace notification policy",
+      "mandatoryChannelsHelp": "Channels every member receives for workspace alerts, even if they turn them off personally.",
+      "inAppNotifications": "In-app notifications",
+      "inAppAlwaysOn": "Always on, so every alert stays in the workspace history.",
+      "mandatoryEmail": "Require email for all members",
+      "mandatoryWhatsapp": "Require WhatsApp for all members"
     }
   }
 }

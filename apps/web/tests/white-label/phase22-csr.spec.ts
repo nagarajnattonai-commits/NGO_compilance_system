@@ -59,6 +59,7 @@ test("CSR partner workspace supports partner, project and due-diligence operatio
   await page.goto("/dashboard");
   await page.getByRole("button", {name:"CSR partners", exact:true}).click();
   await expect(page.getByRole("heading", {name:"NGO partner management"})).toBeVisible();
+  await expect(page.getByText("Changes requested", { exact: true })).toBeVisible();
   await expect(page.getByText("Statuses support operational review and do not constitute legal compliance certification.")).toBeVisible();
   await page.getByRole("button", {name:"Add NGO partner"}).click();
   await expect(page.getByText("Saksham Foundation", {exact:true})).toBeVisible();

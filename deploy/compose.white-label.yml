@@ -30,6 +30,7 @@ services:
       RELEASE_VERSION: ${RELEASE_VERSION:-0.25.0}
       BUILD_SHA: ${BUILD_SHA:-development}
       BRAND_PROXY_KEY: ${BRAND_PROXY_KEY:?Set a random shared key of at least 32 characters}
+      SETU_FIELD_ENCRYPTION_KEY: ${SETU_FIELD_ENCRYPTION_KEY:?Set a Fernet key for donor identity numbers}
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:?Set the operator account allowlist}
       WHITE_LABEL_CNAME_TARGET: ${WHITE_LABEL_CNAME_TARGET:?Set the TLS edge DNS hostname}
       BRAND_S3_BUCKET: ${BRAND_S3_BUCKET:?Set a private S3-compatible asset bucket}

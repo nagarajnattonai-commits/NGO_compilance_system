@@ -37,6 +37,13 @@
     "createTemplate": "नमुना तयार करा",
     "requirements": "आवश्यकता",
     "reviewTitle": "पुनरावलोकन शीर्षक",
-    "startReview": "पुनरावलोकन सुरू करा"
+    "startReview": "पुनरावलोकन सुरू करा",
+    "changesRequested": "बदल मागवले",
+    "expiringEvidence": "संपणाऱ्या नोंदण्या",
+    "attentionTitle": "लक्ष देण्याजोगे भागीदार",
+    "attentionHelp": "खुले ड्यू-डिलिजन्स पुनरावलोकन किंवा लवकरच संपणाऱ्या नोंदण्या असलेले भागीदार. ही तुमच्या नोंदींमधील तथ्ये आहेत, जोखीम रेटिंग नाही.",
+    "openReviewsColumn": "खुली पुनरावलोकने",
+    "expiringRegistrations": "संपणाऱ्या नोंदण्या",
+    "overdueCompliances": "विलंबित अनुपालने"
   }
 }

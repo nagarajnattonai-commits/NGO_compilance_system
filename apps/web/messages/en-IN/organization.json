@@ -101,6 +101,22 @@
       "VIEWER": "View only",
       "CONTRIBUTOR": "Contributor",
       "MANAGER": "Manager"
-    }
+    },
+    "issuing_authority": "Issuing authority",
+    "verification_status": "Verification",
+    "UNVERIFIED": "Not verified",
+    "VERIFIED": "Verified against evidence",
+    "NEEDS_REVIEW": "Needs review",
+    "responsible_user_id": "Responsible person",
+    "unavailablePerson": "Person no longer has access",
+    "verifiedBy": "Verified by {name} on {date}",
+    "verifyNeedsDocument": "Attach the registration document before marking it verified.",
+    "profileHistory": "Profile change history",
+    "profileHistoryHelp": "Each saved change with its previous and new value. PAN, TAN, phone and email are partly hidden.",
+    "historyLoading": "Loading profile history…",
+    "historyChange": "{old} → {new}",
+    "historyBy": "{name} · {date}",
+    "emptyValue": "(empty)",
+    "donations": "Donations"
   }
 }

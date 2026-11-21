@@ -11,7 +11,10 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
+    // The email preview frame is sandboxed without scripts; the browser reports each
+    // script the dev server tries to run there. That block is the intended behaviour.
+    const sandboxBlock = message.text().startsWith("Blocked script execution in 'about:srcdoc'");
+    if (message.type() === "error" && !sandboxBlock) errors.push(message.text());
   });
   const headers = { "X-Setu-Request": "1" };
   const signup = await request.post("/api/v1/auth/signup", {
@@ -168,6 +171,11 @@ test("white-label editor, publishing, localization and responsive layouts", asyn
     });
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".brand-editor-tabs").getByRole("tab", { name: "Email", exact: true }).click();
+  await page.getByRole("button", { name: "Show preview", exact: true }).click();
+  const emailFrame = page.frameLocator('iframe[title="Email preview"]');
+  await expect(emailFrame.getByRole("heading", { level: 1 })).toHaveText(longName);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   for (const locale of (allBrowserLocales ? ["hi-IN", "kn-IN", "mr-IN"] : [])) {
     expect(
       (

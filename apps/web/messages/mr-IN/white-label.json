@@ -176,6 +176,22 @@
     "tenant": "कार्यक्षेत्र",
     "entitlement": "सुविधा परवानगी",
     "auditHistory": "ऑडिट इतिहास",
-    "noTenants": "अजून कार्यक्षेत्राच्या ब्रँडिंग सेटिंग्ज नाहीत."
+    "noTenants": "अजून कार्यक्षेत्राच्या ब्रँडिंग सेटिंग्ज नाहीत.",
+    "emailPreviewTitle": "ईमेल पूर्वावलोकन",
+    "emailPreviewHelp": "तुमच्या जतन केलेल्या सेटिंग्जसह खरा ईमेल कसा दिसतो ते दाखवते. येथे पाहण्यासाठी आधी बदल जतन करा.",
+    "emailPreviewTemplate": "ईमेल",
+    "emailPreviewLanguage": "भाषा",
+    "emailPreviewRender": "पूर्वावलोकन दाखवा",
+    "emailPreviewError": "पूर्वावलोकन तयार करता आले नाही.",
+    "emailPreviewSubject": "विषय",
+    "emailPreviewFrom": "प्रेषक",
+    "emailPreviewReplyTo": "उत्तर पत्ता",
+    "emailPreviewSampleName": "नमुना वापरकर्ता",
+    "emailTemplates": {
+      "compliance_deadlineReminder": "मुदत स्मरणपत्र",
+      "auth_invitation": "वर्कस्पेस आमंत्रण",
+      "auth_emailVerification": "ईमेल पडताळणी",
+      "auth_passwordReset": "पासवर्ड रीसेट"
+    }
   }
 }

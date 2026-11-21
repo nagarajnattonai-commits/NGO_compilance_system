@@ -65,7 +65,9 @@ import {
   inviteMember,
   loadComplianceComments,
   loadEligibleAssignees,
+  loadNotificationPolicy,
   loadNotificationPreference,
+  saveNotificationPolicy,
   loadTaskAttachments,
   loadTaskComments,
   loadWorkspace,
@@ -351,13 +353,10 @@ export default function ComplianceApp({
         ),
       )
       .finally(() => setLoading(false));
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem("setu-workspace-preferences") || "null",
-      ) as { leadDays?: number } | null;
-      if (saved?.leadDays) setDefaultLeadDays(saved.leadDays);
-    } catch {
-      /* Ignore invalid local demo preferences. */
+    if (!platformAdmin) {
+      loadNotificationPreference()
+        .then((preference) => setDefaultLeadDays(preference.default_lead_days ?? 7))
+        .catch(() => { /* The 7-day default applies until preferences load. */ });
     }
   }, [user.role, platformAdmin]);
 
@@ -2987,40 +2986,50 @@ function SettingsModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [leadDays, setLeadDays] = useState(7);
+  const user = useCurrentUser();
+  const isAdmin = user.role === "ADMIN";
+  const [policy, setPolicy] = useState<string[] | null>(null);
   async function load() {
     setLoading(true); setError("");
-    try { setPreference(await loadNotificationPreference()); }
+    try {
+      const [loaded, loadedPolicy] = await Promise.all([
+        loadNotificationPreference(),
+        isAdmin ? loadNotificationPolicy() : Promise.resolve(null),
+      ]);
+      setPreference(loaded);
+      setLeadDays(loaded.default_lead_days ?? 7);
+      if (loadedPolicy) setPolicy(loadedPolicy.mandatory_channels);
+    }
     catch (reason) { setError(localizedError(reason, uiText, uiText("Common.interface.couldNotLoadNotificationPreferences"))); }
     finally { setLoading(false); }
   }
   useEffect(() => {
     void load();
-    try {
-      const saved = localStorage.getItem("setu-workspace-preferences");
-      if (!saved) return;
-      const value = JSON.parse(saved) as {
-        leadDays?: number;
-      };
-      setLeadDays(value.leadDays ?? 7);
-    } catch {
-      /* Ignore invalid local demo preferences. */
-    }
+    // The lead time used to live only in this browser; it is now saved to the account.
+    try { localStorage.removeItem("setu-workspace-preferences"); } catch { /* Storage unavailable. */ }
   }, []);
   async function save() {
     if (!preference) return;
     setSaving(true); setError("");
     try {
-      setPreference(await updateNotificationPreference({ compliance_enabled: preference.compliance_enabled }));
-      try { localStorage.setItem("setu-workspace-preferences", JSON.stringify({ leadDays })); }
-      catch { /* Backend notification preferences remain saved when browser storage is unavailable. */ }
+      setPreference(await updateNotificationPreference({ compliance_enabled: preference.compliance_enabled, default_lead_days: leadDays }));
+      if (isAdmin && policy) setPolicy((await saveNotificationPolicy(policy)).mandatory_channels);
       onSave(leadDays);
     } catch (reason) { setError(localizedError(reason, uiText, uiText("Common.interface.couldNotSaveNotificationPreferences"))); }
     finally { setSaving(false); }
   }
+  function togglePolicy(channel: string, on: boolean) {
+    setPolicy((current) => {
+      const next = new Set(current ?? ["IN_APP"]);
+      if (on) next.add(channel); else next.delete(channel);
+      next.add("IN_APP");
+      return [...next].sort();
+    });
+  }
   return (
     <Modal
       title={uiText("Common.interface.workspaceSettings")}
-      text={uiText("Common.interface.configureYourNotificationPreferencesAndLocalInternalLeadTime")}
+      text={uiText("Common.interface.configureYourNotificationPreferencesAndInternalLeadTime")}
       close={close}
     >
       <div className="modal-content">
@@ -3067,9 +3076,25 @@ function SettingsModal({
             />
           </label>
         </div>
+        {isAdmin && policy && (
+          <fieldset className="settings-list" disabled={saving}>
+            <legend><strong>{uiText("Common.interface.workspaceNotificationPolicy")}</strong></legend>
+            <small>{uiText("Common.interface.mandatoryChannelsHelp")}</small>
+            <label className="setting-row">
+              <span><strong>{uiText("Common.interface.inAppNotifications")}</strong><small>{uiText("Common.interface.inAppAlwaysOn")}</small></span>
+              <input type="checkbox" checked disabled />
+            </label>
+            {(["EMAIL", "WHATSAPP"] as const).map((channel) => (
+              <label className="setting-row" key={channel}>
+                <span><strong>{uiText(channel === "EMAIL" ? "Common.interface.mandatoryEmail" : "Common.interface.mandatoryWhatsapp")}</strong></span>
+                <input type="checkbox" checked={policy.includes(channel)} onChange={(e) => togglePolicy(channel, e.target.checked)} />
+              </label>
+            ))}
+          </fieldset>
+        )}
         <div className="form-info">
           <Settings size={17} />
-           {uiText("Common.interface.notificationPreferencesAreSavedToYourAccountInternalLeadTimeIsLocalToThisBrowser")} <Link href="/account">{uiText("Common.interface.manageNotificationChannels")}</Link>
+           {uiText("Common.interface.notificationPreferencesAndLeadTimeAreSavedToYourAccount")} <Link href="/account">{uiText("Common.interface.manageNotificationChannels")}</Link>
         </div>
         <div className="modal-actions">
           <button className="button secondary" disabled={saving} onClick={close}>

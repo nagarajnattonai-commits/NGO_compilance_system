@@ -106,6 +106,7 @@ jobs:
       BRAND_PROXY_KEY: ci-only-brand-proxy-key-000000000000
       PLATFORM_ADMIN_EMAILS: operator@example.org
       DATABASE_URL: postgresql+psycopg://compliance:ci-only-password@127.0.0.1:5432/compliance
+      SETU_FIELD_ENCRYPTION_KEY: Y2ktb25seS1maWVsZC1lbmNyeXB0aW9uLWtleS0wMDA=
       INTEGRATION_SECRET_BACKEND: aws
       BRAND_S3_BUCKET: ci-private-brand-assets
       DOCUMENT_S3_BUCKET: ci-private-documents

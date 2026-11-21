@@ -271,7 +271,7 @@
       "role": "ಪಾತ್ರ",
       "due": "ಗಡುವು:",
       "evidence": "ಸಾಕ್ಷ್ಯ",
-      "notAssigned": "/ ನಿಯೋಜಿಸಿಲ್ಲ",
+      "notAssigned": "ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ",
       "userManagement": "ಬಳಕೆದಾರ ನಿರ್ವಹಣೆ",
       "workspaceWideLoginAccountsOnlyAdministratorsCanChangeAccess": "ಇಡೀ ಕಾರ್ಯಸ್ಥಳದ ಲಾಗಿನ್ ಖಾತೆಗಳು. ನಿರ್ವಾಹಕರು ಮಾತ್ರ ಪ್ರವೇಶ ಬದಲಿಸಬಹುದು.",
       "inviteUser": "ಬಳಕೆದಾರರನ್ನು ಆಹ್ವಾನಿಸಿ",
@@ -677,7 +677,6 @@
       "storageAllocation": "ಸಂಗ್ರಹಣಾ ಮಿತಿ",
       "approvedWhatsAppTemplate": "ಅನುಮೋದಿತ WhatsApp ಟೆಂಪ್ಲೇಟ್ (ಐಚ್ಛಿಕ)",
       "signingOut": "ಸೈನ್ ಔಟ್ ಆಗುತ್ತಿದೆ…",
-      "notAssigned": "ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ",
       "fcraOnly": "FCRA ಮಾತ್ರ",
       "confirm": "ದೃಢಪಡಿಸಿ",
       "adding": "ಸೇರಿಸಲಾಗುತ್ತಿದೆ…",
@@ -704,7 +703,15 @@
         "TESTIMONIAL": "ಪ್ರಶಂಸಾಪತ್ರ ಸೇರಿಸಿ",
         "TRAINING_VIDEO": "ತರಬೇತಿ ವೀಡಿಯೊ ಸೇರಿಸಿ",
         "CONTENT_PAGE": "ವಿಷಯ ಪುಟ ಸೇರಿಸಿ"
-      }
+      },
+      "configureYourNotificationPreferencesAndInternalLeadTime": "ನಿಮ್ಮ ಅಧಿಸೂಚನೆ ಆದ್ಯತೆಗಳು ಮತ್ತು ಆಂತರಿಕ ಮುಂಗಡ ಸಮಯವನ್ನು ಹೊಂದಿಸಿ.",
+      "notificationPreferencesAndLeadTimeAreSavedToYourAccount": "ಅಧಿಸೂಚನೆ ಆದ್ಯತೆಗಳು ಮತ್ತು ಮುಂಗಡ ಸಮಯವನ್ನು ನಿಮ್ಮ ಖಾತೆಯಲ್ಲಿ ಉಳಿಸಲಾಗುತ್ತದೆ.",
+      "workspaceNotificationPolicy": "ವರ್ಕ್‌ಸ್ಪೇಸ್ ಅಧಿಸೂಚನೆ ನೀತಿ",
+      "mandatoryChannelsHelp": "ಪ್ರತಿಯೊಬ್ಬ ಸದಸ್ಯರು ವೈಯಕ್ತಿಕವಾಗಿ ಆಫ್ ಮಾಡಿದ್ದರೂ ವರ್ಕ್‌ಸ್ಪೇಸ್ ಎಚ್ಚರಿಕೆಗಳನ್ನು ಪಡೆಯುವ ಮಾಧ್ಯಮಗಳು.",
+      "inAppNotifications": "ಆ್ಯಪ್‌ನೊಳಗಿನ ಅಧಿಸೂಚನೆಗಳು",
+      "inAppAlwaysOn": "ಯಾವಾಗಲೂ ಆನ್, ಆದ್ದರಿಂದ ಪ್ರತಿಯೊಂದು ಎಚ್ಚರಿಕೆಯೂ ವರ್ಕ್‌ಸ್ಪೇಸ್ ಇತಿಹಾಸದಲ್ಲಿ ಉಳಿಯುತ್ತದೆ.",
+      "mandatoryEmail": "ಎಲ್ಲಾ ಸದಸ್ಯರಿಗೆ ಇಮೇಲ್ ಕಡ್ಡಾಯಗೊಳಿಸಿ",
+      "mandatoryWhatsapp": "ಎಲ್ಲಾ ಸದಸ್ಯರಿಗೆ WhatsApp ಕಡ್ಡಾಯಗೊಳಿಸಿ"
     }
   }
 }

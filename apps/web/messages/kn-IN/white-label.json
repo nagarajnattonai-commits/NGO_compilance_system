@@ -176,6 +176,22 @@
     "tenant": "ಕಾರ್ಯಕ್ಷೇತ್ರ",
     "entitlement": "ಸೌಲಭ್ಯ ಅನುಮತಿ",
     "auditHistory": "ಆಡಿಟ್ ಇತಿಹಾಸ",
-    "noTenants": "ಇನ್ನೂ ಕಾರ್ಯಕ್ಷೇತ್ರದ ಬ್ರ್ಯಾಂಡಿಂಗ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಲ್ಲ."
+    "noTenants": "ಇನ್ನೂ ಕಾರ್ಯಕ್ಷೇತ್ರದ ಬ್ರ್ಯಾಂಡಿಂಗ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಲ್ಲ.",
+    "emailPreviewTitle": "ಇಮೇಲ್ ಪೂರ್ವವೀಕ್ಷಣೆ",
+    "emailPreviewHelp": "ನಿಮ್ಮ ಉಳಿಸಿದ ಸೆಟ್ಟಿಂಗ್‌ಗಳೊಂದಿಗೆ ನಿಜವಾದ ಇಮೇಲ್ ಹೇಗೆ ಕಾಣುತ್ತದೆ ಎಂದು ತೋರಿಸುತ್ತದೆ. ಇಲ್ಲಿ ನೋಡಲು ಮೊದಲು ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ.",
+    "emailPreviewTemplate": "ಇಮೇಲ್",
+    "emailPreviewLanguage": "ಭಾಷೆ",
+    "emailPreviewRender": "ಪೂರ್ವವೀಕ್ಷಣೆ ತೋರಿಸಿ",
+    "emailPreviewError": "ಪೂರ್ವವೀಕ್ಷಣೆ ರಚಿಸಲಾಗಲಿಲ್ಲ.",
+    "emailPreviewSubject": "ವಿಷಯ",
+    "emailPreviewFrom": "ಕಳುಹಿಸುವವರು",
+    "emailPreviewReplyTo": "ಉತ್ತರ ವಿಳಾಸ",
+    "emailPreviewSampleName": "ಮಾದರಿ ಬಳಕೆದಾರ",
+    "emailTemplates": {
+      "compliance_deadlineReminder": "ಗಡುವು ಜ್ಞಾಪನೆ",
+      "auth_invitation": "ವರ್ಕ್‌ಸ್ಪೇಸ್ ಆಹ್ವಾನ",
+      "auth_emailVerification": "ಇಮೇಲ್ ಪರಿಶೀಲನೆ",
+      "auth_passwordReset": "ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಕೆ"
+    }
   }
 }

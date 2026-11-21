@@ -101,6 +101,22 @@
     "INACTIVE": "निष्क्रिय",
     "DISABLED": "अक्षम",
     "revokeAccess": "रद्द करें",
-    "grantAccess": "पहुँच दें"
+    "grantAccess": "पहुँच दें",
+    "issuing_authority": "जारी करने वाला प्राधिकरण",
+    "verification_status": "सत्यापन",
+    "UNVERIFIED": "सत्यापित नहीं",
+    "VERIFIED": "साक्ष्य से सत्यापित",
+    "NEEDS_REVIEW": "समीक्षा आवश्यक",
+    "responsible_user_id": "जिम्मेदार व्यक्ति",
+    "unavailablePerson": "इस व्यक्ति के पास अब पहुंच नहीं है",
+    "verifiedBy": "{name} द्वारा {date} को सत्यापित",
+    "verifyNeedsDocument": "सत्यापित चिह्नित करने से पहले पंजीकरण दस्तावेज़ संलग्न करें।",
+    "profileHistory": "प्रोफ़ाइल परिवर्तन इतिहास",
+    "profileHistoryHelp": "हर सहेजा गया परिवर्तन, पिछले और नए मान के साथ। PAN, TAN, फ़ोन और ईमेल आंशिक रूप से छिपे रहते हैं।",
+    "historyLoading": "प्रोफ़ाइल इतिहास लोड हो रहा है…",
+    "historyChange": "{old} → {new}",
+    "historyBy": "{name} · {date}",
+    "emptyValue": "(खाली)",
+    "donations": "दान"
   }
 }

@@ -106,6 +106,7 @@ from .phase19_api import router as phase19_router
 from .phase20_api import router as phase20_router
 from .document_intelligence_api import router as document_intelligence_router
 from .csr_api import router as csr_router
+from .donation_api import router as donation_router
 from .communication_api import router as communication_router
 from .production_security import (BoundedSensitiveBody, limit_expensive, ready_database, security_headers,
                                   build_metadata, validate_production_configuration, validate_production_schema)
@@ -119,6 +120,10 @@ async def lifespan(_: FastAPI):
         validate_production_schema(engine, Base.metadata)
     else:
         Base.metadata.create_all(bind=engine)
+        from .migrate_phase28 import apply as add_phase28_columns
+        add_phase28_columns(engine)  # idempotent; adds new columns to existing development databases
+        from .migrate_phase29 import apply as add_phase29_tables
+        add_phase29_tables(engine)  # idempotent; creates the donation register tables
         with SessionLocal() as db:
             seed_demo_data(db)
     yield
@@ -170,6 +175,7 @@ app.include_router(phase19_router)
 app.include_router(phase20_router)
 app.include_router(document_intelligence_router)
 app.include_router(csr_router)
+app.include_router(donation_router)
 app.include_router(communication_router)
 app.add_middleware(DocumentUploadLimit)
 

@@ -176,6 +176,22 @@
     "tenant": "Tenant",
     "entitlement": "Entitlement",
     "auditHistory": "Audit history",
-    "noTenants": "No tenant branding configurations yet."
+    "noTenants": "No tenant branding configurations yet.",
+    "emailPreviewTitle": "Email preview",
+    "emailPreviewHelp": "Shows how a real email looks with your saved settings. Save changes first to see them here.",
+    "emailPreviewTemplate": "Email",
+    "emailPreviewLanguage": "Language",
+    "emailPreviewRender": "Show preview",
+    "emailPreviewError": "The preview could not be created.",
+    "emailPreviewSubject": "Subject",
+    "emailPreviewFrom": "From",
+    "emailPreviewReplyTo": "Reply to",
+    "emailPreviewSampleName": "Sample user",
+    "emailTemplates": {
+      "compliance_deadlineReminder": "Deadline reminder",
+      "auth_invitation": "Workspace invitation",
+      "auth_emailVerification": "Email verification",
+      "auth_passwordReset": "Password reset"
+    }
   }
 }

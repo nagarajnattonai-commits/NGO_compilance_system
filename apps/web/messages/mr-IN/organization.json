@@ -101,6 +101,22 @@
     "INACTIVE": "निष्क्रिय",
     "DISABLED": "अक्षम",
     "revokeAccess": "रद्द करा",
-    "grantAccess": "प्रवेश द्या"
+    "grantAccess": "प्रवेश द्या",
+    "issuing_authority": "जारी करणारे प्राधिकरण",
+    "verification_status": "पडताळणी",
+    "UNVERIFIED": "पडताळलेले नाही",
+    "VERIFIED": "पुराव्यासह पडताळले",
+    "NEEDS_REVIEW": "पुनरावलोकन आवश्यक",
+    "responsible_user_id": "जबाबदार व्यक्ती",
+    "unavailablePerson": "या व्यक्तीला आता प्रवेश नाही",
+    "verifiedBy": "{name} यांनी {date} रोजी पडताळले",
+    "verifyNeedsDocument": "पडताळले म्हणून चिन्हांकित करण्यापूर्वी नोंदणी दस्तऐवज जोडा.",
+    "profileHistory": "प्रोफाइल बदल इतिहास",
+    "profileHistoryHelp": "प्रत्येक जतन केलेला बदल, आधीच्या आणि नवीन मूल्यासह. PAN, TAN, फोन आणि ईमेल अंशतः लपवले जातात.",
+    "historyLoading": "प्रोफाइल इतिहास लोड होत आहे…",
+    "historyChange": "{old} → {new}",
+    "historyBy": "{name} · {date}",
+    "emptyValue": "(रिकामे)",
+    "donations": "देणग्या"
   }
 }

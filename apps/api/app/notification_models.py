@@ -1,7 +1,7 @@
 """Durable, recipient-specific notification preferences and delivery history."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -86,6 +86,8 @@ class UserNotificationPreference(Base):
     task_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     document_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     system_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Days before a statutory deadline used for the internal target date (migrate_phase28).
+    default_lead_days: Mapped[int] = mapped_column(Integer, default=7)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

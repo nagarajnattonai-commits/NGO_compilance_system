@@ -256,3 +256,25 @@ def test_additive_migration_preserves_existing_identity_and_columns():
         assert connection.execute(select(User.__table__.c.email)).scalar_one()=="legacy@example.test"
         assert len(connection.execute(IntegrationSchemaVersion.__table__.select().where(IntegrationSchemaVersion.version==VERSION)).all())==1
     target.dispose()
+
+
+def test_development_outbox_lets_local_signup_verify_without_mail_server(monkeypatch,tmp_path):
+    import re
+    from app.production_security import validate_production_configuration
+    monkeypatch.setenv("DEV_EMAIL_OUTBOX_DIR",str(tmp_path))
+    monkeypatch.delenv("SMTP_HOST",raising=False)
+    email="outbox-owner@example.test"
+    with TestClient(app) as client:
+        assert signup(client,email=email,verify_email=True,organization_type="TRUST",terms_accepted=True).status_code==201
+        files=list(tmp_path.glob("*.html"));assert len(files)==1
+        page=files[0].read_text(encoding="utf-8")
+        assert "Development outbox - not sent" in page and email in page
+        link=re.search(r"#token=([A-Za-z0-9_-]+)",page).group(1)
+        assert login(client,email=email).status_code==403
+        assert client.post("/api/v1/auth/verify-email",headers=HEADERS,json={"token":link}).status_code==200
+        assert login(client,email=email).status_code==200
+    monkeypatch.setenv("APP_ENV","production")
+    from app.integration_notifications import dev_outbox_dir
+    assert dev_outbox_dir() is None
+    with pytest.raises(RuntimeError,match="DEV_EMAIL_OUTBOX_DIR"):
+        validate_production_configuration({"APP_ENV":"production","DEV_EMAIL_OUTBOX_DIR":str(tmp_path)})

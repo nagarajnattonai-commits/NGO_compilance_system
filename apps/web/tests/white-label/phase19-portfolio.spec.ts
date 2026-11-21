@@ -57,6 +57,8 @@ test("consultant portfolio shows only authorized clients and supports client-sco
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Portfolio", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Client portfolio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review queue", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Team workload", exact: true })).toBeVisible();
   await expect(page.getByText("Asha Foundation", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Collect filing proof", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "AR-19 · Annual return" })).toBeVisible();

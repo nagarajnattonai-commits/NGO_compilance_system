@@ -32,6 +32,7 @@ def production_values():
         "BRAND_S3_BUCKET": "private-brand-assets",
         "INTEGRATION_SECRET_BACKEND": "aws",
         "DOCUMENT_S3_BUCKET": "private-documents",
+        "SETU_FIELD_ENCRYPTION_KEY": "dGVzdC1vbmx5LWZpZWxkLWtleS0zMi1ieXRlcy0hISE=",
     }
 
 
@@ -46,6 +47,8 @@ def test_production_preflight_rejects_unsafe_configuration_without_values_in_err
         ("INTEGRATION_SECRET_BACKEND", "environment"),
         ("DOCUMENT_S3_BUCKET", ""),
         ("DOCUMENT_S3_ENDPOINT", "http://internal.example.org"),
+        ("SETU_FIELD_ENCRYPTION_KEY", ""),
+        ("SETU_FIELD_ENCRYPTION_KEY", "not-a-fernet-key"),
     ):
         candidate = values | {key: bad}
         with pytest.raises(RuntimeError) as error:

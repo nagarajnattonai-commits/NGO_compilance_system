@@ -816,6 +816,7 @@ export default function WhiteLabelSettings({
                     {field("email_footer", true)}
                   </div>
                   <p className="brand-help">{t("emailLocaleHelp")}</p>
+                  <EmailPreview />
                 </>
               )}
               {tab === "reports" && (
@@ -1173,4 +1174,43 @@ export default function WhiteLabelSettings({
       </div>
     </div>
   );
+}
+
+const emailTemplates = ["compliance.deadlineReminder", "auth.invitation", "auth.emailVerification", "auth.passwordReset"] as const;
+type RenderedEmail = { subject: string; html: string; text: string; sender_name: string; reply_to: string; locale: string };
+
+// Renders the saved settings through the same server code that sends real email.
+function EmailPreview() {
+  const uiText = useTranslations();
+  const t = useTranslations("WhiteLabel");
+  const currentLocale = useLocale();
+  const [template, setTemplate] = useState<string>(emailTemplates[0]);
+  const [locale, setLocale] = useState(currentLocale);
+  const [email, setEmail] = useState<RenderedEmail | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function render() {
+    setBusy(true); setError("");
+    try {
+      setEmail(await apiRequest<RenderedEmail>("/white-label/email-preview", "POST", {
+        template_key: template, locale, variables: { userName: t("emailPreviewSampleName") },
+      }));
+    } catch (reason) { setEmail(null); setError(localizedError(reason, uiText, t("emailPreviewError"))); }
+    finally { setBusy(false); }
+  }
+  return <section className="brand-email-preview" aria-labelledby="brand-email-preview-title">
+    <h3 id="brand-email-preview-title">{t("emailPreviewTitle")}</h3>
+    <p className="brand-help">{t("emailPreviewHelp")}</p>
+    <div className="brand-form-grid">
+      <label className="brand-field">{t("emailPreviewTemplate")}<select value={template} onChange={(event) => setTemplate(event.target.value)}>{emailTemplates.map((key) => <option key={key} value={key}>{t(`emailTemplates.${key.replace(".", "_")}`)}</option>)}</select></label>
+      <label className="brand-field">{t("emailPreviewLanguage")}<select value={locale} onChange={(event) => setLocale(event.target.value)}>{supportedLocales.map((item) => <option key={item.code} value={item.code}>{item.nativeLabel}</option>)}</select></label>
+    </div>
+    <button type="button" className="button secondary" disabled={busy} onClick={() => void render()}>{t("emailPreviewRender")}</button>
+    {error && <p className="auth-alert error" role="alert">{error}</p>}
+    {email && <div className="brand-email-preview-result">
+      <p><strong>{t("emailPreviewSubject")}:</strong> {email.subject}</p>
+      <p><strong>{t("emailPreviewFrom")}:</strong> {email.sender_name}{email.reply_to ? ` · ${t("emailPreviewReplyTo")}: ${email.reply_to}` : ""}</p>
+      <iframe title={t("emailPreviewTitle")} sandbox="" srcDoc={email.html} style={{ width: "100%", minHeight: 420, border: "1px solid var(--line)", borderRadius: 8 }} />
+    </div>}
+  </section>;
 }
