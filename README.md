@@ -50,7 +50,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open `http://localhost:3000`. The authenticated workspace requires the API; an unavailable API produces a recoverable error state and never substitutes unrelated demo data.
+Open `http://localhost:3000`. Sign-up needs email verification; locally, start the API with `DEV_EMAIL_OUTBOX_DIR` set to a folder and the verification email is saved there as an HTML file instead of being sent (ignored outside development and rejected in production). On Windows, `scripts\start-setu.cmd` does all of this. The authenticated workspace requires the API; an unavailable API produces a recoverable error state and never substitutes unrelated demo data.
 
 ### 3. Scheduler and worker
 

@@ -1,4 +1,5 @@
 """Notification services call the resolver; business modules never touch credentials."""
+import html as html_escape
 import os
 import time
 from sqlalchemy import select
@@ -8,12 +9,40 @@ from .integration_security import IntegrationError
 from .integration_service import resolve_integration, log_operation
 from .models import IntegrationConnection
 
+def dev_outbox_dir():
+    """Development only: write emails to files instead of sending them. Never honoured in production."""
+    if os.getenv("APP_ENV", "development") == "production":
+        return None
+    return os.getenv("DEV_EMAIL_OUTBOX_DIR", "").strip() or None
+
+
+def write_dev_outbox(recipient, subject, text, html):
+    import re
+    from datetime import datetime, timezone
+    from pathlib import Path
+    folder = Path(dev_outbox_dir())
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", recipient)[:80]
+    esc = html_escape.escape
+    body = html or "<pre>" + esc(text) + "</pre>"
+    header = (f"<p style='font:13px sans-serif;background:#fff6d6;padding:8px'>Development outbox - not sent. "
+              f"To: {esc(recipient)} | Subject: {esc(subject)}</p>")
+    path = folder / f"{stamp}-{safe}.html"
+    path.write_text(header + body, encoding="utf-8")
+    return path.name
+
+
 def email_available(db):
+    if dev_outbox_dir():
+        return True
     return bool(os.getenv("INTEGRATION_LEGACY_EMAIL_FALLBACK","1")=="1" and os.getenv("SMTP_HOST") and os.getenv("SMTP_FROM")) or bool(db.scalar(select(IntegrationConnection.id)
         .join(ConnectionSettings,ConnectionSettings.connection_id==IntegrationConnection.id)
         .where(IntegrationConnection.category=="EMAIL",IntegrationConnection.status=="CONNECTED").limit(1)))
 
 def deliver_email(db,tenant_id,recipient,subject,text,html=None,sender_name="",reply_to="",organization_id=None,idempotency_key=""):
+    if dev_outbox_dir():
+        return {"provider_message_id":write_dev_outbox(recipient,subject,text,html),"provider_key":"dev_outbox","connection_id":None}
     connection=None
     try:
         connection,state,adapter=resolve_integration(db,tenant_id,"EMAIL","email.send",organization_id=organization_id)

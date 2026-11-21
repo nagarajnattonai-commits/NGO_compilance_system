@@ -14,6 +14,8 @@ def validate_production_configuration(environment=None) -> None:
     values = os.environ if environment is None else environment
     if values.get("APP_ENV") != "production":
         return
+    if values.get("DEV_EMAIL_OUTBOX_DIR", "").strip():
+        raise RuntimeError("DEV_EMAIL_OUTBOX_DIR is for local development only and must not be set in production")
     origin = urlsplit(values.get("APP_ORIGIN", ""))
     if (origin.scheme != "https" or not origin.hostname or origin.username or origin.password
             or origin.path not in ("", "/") or origin.query or origin.fragment):
