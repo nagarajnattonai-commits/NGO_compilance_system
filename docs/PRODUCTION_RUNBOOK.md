@@ -10,7 +10,7 @@ The durable job and quota implementation is PostgreSQL-backed. Redis is not curr
 
 ## Configuration contract
 
-Required core production settings are `APP_ENV=production`, HTTPS `APP_ORIGIN`, `PLATFORM_HOSTS`, `WHITE_LABEL_CNAME_TARGET`, `BRAND_PROXY_KEY`, PostgreSQL `DATABASE_URL`, `PLATFORM_ADMIN_EMAILS`, AWS-backed `INTEGRATION_SECRET_BACKEND`, `BRAND_S3_BUCKET`, and either `DOCUMENT_S3_BUCKET` or an explicitly configured managed storage connection. Configure database pool and timeout values within the validated bounds. `RELEASE_VERSION` and `BUILD_SHA` may contain only safe identifier characters.
+Required core production settings are `APP_ENV=production`, HTTPS `APP_ORIGIN`, `PLATFORM_HOSTS`, `WHITE_LABEL_CNAME_TARGET`, `BRAND_PROXY_KEY`, a Fernet `SETU_FIELD_ENCRYPTION_KEY` for donor identity numbers (back it up; losing it makes stored PAN/Aadhaar unreadable), PostgreSQL `DATABASE_URL`, `PLATFORM_ADMIN_EMAILS`, AWS-backed `INTEGRATION_SECRET_BACKEND`, `BRAND_S3_BUCKET`, and either `DOCUMENT_S3_BUCKET` or an explicitly configured managed storage connection. Configure database pool and timeout values within the validated bounds. `RELEASE_VERSION` and `BUILD_SHA` may contain only safe identifier characters.
 
 Optional provider configuration includes SMTP, WhatsApp, Google OAuth/Calendar, AI/OCR, tenant provider connections, and webhook destinations. An optional provider outage does not make core `/ready` fail. Provider health is reported through the existing Integrations health view.
 
@@ -68,7 +68,7 @@ Rollback application images only to a release compatible with the current additi
 - Google Calendar: reconnect credentials and resume synchronization. Never change internal deadlines because the projection failed.
 - Webhooks: preserve signing and SSRF controls, inspect safe delivery history, and use the existing audited retry operation.
 
-Rotate database, proxy, storage, OAuth, SMTP, WhatsApp, webhook, and AI/OCR credentials independently. Deploy `BRAND_PROXY_KEY` to web and API together. Confirm new credentials before revoking old ones, and never log their values.
+Rotate database, proxy, storage, OAuth, SMTP, WhatsApp, webhook, and AI/OCR credentials independently. Deploy `BRAND_PROXY_KEY` to web and API together. To rotate `SETU_FIELD_ENCRYPTION_KEY`, set the new key and list old keys in `SETU_FIELD_ENCRYPTION_OLD_KEYS` so existing values stay readable. Confirm new credentials before revoking old ones, and never log their values.
 
 ## Observability and alerts
 
