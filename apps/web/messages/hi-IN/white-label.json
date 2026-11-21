@@ -176,6 +176,22 @@
     "tenant": "कार्यस्थान",
     "entitlement": "सुविधा अनुमति",
     "auditHistory": "ऑडिट इतिहास",
-    "noTenants": "अभी किसी कार्यस्थान की ब्रांडिंग सेटिंग्स नहीं हैं।"
+    "noTenants": "अभी किसी कार्यस्थान की ब्रांडिंग सेटिंग्स नहीं हैं।",
+    "emailPreviewTitle": "ईमेल पूर्वावलोकन",
+    "emailPreviewHelp": "दिखाता है कि आपकी सहेजी गई सेटिंग्स के साथ असली ईमेल कैसा दिखता है। यहां देखने के लिए पहले बदलाव सहेजें।",
+    "emailPreviewTemplate": "ईमेल",
+    "emailPreviewLanguage": "भाषा",
+    "emailPreviewRender": "पूर्वावलोकन दिखाएं",
+    "emailPreviewError": "पूर्वावलोकन नहीं बनाया जा सका।",
+    "emailPreviewSubject": "विषय",
+    "emailPreviewFrom": "प्रेषक",
+    "emailPreviewReplyTo": "उत्तर पता",
+    "emailPreviewSampleName": "नमूना उपयोगकर्ता",
+    "emailTemplates": {
+      "compliance_deadlineReminder": "समय-सीमा अनुस्मारक",
+      "auth_invitation": "वर्कस्पेस आमंत्रण",
+      "auth_emailVerification": "ईमेल सत्यापन",
+      "auth_passwordReset": "पासवर्ड रीसेट"
+    }
   }
 }
