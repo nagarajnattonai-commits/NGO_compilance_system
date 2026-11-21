@@ -696,3 +696,98 @@ def update_certificate(certificate_id: str, payload: CertificatePatch, db: DB, t
     audit(db, tenant_id, user, "DONOR_CERTIFICATE_UPDATED", "DonorCertificate", row.id, f"Certificate {row.certificate_number or '-'}: {row.status}")
     db.commit()
     return statement_summary(db, tenant_id, row.organization_id, record.financial_year)
+
+
+# ---------- printable receipt and CA worksheet ----------
+
+def _details(db, organization: Organization) -> dict:
+    from .organization_profile import profile_data
+    return profile_data(db, organization).get("details", {})
+
+
+@router.get("/{donation_id}/receipt/print")
+def print_receipt(donation_id: str, db: DB, tenant_id: Tenant, user: CurrentUser):
+    """Branded, printable receipt (browser Print / Save as PDF), same approach as the compliance report."""
+    import html as markup_escape
+    from fastapi import Response
+    from .brand_outputs import output_configuration
+    from .branding import resolve_tenant_branding
+    row = owned(db, Donation, tenant_id, donation_id, "Donation")
+    org = organization(db, tenant_id, row.organization_id)
+    receipt = db.scalar(select(DonationReceipt).where(DonationReceipt.donation_id == row.id))
+    if row.status != "CONFIRMED" or not receipt:
+        raise HTTPException(409, "Only a confirmed donation with an issued receipt can be printed")
+    donor = db.get(Donor, row.donor_id)
+    details = _details(db, org)
+    reg = registration(db, tenant_id, row.organization_id, "80G")
+    brand = resolve_tenant_branding(db, tenant_id, "en-IN")
+    configuration = output_configuration(db, tenant_id)
+    esc = markup_escape.escape
+    address = ", ".join(part for part in (details.get("address_line_1", ""), details.get("address_line_2", ""), org.city,
+                                          details.get("state", ""), details.get("postal_code", "")) if part)
+    identity = f'{donor.id_type} ending {donor.id_last4}' if donor.id_last4 else "Not provided"
+    registration_line = (f'80G registration {esc(reg.number)}' + (f', valid until {reg.expiry_date.strftime("%d %b %Y")}' if reg.expiry_date else "")
+                         if reg and reg.number else "80G registration details not recorded")
+    amount = f'{row.currency} {row.amount_paise / 100:,.2f}'
+    rows = [("Receipt number", receipt.receipt_number), ("Receipt date", receipt.issued_on.strftime("%d %b %Y")),
+            ("Received from", donor.name), ("Donor address", donor.address or "Not provided"), ("Donor identity", identity),
+            ("Amount", amount), ("Date received", row.received_on.strftime("%d %b %Y")), ("Mode", row.mode.replace("_", " ").title()),
+            ("Reference", row.reference or "—"), ("Donation type", row.donation_type.replace("_", " ").title()),
+            ("Purpose", row.purpose or "—"), ("Financial year", row.financial_year)]
+    if row.fcra_flag:
+        rows.append(("Foreign contribution", "Yes"))
+    table = "".join(f"<tr><th>{esc(label)}</th><td>{esc(value)}</td></tr>" for label, value in rows)
+    page = (f'<!doctype html><html lang="en-IN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+            f'<title>{esc(receipt.receipt_number)}</title><style>body{{font:14px system-ui,sans-serif;color:#243746;max-width:760px;margin:24px auto;padding:24px}}'
+            f'header{{border-bottom:3px solid {brand["light"]["primary"]};padding-bottom:12px}}h1{{font-size:22px;margin:0 0 4px}}'
+            f'table{{width:100%;border-collapse:collapse;margin:20px 0}}th,td{{padding:8px;border:1px solid #dce3e8;text-align:start;vertical-align:top}}'
+            f'th{{background:#f5f7f9;width:34%}}footer{{color:#657584;font-size:12px;border-top:1px solid #dce3e8;padding-top:12px}}'
+            f'button{{padding:10px 14px;cursor:pointer}}@page{{size:A4;margin:14mm}}@media print{{.print-actions{{display:none}}body{{margin:0;padding:0}}}}</style></head>'
+            f'<body><div class="print-actions"><button onclick="window.print()">PDF / Print</button></div>'
+            f'<header><h1>{esc(org.name)}</h1><p>{esc(address)}</p><p>PAN {esc(org.pan or "not recorded")} · {registration_line}</p></header>'
+            f'<h2>Donation receipt</h2><table>{table}</table>'
+            f'<p>Received with thanks. Signed by an authorised signatory of {esc(org.name)}.</p>'
+            f'<footer>Issued by {esc(receipt.issued_by)} using {esc(brand["product_name"])}. '
+            f'Tax deduction eligibility depends on the donor and the rules in force; this receipt is not the Form 10BE / Form 114 certificate.'
+            f'{("<br/>" + esc(configuration.support_email)) if configuration.support_email else ""}</footer></body></html>')
+    audit(db, tenant_id, user, "DONATION_RECEIPT_PRINTED", "Donation", row.id, f"Receipt {receipt.receipt_number} opened for printing")
+    db.commit()
+    return Response(page, media_type="text/html", headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-store",
+                    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"})
+
+
+@router.get("/export")
+def export_year(db: DB, tenant_id: Tenant, user: CurrentUser, organization_id: str,
+                financial_year_value: str = Query(alias="financial_year", pattern=r"^[0-9]{4}-[0-9]{2}$")):
+    """Admin-only worksheet of confirmed donations for the CA. Not the portal upload format."""
+    import csv
+    import io
+    from fastapi import Response
+    org = organization(db, tenant_id, organization_id)
+    if not is_admin(db, tenant_id, user):
+        raise HTTPException(403, "Only workspace administrators can export donor identity data")
+    year = valid_year(financial_year_value)
+    rows = db.scalars(select(Donation).where(Donation.tenant_id == tenant_id, Donation.organization_id == organization_id,
+                                             Donation.financial_year == year, Donation.status == "CONFIRMED")
+                      .order_by(Donation.received_on, Donation.created_at)).all()
+    donors = {row.id: row for row in db.scalars(select(Donor).where(Donor.id.in_({r.donor_id for r in rows}))).all()} if rows else {}
+    receipts = {row.donation_id: row for row in db.scalars(select(DonationReceipt).where(
+        DonationReceipt.donation_id.in_([r.id for r in rows]))).all()} if rows else {}
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Receipt number", "Date received", "Donor name", "Donor type", "Identity type", "Identity number",
+                     "Donor address", "Donation type", "Mode", "Amount (INR)", "Currency", "Foreign contribution", "Reference"])
+    def safe(value: str) -> str:  # stop spreadsheet formula injection
+        return "'" + value if value[:1] in ("=", "+", "-", "@") else value
+    for row in rows:
+        donor = donors[row.donor_id]
+        writer.writerow([receipts[row.id].receipt_number if row.id in receipts else "", row.received_on.isoformat(), safe(donor.name),
+                         donor.donor_type, donor.id_type, decrypt(donor.id_cipher), safe(donor.address), row.donation_type, row.mode,
+                         f"{row.amount_paise / 100:.2f}", row.currency, "Yes" if row.fcra_flag else "No", safe(row.reference)])
+    audit(db, tenant_id, user, "DONATION_EXPORTED", "Organization", organization_id,
+          f"Donation worksheet for {year} exported with {len(rows)} rows (includes identity numbers)")
+    db.commit()
+    filename = f"donations-{year}-{org.name[:40]}".replace(" ", "-")
+    filename = re.sub(r"[^A-Za-z0-9._-]", "", filename) + ".csv"
+    return Response("﻿" + output.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"})

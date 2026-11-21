@@ -49,7 +49,12 @@ test("donation register records, confirms and receipts a donation and prepares t
   await expect(row.getByText(/RCPT\/\d{4}-\d{2}\/0001/)).toBeVisible();
   await expect(page.getByRole("alert").filter({ hasText: "80G registration is not active and verified" })).toBeVisible();
 
+  const printHref = await row.getByRole("link", { name: "Print receipt", exact: true }).getAttribute("href");
+  const printed = await page.request.get(printHref!);
+  expect(printed.status()).toBe(200);
+  expect(await printed.text()).toContain("Donation receipt");
   await page.getByRole("tab", { name: "Yearly statement", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Download worksheet for the CA (CSV)", exact: true })).toBeVisible();
   await expect(page.getByText("Confirmed donations", { exact: true })).toBeVisible();
   await expect(page.getByText("Every donor has an identity number and address.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Prepare statement and create tasks", exact: true }).click();

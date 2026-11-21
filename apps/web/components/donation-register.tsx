@@ -143,7 +143,7 @@ export default function DonationRegister({ organizationId, user, documents }: { 
           <td>{money(item.amount_paise, item.currency)}<br /><small>{t(`types.${item.donation_type}`)}</small></td>
           <td>{t(`modes.${item.mode}`)}{item.bank_account_label && <><br /><small>{item.bank_account_label}</small></>}</td>
           <td><span>{t(`statuses.${item.status}`)}</span><br /><small>{item.status === "REVERSED" ? item.reversal_reason : item.confirmed_by ? t("confirmedBy", { name: item.confirmed_by }) : t("recordedBy", { name: item.created_by_name })}</small></td>
-          <td>{item.receipt ? item.receipt.receipt_number : "—"}</td>
+          <td>{item.receipt ? <>{item.receipt.receipt_number}<br /><a className="text-button" href={`/api/v1/donations/${item.id}/receipt/print`} target="_blank" rel="noopener noreferrer">{t("printReceipt")}</a></> : "—"}</td>
           <td>{item.warnings.length ? <ul className="plain-list">{item.warnings.map((code) => <li key={code}>{t(`warnings.${code}`)}</li>)}</ul> : t("noIssues")}</td>
           <td>{canWrite && <div className="organization-actions">
             {item.status === "DRAFT" && <><button type="button" className="text-button" disabled={busy} onClick={() => void act(`/donations/${item.id}/confirm`, "POST")}>{t("confirm")}</button>
@@ -197,6 +197,7 @@ export default function DonationRegister({ organizationId, user, documents }: { 
           ["reversedCount", statement.totals.reversed_count], ["foreignCount", statement.totals.foreign_count], ["cashAboveLimit", statement.totals.cash_above_limit]] as Array<[string, string | number]>)
           .map(([key, value]) => <article className="report-metric" key={key}><span>{t(`totals.${key}`)}</span><strong>{value}</strong></article>)}
       </div>
+      {admin && statement.totals.confirmed_count > 0 && <p><a className="button secondary" href={`/api/v1/donations/export?${scope}&financial_year=${year}`} download>{t("downloadWorksheet")}</a><br /><small className="muted">{t("worksheetHelp")}</small></p>}
       {statement.totals.draft_count > 0 && <p className="auth-alert error">{t("draftsPending", { count: statement.totals.draft_count })}</p>}
       <h4>{t("donorGaps")}</h4>
       {statement.donor_issues.length ? <ul className="plain-list">{statement.donor_issues.map((item) => <li key={item.donor_id}><strong>{item.donor_name}</strong>: {item.missing.map((code) => t(`missing.${code}`)).join(", ")}</li>)}</ul> : <p>{t("noGaps")}</p>}

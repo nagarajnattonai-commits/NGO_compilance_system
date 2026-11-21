@@ -201,3 +201,31 @@ def test_disabled_entitlement_blocks_the_register():
                 for row in db.scalars(select(TenantEntitlement).where(TenantEntitlement.feature_key == "donation_register")).all():
                     db.delete(row)
                 db.commit()
+
+
+def test_printable_receipt_and_admin_only_export():
+    with ExitStack() as stack:
+        admin, _ = stack.enter_context(portfolio_client("ADMIN"))
+        member, member_user = stack.enter_context(portfolio_client("MEMBER"))
+        with SessionLocal() as db:
+            grant(db, member_user, ORG, "MANAGER")
+            db.commit()
+        pan = "AAKPX" + str(1000 + int(uuid4().int % 8999)) + "M"
+        person = donor(admin, name="=HYPERLINK(evil)<b>", id_type="PAN", id_number=pan)
+        entry = donation(admin, person["id"], date(2019, 8, 1), amount=12_345_67, reference="UTR-1")
+        assert admin.get(f"/api/v1/donations/{entry['id']}/receipt/print").status_code == 409
+        ok(admin.post(f"/api/v1/donations/{entry['id']}/confirm"))
+        number = ok(admin.post(f"/api/v1/donations/{entry['id']}/receipt", json={}), 201)["receipt"]["receipt_number"]
+        page = member.get(f"/api/v1/donations/{entry['id']}/receipt/print")
+        assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
+        assert number in page.text and "INR 12,345.67" in page.text and f"PAN ending {pan[-4:]}" in page.text
+        assert pan not in page.text and "<b>" not in page.text and "&lt;b&gt;" in page.text
+        assert "script-src 'unsafe-inline'" in page.headers["content-security-policy"]
+
+        assert member.get("/api/v1/donations/export", params={"organization_id": ORG, "financial_year": "2019-20"}).status_code == 403
+        export = admin.get("/api/v1/donations/export", params={"organization_id": ORG, "financial_year": "2019-20"})
+        assert export.status_code == 200 and "attachment" in export.headers["content-disposition"]
+        assert pan in export.text and number in export.text and "'=HYPERLINK(evil)<b>" in export.text
+        with SessionLocal() as db:
+            actions = set(db.scalars(select(AuditEvent.action).where(AuditEvent.action.in_(["DONATION_EXPORTED", "DONATION_RECEIPT_PRINTED"]))).all())
+        assert actions == {"DONATION_EXPORTED", "DONATION_RECEIPT_PRINTED"}

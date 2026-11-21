@@ -146,6 +146,9 @@
       "REGISTRATION_80G_NOT_ACTIVE_AND_VERIFIED": "Receipt issued, but the 80G registration is not active and verified",
       "REGISTRATION_80G_EXPIRED_ON_DATE": "Receipt issued, but the 80G registration had expired on the donation date"
     },
-    "receiptIssued": "Receipt issued."
+    "receiptIssued": "Receipt issued.",
+    "printReceipt": "Print receipt",
+    "downloadWorksheet": "Download worksheet for the CA (CSV)",
+    "worksheetHelp": "Includes full identity numbers, so only administrators can download it and each download is logged. It is a review worksheet, not the portal upload file."
   }
 }
