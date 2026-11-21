@@ -12,6 +12,9 @@ const common = {
   APP_ENV: "development",
   APP_ORIGIN: "http://localhost:3001",
   AUTH_SIGNUP_RATE_LIMIT: "100",
+  // Every scenario signs in from 127.0.0.1 through the dev proxy, so the whole suite
+  // shares one per-IP bucket. Raise it for this isolated QA API only; the limit stays on.
+  AUTH_LOGIN_IP_RATE_LIMIT: "1000",
   BRAND_PROXY_KEY: "setu-development-proxy",
   PLATFORM_ADMIN_EMAILS: "white-label-qa@example.test",
 };
