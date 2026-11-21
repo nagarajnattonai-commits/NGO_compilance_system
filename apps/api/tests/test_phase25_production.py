@@ -24,6 +24,7 @@ def production_values():
         "PLATFORM_ADMIN_EMAILS": "operator@example.org", "PLATFORM_HOSTS": "app.example.org",
         "WHITE_LABEL_CNAME_TARGET": "edge.example.org", "BRAND_S3_BUCKET": "private-brand-assets",
         "DOCUMENT_S3_BUCKET": "private-documents", "INTEGRATION_SECRET_BACKEND": "aws",
+        "SETU_FIELD_ENCRYPTION_KEY": "dGVzdC1vbmx5LWZpZWxkLWtleS0zMi1ieXRlcy0hISE=",
     }
 
 

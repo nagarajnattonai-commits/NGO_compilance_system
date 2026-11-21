@@ -116,6 +116,7 @@
     "historyLoading": "ಪ್ರೊಫೈಲ್ ಇತಿಹಾಸ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
     "historyChange": "{old} → {new}",
     "historyBy": "{name} · {date}",
-    "emptyValue": "(ಖಾಲಿ)"
+    "emptyValue": "(ಖಾಲಿ)",
+    "donations": "ದೇಣಿಗೆಗಳು"
   }
 }

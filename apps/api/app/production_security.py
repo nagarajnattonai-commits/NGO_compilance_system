@@ -25,6 +25,9 @@ def validate_production_configuration(environment=None) -> None:
         raise RuntimeError("Production requires an explicit PostgreSQL DATABASE_URL")
     if not values.get("PLATFORM_ADMIN_EMAILS", "").strip():
         raise RuntimeError("Production requires a platform administrator allowlist")
+    from .field_crypto import valid_key
+    if not valid_key(values.get("SETU_FIELD_ENCRYPTION_KEY", "")):
+        raise RuntimeError("Production requires a valid SETU_FIELD_ENCRYPTION_KEY for identity numbers")
     if values.get("INTEGRATION_SECRET_BACKEND") != "aws":
         raise RuntimeError("Production requires the AWS integration secret store")
     if not values.get("PLATFORM_HOSTS", "").strip():

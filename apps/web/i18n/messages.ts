@@ -26,6 +26,7 @@ export const messageModules = [
   "portfolio",
   "portfolioImport",
   "csr",
+  "donations",
 ] as const;
 export type MessageModule = (typeof messageModules)[number];
 
@@ -57,6 +58,7 @@ const loaders = {
       import("../messages/en-IN/portfolio.json"),
       import("../messages/en-IN/portfolio-import.json"),
       import("../messages/en-IN/csr.json"),
+      import("../messages/en-IN/donations.json"),
     ]),
   "hi-IN": () =>
     Promise.all([
@@ -85,6 +87,7 @@ const loaders = {
       import("../messages/hi-IN/portfolio.json"),
       import("../messages/hi-IN/portfolio-import.json"),
       import("../messages/hi-IN/csr.json"),
+      import("../messages/hi-IN/donations.json"),
     ]),
   "kn-IN": () =>
     Promise.all([
@@ -113,6 +116,7 @@ const loaders = {
       import("../messages/kn-IN/portfolio.json"),
       import("../messages/kn-IN/portfolio-import.json"),
       import("../messages/kn-IN/csr.json"),
+      import("../messages/kn-IN/donations.json"),
     ]),
   "mr-IN": () =>
     Promise.all([
@@ -141,6 +145,7 @@ const loaders = {
       import("../messages/mr-IN/portfolio.json"),
       import("../messages/mr-IN/portfolio-import.json"),
       import("../messages/mr-IN/csr.json"),
+      import("../messages/mr-IN/donations.json"),
     ]),
 } satisfies Record<
   AppLocale,

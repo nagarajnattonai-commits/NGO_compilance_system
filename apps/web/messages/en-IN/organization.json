@@ -116,6 +116,7 @@
     "historyLoading": "Loading profile history…",
     "historyChange": "{old} → {new}",
     "historyBy": "{name} · {date}",
-    "emptyValue": "(empty)"
+    "emptyValue": "(empty)",
+    "donations": "Donations"
   }
 }

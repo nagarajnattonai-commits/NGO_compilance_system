@@ -116,6 +116,7 @@
     "historyLoading": "प्रोफाइल इतिहास लोड होत आहे…",
     "historyChange": "{old} → {new}",
     "historyBy": "{name} · {date}",
-    "emptyValue": "(रिकामे)"
+    "emptyValue": "(रिकामे)",
+    "donations": "देणग्या"
   }
 }
