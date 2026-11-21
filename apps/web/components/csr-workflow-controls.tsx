@@ -9,7 +9,7 @@ import { useState, type FormEvent } from "react";
 import { apiRequest } from "@/lib/http";
 import type { ComplianceDocument, ComplianceTask } from "@/lib/types";
 
-export type CsrPartner = { id:string; organization_id:string; organization_name:string; status:string; review_status:string; profile_completeness:number; active_projects:number; open_reviews:number; requires_attention:boolean; can_manage?:boolean; can_grant_collaborators?:boolean; shared_notes?:string; internal_notes?:string; collaboration_enabled?:boolean };
+export type CsrPartner = { id:string; organization_id:string; organization_name:string; status:string; review_status:string; profile_completeness:number; active_projects:number; open_reviews:number; requires_attention:boolean; expiring_registrations?:number; compliance_summary?:{total:number;open:number;overdue:number}; can_manage?:boolean; can_grant_collaborators?:boolean; shared_notes?:string; internal_notes?:string; collaboration_enabled?:boolean };
 export type CsrProject = { id:string; relationship_id:string; name:string; code:string; status:string; shared_with_ngo:boolean; description?:string; internal_notes?:string };
 type Evidence = { id:string; document_id?:string; document_name:string; version:number; expired?:boolean; intelligence?:{notice:string;facts:Array<{type:string;value:string;status:string}>} };
 export type CsrItem = { id:string; title:string; description?:string; category?:string; requirement_type?:string; required?:boolean; status:string; response:string; reviewer_comment?:string; internal_notes?:string; allowed_statuses?:string[]; evidence:Evidence[]; tasks?:Array<{id:string;title:string;status:string}> };

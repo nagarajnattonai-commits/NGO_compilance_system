@@ -65,7 +65,48 @@ def portfolio_dashboard(db, tenant_id: str, user, horizon_days: int = 30) -> dic
         "organizations_requiring_attention": len(attention),
         "registrations_expiring": len(expiring_registration_orgs),
     })
+    analytics["team_workload"] = team_workload(db, tenant_id, organization_ids, today)
+    analytics["review_queue"] = review_queue(db, tenant_id, organization_ids, today)
     return analytics
+
+
+def team_workload(db, tenant_id: str, organization_ids: set[str], today: date) -> list[dict]:
+    """Open tasks per assignee across the organizations this user can see."""
+    if not organization_ids:
+        return []
+    week_end = today + timedelta(days=7)
+    rows = db.execute(select(
+        Task.assignee_user_id, Task.assignee_name, func.count(Task.id),
+        func.sum(case((Task.due_at < today, 1), else_=0)),
+        func.sum(case((Task.due_at.between(today, week_end), 1), else_=0)),
+        func.count(func.distinct(Task.organization_id)),
+    ).where(
+        Task.tenant_id == tenant_id, Task.organization_id.in_(organization_ids),
+        Task.archived_at.is_(None), Task.status != "DONE",
+    ).group_by(Task.assignee_user_id, Task.assignee_name)).all()
+    workload = [{
+        "assignee_user_id": user_id, "assignee": name or "", "open_tasks": count,
+        "overdue_tasks": int(overdue or 0), "due_this_week": int(week or 0), "organizations": orgs,
+    } for user_id, name, count, overdue, week, orgs in rows]
+    return sorted(workload, key=lambda row: (-row["overdue_tasks"], -row["open_tasks"], row["assignee"]))
+
+
+def review_queue(db, tenant_id: str, organization_ids: set[str], today: date, limit: int = 25) -> dict:
+    """Compliances waiting on a reviewer or ready to file, earliest deadline first."""
+    if not organization_ids:
+        return {"items": [], "total": 0}
+    filters = (Compliance.tenant_id == tenant_id, Compliance.organization_id.in_(organization_ids),
+               Compliance.status.in_(("UNDER_REVIEW", "READY_TO_FILE")))
+    total = db.scalar(select(func.count(Compliance.id)).where(*filters)) or 0
+    rows = db.execute(select(Compliance, Organization.name).join(
+        Organization, and_(Organization.id == Compliance.organization_id, Organization.tenant_id == Compliance.tenant_id),
+    ).where(*filters).order_by(Compliance.statutory_deadline, Compliance.id).limit(limit)).all()
+    return {"total": total, "items": [{
+        "id": item.id, "organization_id": item.organization_id, "organization_name": name, "code": item.code,
+        "title": item.title, "owner": item.owner_name, "status": item.status,
+        "deadline": item.statutory_deadline.isoformat() if item.statutory_deadline else None,
+        "days_remaining": (item.statutory_deadline - today).days if item.statutory_deadline else None,
+    } for item, name in rows]}
 
 
 def organization_directory(db, tenant_id: str, user, *, query: str = "", status: str | None = None,

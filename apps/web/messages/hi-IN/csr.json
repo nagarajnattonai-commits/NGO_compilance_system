@@ -37,6 +37,13 @@
     "createTemplate": "टेम्पलेट बनाएँ",
     "requirements": "आवश्यकताएँ",
     "reviewTitle": "समीक्षा शीर्षक",
-    "startReview": "समीक्षा शुरू करें"
+    "startReview": "समीक्षा शुरू करें",
+    "changesRequested": "बदलाव मांगे गए",
+    "expiringEvidence": "समाप्त हो रहे पंजीकरण",
+    "attentionTitle": "ध्यान देने योग्य साझेदार",
+    "attentionHelp": "खुली ड्यू-डिलिजेंस समीक्षा या जल्द समाप्त होने वाले पंजीकरण वाले साझेदार। ये आपके रिकॉर्ड के तथ्य हैं, जोखिम रेटिंग नहीं।",
+    "openReviewsColumn": "खुली समीक्षाएं",
+    "expiringRegistrations": "समाप्त हो रहे पंजीकरण",
+    "overdueCompliances": "विलंबित अनुपालन"
   }
 }

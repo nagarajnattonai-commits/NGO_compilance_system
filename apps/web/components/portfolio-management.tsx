@@ -10,7 +10,9 @@ import { formatShortDate } from "@/i18n/format";
 import type { Membership, Organization } from "@/lib/types";
 
 type Summary = Record<string, number>;
-type Dashboard = { summary: Summary };
+type Workload = { assignee_user_id: string | null; assignee: string; open_tasks: number; overdue_tasks: number; due_this_week: number; organizations: number };
+type ReviewItem = { id: string; organization_id: string; organization_name: string; code: string; title: string; owner: string; status: string; deadline: string | null; days_remaining: number | null };
+type Dashboard = { summary: Summary; team_workload?: Workload[]; review_queue?: { items: ReviewItem[]; total: number } };
 type Client = {
   id: string; name: string; legal_type: string; status: string; city: string; primary_contact: string;
   compliance_count: number; overdue: number; upcoming: number; open_tasks: number;
@@ -110,13 +112,26 @@ export default function PortfolioManagement({
     ["organizations", dashboard.summary.organizations || 0], ["activeCompliances", dashboard.summary.active_compliances || 0],
     ["overdue", dashboard.summary.overdue || 0], ["incompleteTasks", dashboard.summary.incomplete_tasks || 0],
     ["underReview", dashboard.summary.under_review || 0], ["attention", dashboard.summary.organizations_requiring_attention || 0],
+    ["readyToFile", dashboard.summary.ready_to_file || 0], ["registrationsExpiring", dashboard.summary.registrations_expiring || 0],
   ];
+  const workload = dashboard.team_workload || [];
+  const reviewQueue = dashboard.review_queue || { items: [], total: 0 };
   const activeMembers = memberships.filter((member) => member.status === "ACTIVE" && member.role !== "VIEWER");
   return <section className="management-dashboard" aria-label={t("title")}>
     <div className="page-heading"><div><span className="eyebrow">{t("eyebrow")}</span><h1>{t("title")}</h1><p>{t("description")}</p></div></div>
     {error && <div className="report-error" role="alert">{error}</div>}
     {message && <div className="auth-alert success" role="status">{message}</div>}
     <div className="report-metrics">{metrics.map(([key, value]) => <article className="report-metric" key={key}><span>{t(`metrics.${key}`)}</span><strong>{value}</strong></article>)}</div>
+
+    <section className="card report-deadline-panel"><div className="report-section-heading"><div><h2>{t("reviewQueue")}</h2><p>{t("reviewQueueHelp", { count: reviewQueue.total })}</p></div></div>
+      <div className="report-table-scroll"><table className="report-table"><thead><tr><th>{t("compliance")}</th><th>{t("organization")}</th><th>{t("owner")}</th><th>{t("due")}</th><th>{t("daysRemaining")}</th><th>{t("status")}</th></tr></thead><tbody>{reviewQueue.items.map((item) => <tr key={item.id}><td><button className="report-record-link" type="button" onClick={() => onOpenCompliance(item.id)}>{item.code} · {item.title}</button></td><td>{item.organization_name}</td><td>{item.owner || t("unassigned")}</td><td>{item.deadline ? formatShortDate(item.deadline) : "—"}</td><td>{item.days_remaining ?? "—"}</td><td>{localizedStatus(item.status, uiText)}</td></tr>)}</tbody></table></div>
+      {!reviewQueue.items.length && <p className="muted">{t("emptyReviewQueue")}</p>}
+    </section>
+
+    <section className="card report-deadline-panel"><div className="report-section-heading"><div><h2>{t("teamWorkload")}</h2><p>{t("teamWorkloadHelp")}</p></div></div>
+      <div className="report-table-scroll"><table className="report-table"><thead><tr><th>{t("assignee")}</th><th>{t("openTasks")}</th><th>{t("overdue")}</th><th>{t("dueThisWeek")}</th><th>{t("clientsCovered")}</th></tr></thead><tbody>{workload.map((row) => <tr key={row.assignee_user_id || row.assignee || "unassigned"}><td>{row.assignee || t("unassigned")}</td><td>{row.open_tasks}</td><td>{row.overdue_tasks}</td><td>{row.due_this_week}</td><td>{row.organizations}</td></tr>)}</tbody></table></div>
+      {!workload.length && <p className="muted">{t("emptyWorkload")}</p>}
+    </section>
 
     <section className="card report-organization-panel">
       <div className="report-section-heading"><div><h2>{t("clients")}</h2><p>{t("clientsHelp", { count: clients.total })}</p></div></div>
